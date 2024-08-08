@@ -37,8 +37,6 @@ private:
     VECTOR scale;
     MATRIX matrix;
 
-    POLY_G3* polyg3{nullptr};
-
     int CENTERX{SCREENXRES / 2};
     int CENTERY{SCREENYRES / 2};
 };

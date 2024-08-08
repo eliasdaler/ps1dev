@@ -13,12 +13,8 @@ target_include_directories(nugget PRIVATE
   ${NUGGET_PATH}
 )
 
-target_compile_options(nugget PRIVATE
-  -fno-pic
-  -mno-abicalls
-)
-
 target_include_directories(nugget INTERFACE
+  "${NUGGET_PATH}"
   "${NUGGET_PATH}/include"
 )
 
@@ -72,6 +68,5 @@ set(PSYQ_LIBS
 target_link_libraries(psyq INTERFACE
   "$<LINK_GROUP:RESCAN,${PSYQ_LIBS}>"
 )
-
 
 add_library(psyq::psyq ALIAS psyq)

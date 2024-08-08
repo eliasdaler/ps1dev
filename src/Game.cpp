@@ -129,15 +129,18 @@ void Game::drawCube(const TMESH& cube)
     SetRotMatrix(&matrix);
     SetTransMatrix(&matrix);
 
-    long p, otz, flags;
     for (int i = 0; i < cube.len * 3; i += 3) {
-        polyg3 = (POLY_G3*)nextpri;
-        SetPolyG3(polyg3);
+        const auto polyg3 = (POLY_G3*)nextpri;
+        setPolyG3(polyg3);
 
-        setRGB0(polyg3, cube.c[i].r, cube.c[i].g, cube.c[i].b);
-        setRGB1(polyg3, cube.c[i + 2].r, cube.c[i + 2].g, cube.c[i + 2].b);
-        setRGB2(polyg3, cube.c[i + 1].r, cube.c[i + 1].g, cube.c[i + 1].b);
+        const auto c0 = cube.c[i];
+        const auto c1 = cube.c[i + 2];
+        const auto c2 = cube.c[i + 1];
+        setRGB0(polyg3, c0.r, c0.g, c0.b);
+        setRGB1(polyg3, c1.r, c1.g, c1.b);
+        setRGB2(polyg3, c2.r, c2.g, c2.b);
 
+        long p, otz, flags;
         const auto nclip = RotAverageNclip3(
             &modelCube_mesh[modelCube_index[i]],
             &modelCube_mesh[modelCube_index[i + 2]],
