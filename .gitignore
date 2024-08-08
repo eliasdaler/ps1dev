@@ -1,0 +1,13 @@
+# TODO: remove when PCSX-redux gets ability to not create its configs in runtime dir
+memcard1.mcd
+memcard2.mcd
+offscreen.frag
+offscreen.lua
+offscreen.vert
+output.frag
+output.lua
+output.vert
+pcsx.json
+
+build/
+.cache/
