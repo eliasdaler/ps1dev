@@ -31,8 +31,14 @@ Run:
 pcsx-redux -exe build/game.ps-exe -run
 ```
 
-Run game and debug in gdb:
+Or just
 
 ```sh
-./run_and_debug_game.sh
+./run.sh
+```
+
+Run game and debug in gdb (you will need to add repo's path to your GDB's `safe-path`):
+
+```sh
+./debug.sh
 ```
