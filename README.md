@@ -9,7 +9,8 @@ For now, only Linux build is supported.
 1. [PCSX-Redux](https://github.com/grumpycoders/pcsx-redux)
 2. CMake
 3. gdb-multiarch
-3. MIPS toolchain
+3. GCC MIPS toolchain
+4. Download PsyQ converted libs from [here](http://psx.arthus.net/sdk/Psy-Q/psyq-4.7-converted-full.7z) and put it in `<cloned_repo_dir>/../psyq`. Alternatively you can set the PsyQ dir via `-DPSYQ_DIR` when generating CMake files.
 
 ```sh
 sudo apt-get install gdb-multiarch gcc-mipsel-linux-gnu g++-mipsel-linux-gnu binutils-mipsel-linux-gnu
@@ -27,7 +28,7 @@ cmake --build --preset=default
 Run:
 
 ```sh
-pcsx-redux -exe build_test/game.ps-exe -run
+pcsx-redux -exe build/game.ps-exe -run
 ```
 
 Run game and debug in gdb:

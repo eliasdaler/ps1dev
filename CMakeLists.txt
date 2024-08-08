@@ -10,6 +10,7 @@ project(
 
 set(PSYQ_DIR "${CMAKE_CURRENT_LIST_DIR}/../psyq" CACHE PATH "Location of PsyQ libraries")
 
+
 add_subdirectory(third_party)
 
 set(NUGGET_DIR "${CMAKE_CURRENT_LIST_DIR}/third_party/nugget/")
@@ -21,6 +22,7 @@ add_executable(game
   src/Game.cpp
   src/main.cpp
 )
+
 
 target_include_directories(game PRIVATE "${NUGGET_DIR}" "${PSYQO_DIR}")
 

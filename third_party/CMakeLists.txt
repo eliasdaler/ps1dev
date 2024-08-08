@@ -35,8 +35,9 @@ if (NOT EXISTS "${PSYQ_DIR}")
   message(FATAL_ERROR "${PSYQ_DIR} doesn't exist - set the location of psyq libs via PSYQ_DIR parameter")
 endif()
 
+# Note that we're using psyq-iwyu here, not ${PSYQ_DIR}/include
 target_include_directories(psyq INTERFACE
-  "${PSYQ_DIR}/include"
+  "${CMAKE_CURRENT_LIST_DIR}/psyq-iwyu/include"
 )
 
 target_link_directories(psyq INTERFACE
