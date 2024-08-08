@@ -7,22 +7,24 @@
 
 void Game::init()
 {
-    // Reset the GPU before doing anything and the controller
     PadInit(0);
     ResetGraph(0);
 
-    // Initialize and setup the GTE
     InitGeom();
-    SetGeomOffset(CENTERX, CENTERY); // x, y offset
-    SetGeomScreen(CENTERX); // Distance between eye and screen
+    SetGeomOffset(CENTERX, CENTERY);
+    SetGeomScreen(CENTERX);
 
-    // Set the display and draw environments
     SetDefDispEnv(&dispEnv[0], 0, 0, SCREENXRES, SCREENYRES);
-    SetDefDispEnv(&dispEnv[1], 0, SCREENYRES, SCREENXRES, SCREENYRES);
     SetDefDrawEnv(&drawEnv[0], 0, SCREENYRES, SCREENXRES, SCREENYRES);
+
+    SetDefDispEnv(&dispEnv[1], 0, SCREENYRES, SCREENXRES, SCREENYRES);
     SetDefDrawEnv(&drawEnv[1], 0, 0, SCREENXRES, SCREENYRES);
 
     printf("Hello from printf!\n");
+
+    int* x = new int(42);
+    printf("Test int: %d\n", *x);
+    delete x;
 
     bool palMode = false;
     if (palMode) {
@@ -41,7 +43,6 @@ void Game::init()
     PutDispEnv(&dispEnv[currBuffer]);
     PutDrawEnv(&drawEnv[currBuffer]);
 
-    // Init font system
     FntLoad(960, 0);
     FntOpen(16, 16, 196, 64, 0, 256);
 
@@ -102,8 +103,8 @@ void Game::handleInput()
 void Game::update()
 {
     if (autoRotate) {
-        rotation.vy += 28; // Pan
-        rotation.vx += 28; // Tilt
+        rotation.vy += 28;
+        rotation.vx += 28;
     }
 }
 
