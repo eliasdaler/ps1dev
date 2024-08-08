@@ -12,16 +12,17 @@ set(PSYQ_DIR "${CMAKE_CURRENT_LIST_DIR}/../psyq" CACHE PATH "Location of PsyQ li
 
 add_subdirectory(third_party)
 
-add_executable(hello_cube
-  hello_cube/hello_cube.cpp
+add_executable(game
+  src/Game.cpp
+  src/main.cpp
 )
 
-target_link_libraries(hello_cube PRIVATE
+target_link_libraries(game PRIVATE
   nugget::nugget
   psyq::psyq
 )
 
-target_compile_options(hello_cube PRIVATE
+target_compile_options(game PRIVATE
   -ffunction-sections
   -fdata-sections
   -mno-gpopt
@@ -44,17 +45,17 @@ target_compile_options(hello_cube PRIVATE
   -fno-rtti
 )
 
-target_link_options(hello_cube PRIVATE
+target_link_options(game PRIVATE
   -static
   -nostdlib
   -Wl,--gc-sections
   -Wl,--oformat=elf32-tradlittlemips
 )
 
-add_custom_command(TARGET hello_cube
+add_custom_command(TARGET game
   POST_BUILD
-  COMMENT "Making hello_cube.ps-exe..."
+  COMMENT "Making game.ps-exe..."
   COMMAND
-    ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:hello_cube> hello_cube.ps-exe
+    ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:game> game.ps-exe
 )
 
