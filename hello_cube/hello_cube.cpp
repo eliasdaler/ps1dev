@@ -9,50 +9,60 @@
         Up/Down/Left/Right              - Rotate object (XZ/YZ).
         Triangle/Cross/Square/Circle    - Move object up/down/left/right.
 */
+
 #include <sys/types.h>
-
 #include <libgte.h>
-
 #include <libgpu.h>
-
 #include <libetc.h>
 
 #include <stdio.h>
+
 // Sample vector model
-#include "cube.c"
+#include "cube.h"
+
+/* C++ header tests...
 
 #include <cstdint>
 
 typedef void* __gnuc_va_list;
 #define __time_t_defined
 #include <memory>
-#include <type_traits>
 
-constexpr auto VMODE = 0;
-constexpr auto SCREENXRES = 320;
-constexpr auto SCREENYRES = 240;
-#define CENTERX SCREENXRES / 2
-#define CENTERY SCREENYRES / 2
-#define OTLEN 2048 // Maximum number of OT entries
-#define PRIMBUFFLEN 32768 // Maximum number of POLY_GT3 primitives
-// Display and draw environments, double buffered
+*/
+
+namespace
+{
+constexpr bool VMODE = false;
+constexpr int SCREENXRES = 320;
+constexpr int SCREENYRES = 240;
+constexpr int CENTERX = SCREENXRES / 2;
+constexpr int CENTERY = SCREENYRES / 2;
+
+constexpr int OTLEN = 2048;
+constexpr int PRIMBUFFLEN = 32768;
+
 DISPENV disp[2];
 DRAWENV draw[2];
-u_long ot[2][OTLEN]; // Ordering table (contains addresses to primitives)
-char primbuff[2][PRIMBUFFLEN]; // Primitive list // That's our prim buffer
-char* nextpri = primbuff[0]; // Primitive counter
-short db = 0; // Current buffer counter
+
+u_long ot[2][OTLEN];
+char primbuff[2][PRIMBUFFLEN];
+char* nextpri = primbuff[0];
+short currBuffer = 0;
+
+} // end of anonymous namespace
 
 void init()
 {
     // Reset the GPU before doing anything and the controller
     PadInit(0);
     ResetGraph(0);
+
     // Initialize and setup the GTE
     InitGeom();
     SetGeomOffset(CENTERX, CENTERY); // x, y offset
     SetGeomScreen(CENTERX); // Distance between eye and screen
-                            // Set the display and draw environments
+
+    // Set the display and draw environments
     SetDefDispEnv(&disp[0], 0, 0, SCREENXRES, SCREENYRES);
     SetDefDispEnv(&disp[1], 0, SCREENYRES, SCREENXRES, SCREENYRES);
     SetDefDrawEnv(&draw[0], 0, SCREENYRES, SCREENXRES, SCREENYRES);
@@ -65,13 +75,17 @@ void init()
         disp[0].screen.y += 8;
         disp[1].screen.y += 8;
     }
+
     SetDispMask(1); // Display on screen
+
     setRGB0(&draw[0], 0, 128, 255);
     setRGB0(&draw[1], 0, 128, 255);
     draw[0].isbg = 1;
     draw[1].isbg = 1;
-    PutDispEnv(&disp[db]);
-    PutDrawEnv(&draw[db]);
+
+    PutDispEnv(&disp[currBuffer]);
+    PutDrawEnv(&draw[currBuffer]);
+
     // Init font system
     FntLoad(960, 0);
     FntOpen(16, 16, 196, 64, 0, 256);
@@ -81,104 +95,109 @@ void display(void)
 {
     DrawSync(0);
     VSync(0);
-    PutDispEnv(&disp[db]);
-    PutDrawEnv(&draw[db]);
-    DrawOTag(&ot[db][OTLEN - 1]);
-    db = !db;
-    nextpri = primbuff[db];
+    PutDispEnv(&disp[currBuffer]);
+    PutDrawEnv(&draw[currBuffer]);
+    DrawOTag(&ot[currBuffer][OTLEN - 1]);
+    currBuffer = !currBuffer;
+    nextpri = primbuff[currBuffer];
 }
 
 int main()
 {
-    int i;
-    int PadStatus;
-    int TPressed = 0;
-    int AutoRotate = 1;
-    long t, p, OTz, Flag; // t == vertex count, p == depth cueing interpolation value, OTz ==  value
-                          // to create Z-ordered OT, Flag == see LibOver47.pdf, p.143
-    POLY_G3* poly = {0}; // pointer to a POLY_G4
-    SVECTOR Rotate = {232, 232, 0, 0}; // Rotation coordinates
-    VECTOR Trans = {0, 0, CENTERX * 3, 0}; // Translation coordinates
-                                           // Scaling coordinates
-    VECTOR Scale = {ONE / 2, ONE / 2, ONE / 2, 0}; // ONE == 4096
-    MATRIX Matrix = {0}; // Matrix data for the GTE
+    bool startPressed = false;
+    bool autoRotate = true;
+
+    auto rotation = SVECTOR{232, 232, 0, 0};
+    auto translation = VECTOR{0, 0, CENTERX * 3, 0};
+    auto scale = VECTOR{ONE / 2, ONE / 2, ONE / 2, 0};
+    auto matrix = MATRIX{};
+
     init();
 
     // Main loop
-    while (1) {
+    while (true) {
         // Read pad status
-        PadStatus = PadRead(0);
-        if (AutoRotate == 0) {
-            if (PadStatus & PADL1) Trans.vz -= 4;
-            if (PadStatus & PADR1) Trans.vz += 4;
-            if (PadStatus & PADL2) Rotate.vz -= 8;
-            if (PadStatus & PADR2) Rotate.vz += 8;
-            if (PadStatus & PADLup) Rotate.vx -= 8;
-            if (PadStatus & PADLdown) Rotate.vx += 8;
-            if (PadStatus & PADLleft) Rotate.vy -= 8;
-            if (PadStatus & PADLright) Rotate.vy += 8;
-            if (PadStatus & PADRup) Trans.vy -= 2;
-            if (PadStatus & PADRdown) Trans.vy += 2;
-            if (PadStatus & PADRleft) Trans.vx -= 2;
-            if (PadStatus & PADRright) Trans.vx += 2;
+        const auto PadStatus = PadRead(0);
+        if (!autoRotate) {
+            if (PadStatus & PADL1) translation.vz -= 4;
+            if (PadStatus & PADR1) translation.vz += 4;
+            if (PadStatus & PADL2) rotation.vz -= 8;
+            if (PadStatus & PADR2) rotation.vz += 8;
+            if (PadStatus & PADLup) rotation.vx -= 8;
+            if (PadStatus & PADLdown) rotation.vx += 8;
+            if (PadStatus & PADLleft) rotation.vy -= 8;
+            if (PadStatus & PADLright) rotation.vy += 8;
+            if (PadStatus & PADRup) translation.vy -= 2;
+            if (PadStatus & PADRdown) translation.vy += 2;
+            if (PadStatus & PADRleft) translation.vx -= 2;
+            if (PadStatus & PADRright) translation.vx += 2;
             if (PadStatus & PADselect) {
-                Rotate.vx = Rotate.vy = Rotate.vz = 0;
-                Scale.vx = Scale.vy = Scale.vz = ONE / 2;
-                Trans.vx = Trans.vy = 0;
-                Trans.vz = CENTERX * 3;
+                rotation.vx = rotation.vy = rotation.vz = 0;
+                scale.vx = scale.vy = scale.vz = ONE / 2;
+                translation.vx = translation.vy = 0;
+                translation.vz = CENTERX * 3;
             }
         }
+
         if (PadStatus & PADstart) {
-            if (TPressed == 0) {
-                AutoRotate = (AutoRotate + 1) & 1;
-                Rotate.vx = Rotate.vy = Rotate.vz = 0;
-                Scale.vx = Scale.vy = Scale.vz = ONE / 2;
-                Trans.vx = Trans.vy = 0;
-                Trans.vz = CENTERX * 3;
+            if (!startPressed) {
+                autoRotate = (autoRotate + 1) & 1;
+                rotation.vx = rotation.vy = rotation.vz = 0;
+                scale.vx = scale.vy = scale.vz = ONE / 2;
+                translation.vx = translation.vy = 0;
+                translation.vz = CENTERX * 3;
             }
-            TPressed = 1;
+            startPressed = true;
         } else {
-            TPressed = 0;
+            startPressed = false;
         }
-        if (AutoRotate) {
-            Rotate.vy += 28; // Pan
-            Rotate.vx += 28; // Tilt
-            //~ Rotate.vz += 8; // Roll
+
+        if (autoRotate) {
+            rotation.vy += 28; // Pan
+            rotation.vx += 28; // Tilt
         }
-        // Clear the current OT
-        ClearOTagR(ot[db], OTLEN);
-        // Convert and set the matrixes
-        RotMatrix(&Rotate, &Matrix);
-        TransMatrix(&Matrix, &Trans);
-        ScaleMatrix(&Matrix, &Scale);
-        SetRotMatrix(&Matrix);
-        SetTransMatrix(&Matrix);
-        // Render the sample vector model
-        t = 0;
-        // modelCube is a TMESH, len member == # vertices, but here it's # of triangle... So, for
-        // each tri * 3 vertices ...
-        for (i = 0; i < (modelCube.len * 3); i += 3) {
-            poly = (POLY_G3*)nextpri;
-            // Initialize the primitive and set its color values
+
+        ClearOTagR(ot[currBuffer], OTLEN);
+
+        RotMatrix(&rotation, &matrix);
+        TransMatrix(&matrix, &translation);
+        ScaleMatrix(&matrix, &scale);
+        SetRotMatrix(&matrix);
+        SetTransMatrix(&matrix);
+
+        for (int i = 0; i < modelCube.len * 3; i += 3) {
+            long p, otz, flags;
+            const auto poly = (POLY_G3*)nextpri;
             SetPolyG3(poly);
+
             setRGB0(poly, modelCube.c[i].r, modelCube.c[i].g, modelCube.c[i].b);
             setRGB1(poly, modelCube.c[i + 2].r, modelCube.c[i + 2].g, modelCube.c[i + 2].b);
             setRGB2(poly, modelCube.c[i + 1].r, modelCube.c[i + 1].g, modelCube.c[i + 1].b);
-            // Rotate, translate, and project the vectors and output the results into a primitive
-            OTz = RotTransPers(&modelCube_mesh[modelCube_index[t]], (long*)&poly->x0, &p, &Flag);
-            OTz +=
-                RotTransPers(&modelCube_mesh[modelCube_index[t + 2]], (long*)&poly->x1, &p, &Flag);
-            OTz +=
-                RotTransPers(&modelCube_mesh[modelCube_index[t + 1]], (long*)&poly->x2, &p, &Flag);
-            // Sort the primitive into the OT
-            OTz /= 3;
-            if ((OTz > 0) && (OTz < OTLEN)) AddPrim(&ot[db][OTz - 2], poly);
+
+            const auto nclip = RotAverageNclip3(
+                &modelCube_mesh[modelCube_index[i]],
+                &modelCube_mesh[modelCube_index[i + 2]],
+                &modelCube_mesh[modelCube_index[i + 1]],
+                (long*)&poly->x0,
+                (long*)&poly->x1,
+                (long*)&poly->x2,
+                &p,
+                &otz,
+                &flags);
+            if (nclip <= 0) {
+                continue;
+            }
+            if ((otz > 0) && (otz < OTLEN)) {
+                addPrim(&ot[currBuffer][otz - 2], poly);
+            }
             nextpri += sizeof(POLY_G3);
-            t += 3;
         }
+
         FntPrint("Hello gouraud shaded cube!\n");
         FntFlush(-1);
+
         display();
     }
+
     return 0;
 }

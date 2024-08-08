@@ -1,3 +1,4 @@
+/* clang-format off */
 SVECTOR modelCube_mesh[] = {
     { -128,128,128 },
     { 128,128,128 },
@@ -165,3 +166,4 @@ TMESH modelCube1 = {
     modelCube1_color,
     12
 };
+/* clang-format on */
