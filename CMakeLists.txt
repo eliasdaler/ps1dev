@@ -36,10 +36,23 @@ target_link_libraries(game PRIVATE
   psyq::psyq
 )
 
-add_custom_command(TARGET game
-  POST_BUILD
-  COMMENT "Making game.ps-exe..."
-  COMMAND
-    ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:game> game.ps-exe
+find_program (
+  MKPSXISO_EXECUTABLE
+  NAMES
+    mkpsxiso
+  HINTS
+    "${PROJECT_SOURCE_DIR}/tools/bin"
 )
 
+if(MKPSXISO_EXECUTABLE-NOTFOUND)
+  message(FATAL_ERROR "mkpsxiso was not found")
+endif()
+
+add_custom_command(TARGET game
+  POST_BUILD
+  BYPRODUCTS game.ps-exe game.iso game.cue
+  WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+  COMMENT "Building game.iso"
+  COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:game> "${CMAKE_CURRENT_BINARY_DIR}/game.ps-exe"
+  COMMAND ${MKPSXISO_EXECUTABLE} "${PROJECT_SOURCE_DIR}/cdlayout.xml" -y -q
+)

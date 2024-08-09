@@ -35,8 +35,8 @@ void Game::init()
 
     SetDispMask(1); // Display on screen
 
-    setRGB0(&drawEnv[0], 100, 149, 237);
-    setRGB0(&drawEnv[1], 100, 149, 237);
+    setRGB0(&drawEnv[0], 255, 149, 237);
+    setRGB0(&drawEnv[1], 255, 149, 237);
     drawEnv[0].isbg = 1;
     drawEnv[1].isbg = 1;
 
