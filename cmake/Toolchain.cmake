@@ -12,8 +12,6 @@
 # OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-cmake_minimum_required(VERSION 3.25)
-
 # Create a user-editable variable to allow for a custom toolchain path to be
 # specified by passing -DTOOLCHAIN_PATH=... to CMake.
 set(
@@ -35,11 +33,6 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 # prevent the compiler detection process from erroring out.
 set(CMAKE_TRY_COMPILE_TARGET_TYPE        STATIC_LIBRARY)
 set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES TOOLCHAIN_PATH TOOLCHAIN_TARGET)
-
-# Always generate compile_commands.json when building. This allows some IDEs and
-# tools (such as clangd) to automatically configure include directories and
-# other options.
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 ## Toolchain path setup
 
@@ -111,22 +104,22 @@ set(CMAKE_EXECUTABLE_SUFFIX_CXX ".elf")
 # EDIT(eliasdaler): default flags
 # Note: if you change them, you need to remove your build dir and do generation again
 set(common_compiler_flags
-  -ffunction-sections
+  -EL                   # little endian
   -fdata-sections
-  -mno-gpopt
-  -fomit-frame-pointer
-  -fno-builtin
-  -fno-strict-aliasing
-  -Wno-attributes
-  -march=mips1
-  -mabi=32
-  -EL
-  -fno-pic
-  -mno-abicalls
-  -mfp32
-  -mno-llsc
-  -fno-stack-protector
+  -ffunction-sections
   -ffreestanding
+  -fno-builtin          # Prevents the compiler from recognizing stlib functions as built-ins
+  -fno-pic
+  -fno-stack-protector
+  -fno-strict-aliasing
+  -fomit-frame-pointer
+  # MIPS specific flags
+  -march=r3000          # PS1 used MIPS R3000A-compatible 32-bit RISC CPU
+  -mabi=32              # 32-bit
+  -mfp32                # floating-point registers
+  -mno-abicalls
+  -mno-gpopt
+  -mno-llsc
   # TODO: maybe make it optional or config dependent?
   -g
   -Os

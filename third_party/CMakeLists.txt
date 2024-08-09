@@ -1,10 +1,9 @@
 set(NUGGET_PATH "${CMAKE_CURRENT_LIST_DIR}/nugget")
 
 add_library(nugget OBJECT
+  "${NUGGET_PATH}/common/crt0/crt0cxx.s"
   "${NUGGET_PATH}/common/crt0/cxxglue.c"
   "${NUGGET_PATH}/common/crt0/memory-c.c"
-  "${NUGGET_PATH}/common/crt0/crt0cxx.s"
-  "${NUGGET_PATH}/common/crt0/memory-s.s"
   "${NUGGET_PATH}/common/crt0/memory-s.s"
   "${NUGGET_PATH}/common/syscalls/printf.s"
 )
