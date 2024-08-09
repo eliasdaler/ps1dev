@@ -1,9 +1,12 @@
 #include "Game.h"
 
 #include <libetc.h>
-#include <stdio.h>
 
 #include "cube.h"
+
+#include "Utils.h"
+
+#include <stdio.h>
 
 void Game::init()
 {
@@ -19,12 +22,6 @@ void Game::init()
 
     SetDefDispEnv(&dispEnv[1], 0, SCREENYRES, SCREENXRES, SCREENYRES);
     SetDefDrawEnv(&drawEnv[1], 0, 0, SCREENXRES, SCREENYRES);
-
-    printf("Hello from printf!\n");
-
-    int* x = new int(42);
-    printf("Test int: %d\n", *x);
-    delete x;
 
     bool palMode = false;
     if (palMode) {
@@ -51,6 +48,9 @@ void Game::init()
     scale = VECTOR{ONE / 2, ONE / 2, ONE / 2, 0};
 
     matrix = {};
+
+    auto test = util::readFile("BRICKS.TIM;1");
+    printf("%c\n", test[1]);
 }
 
 void Game::run()

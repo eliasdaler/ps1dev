@@ -25,8 +25,14 @@ set(PSYQO_DIR "${CMAKE_CURRENT_LIST_DIR}/third_party/nugget/psyqo")
 add_executable(game
   ${PSYQO_DIR}/src/alloc.c
 
+  src/Utils.cpp
   src/Game.cpp
   src/main.cpp
+)
+
+target_include_directories(game PRIVATE
+  "${CMAKE_CURRENT_LIST_DIR}/third_party/nugget/third_party/EABase/include/Common"
+  "${CMAKE_CURRENT_LIST_DIR}/third_party/nugget/third_party/EASTL/include"
 )
 
 target_include_directories(game PRIVATE "${PSYQO_DIR}")
