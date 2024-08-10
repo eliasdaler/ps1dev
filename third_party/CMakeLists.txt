@@ -69,3 +69,15 @@ target_link_libraries(psyq INTERFACE
 )
 
 add_library(psyq::psyq ALIAS psyq)
+
+# EASTL comes with nugget
+add_library(EASTL STATIC
+  "${NUGGET_PATH}/third_party/EASTL/source/fixed_pool.cpp"
+)
+
+target_include_directories(EASTL PUBLIC
+  "${NUGGET_PATH}/third_party/EABase/include/Common"
+  "${NUGGET_PATH}/third_party/EASTL/include"
+)
+
+add_library(EASTL::EASTL ALIAS EASTL)

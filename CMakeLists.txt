@@ -30,16 +30,12 @@ add_executable(game
   src/main.cpp
 )
 
-target_include_directories(game PRIVATE
-  "${CMAKE_CURRENT_LIST_DIR}/third_party/nugget/third_party/EABase/include/Common"
-  "${CMAKE_CURRENT_LIST_DIR}/third_party/nugget/third_party/EASTL/include"
-)
-
 target_include_directories(game PRIVATE "${PSYQO_DIR}")
 
 target_link_libraries(game PRIVATE
   nugget::nugget
   psyq::psyq
+  EASTL::EASTL
 )
 
 find_program (

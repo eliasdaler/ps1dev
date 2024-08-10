@@ -1,12 +1,15 @@
 #include "Game.h"
 
 #include <libetc.h>
+#include <libcd.h>
 
 #include "cube.h"
 
 #include "Utils.h"
 
 #include <stdio.h>
+
+#include <EASTL/vector.h>
 
 void Game::init()
 {
@@ -49,8 +52,10 @@ void Game::init()
 
     matrix = {};
 
-    auto test = util::readFile("BRICKS.TIM;1");
-    printf("%c\n", test[1]);
+    CdInit();
+
+    const auto test = util::readFile("\\BRICKS.TIM;1");
+    printf("Read file, size: %d\n", (int)test.size());
 }
 
 void Game::run()
