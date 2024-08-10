@@ -7,6 +7,8 @@ offscreen.vert
 output.frag
 output.lua
 output.vert
+output.json
+offscreen.json
 pcsx.json
 
 build/

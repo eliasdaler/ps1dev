@@ -1,4 +1,5 @@
 #!/bin/bash
+set -ex
 cd "$(dirname "$0")"
 cmake --build --preset=default
 pcsx-redux -iso build/game.iso -stdout -lua_stdout -interpreter -run -fastboot

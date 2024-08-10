@@ -4,8 +4,22 @@
 #include <libgte.h>
 #include <libgpu.h>
 
+#include <EASTL/vector.h>
+
+#include "Camera.h"
+
 inline constexpr int SCREENXRES = 320;
 inline constexpr int SCREENYRES = 240;
+
+struct Object {
+    SVECTOR rotation;
+    VECTOR position;
+    VECTOR scale;
+
+    eastl::vector<SVECTOR> vertices;
+    eastl::vector<short> faces;
+    eastl::vector<CVECTOR> colors;
+};
 
 class Game {
 public:
@@ -14,7 +28,7 @@ public:
     void handleInput();
     void update();
     void draw();
-    void drawCube(const TMESH& cube);
+    void drawCube(Object& object);
     void display();
 
 private:
@@ -32,11 +46,14 @@ private:
     bool startPressed = false;
     bool autoRotate = true;
 
-    SVECTOR rotation;
-    VECTOR translation;
-    VECTOR scale;
-    MATRIX matrix;
-
     int CENTERX{SCREENXRES / 2};
     int CENTERY{SCREENYRES / 2};
+
+    Object cube;
+    TIM_IMAGE texture;
+
+    MATRIX worldmat = {0};
+    MATRIX viewmat = {0};
+
+    Camera camera;
 };

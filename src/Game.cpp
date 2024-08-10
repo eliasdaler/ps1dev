@@ -3,13 +3,64 @@
 #include <libetc.h>
 #include <libcd.h>
 
-#include "cube.h"
-
 #include "Utils.h"
 
-#include <stdio.h>
+#include "inline_n.h"
 
-#include <EASTL/vector.h>
+namespace
+{
+TIM_IMAGE loadTexture(const eastl::vector<u_long>& data)
+{
+    TIM_IMAGE texture;
+    OpenTIM(const_cast<u_long*>(data.data()));
+    ReadTIM(&texture);
+
+    LoadImage(texture.prect, texture.paddr);
+    DrawSync(0);
+
+    if (texture.mode & 0x8) { // has a CLUT
+        LoadImage(texture.crect, texture.caddr);
+        DrawSync(0);
+    }
+
+    return texture;
+}
+
+void LoadModel(Object& object, eastl::string_view filename)
+{
+    const auto data = util::readFile(filename);
+    const auto* bytes = (u_char*)data.data();
+
+    u_long b = 0;
+
+    // vertices
+    const auto numverts = util::GetShortBE(bytes, &b);
+    object.vertices.resize(numverts);
+    for (int i = 0; i < numverts; i++) {
+        object.vertices[i].vx = util::GetShortBE(bytes, &b);
+        object.vertices[i].vy = util::GetShortBE(bytes, &b);
+        object.vertices[i].vz = util::GetShortBE(bytes, &b);
+    }
+
+    // faces
+    const auto numfaces = util::GetShortBE(bytes, &b) * 4;
+    object.faces.resize(numfaces);
+    for (int i = 0; i < numfaces; i++) {
+        object.faces[i] = util::GetShortBE(bytes, &b);
+    }
+
+    // colors
+    const auto numcolors = util::GetChar(bytes, &b);
+    object.colors.resize(numcolors);
+    for (int i = 0; i < numcolors; i++) {
+        object.colors[i].r = util::GetChar(bytes, &b);
+        object.colors[i].g = util::GetChar(bytes, &b);
+        object.colors[i].b = util::GetChar(bytes, &b);
+        object.colors[i].cd = util::GetChar(bytes, &b);
+    }
+}
+
+}
 
 void Game::init()
 {
@@ -35,8 +86,8 @@ void Game::init()
 
     SetDispMask(1); // Display on screen
 
-    setRGB0(&drawEnv[0], 255, 149, 237);
-    setRGB0(&drawEnv[1], 255, 149, 237);
+    setRGB0(&drawEnv[0], 100, 149, 237);
+    setRGB0(&drawEnv[1], 100, 149, 237);
     drawEnv[0].isbg = 1;
     drawEnv[1].isbg = 1;
 
@@ -46,16 +97,19 @@ void Game::init()
     FntLoad(960, 0);
     FntOpen(16, 16, 196, 64, 0, 256);
 
-    rotation = SVECTOR{232, 232, 0, 0};
-    translation = VECTOR{0, 0, CENTERX * 3, 0};
-    scale = VECTOR{ONE / 2, ONE / 2, ONE / 2, 0};
-
-    matrix = {};
+    setVector(&camera.position, 500, -1000, -1200);
+    camera.lookat = (MATRIX){0};
 
     CdInit();
 
-    const auto test = util::readFile("\\BRICKS.TIM;1");
-    printf("Read file, size: %d\n", (int)test.size());
+    const auto textureData = util::readFile("\\BRICKS.TIM;1");
+    texture = loadTexture(textureData);
+
+    LoadModel(cube, "\\MODEL.BIN;1");
+
+    cube.position = {};
+    cube.rotation = {};
+    cube.scale = {ONE * 2, ONE * 2, ONE * 2};
 }
 
 void Game::run()
@@ -71,33 +125,29 @@ void Game::handleInput()
 {
     const auto PadStatus = PadRead(0);
     if (!autoRotate) {
-        if (PadStatus & PADL1) translation.vz -= 4;
-        if (PadStatus & PADR1) translation.vz += 4;
-        if (PadStatus & PADL2) rotation.vz -= 8;
-        if (PadStatus & PADR2) rotation.vz += 8;
-        if (PadStatus & PADLup) rotation.vx -= 8;
-        if (PadStatus & PADLdown) rotation.vx += 8;
-        if (PadStatus & PADLleft) rotation.vy -= 8;
-        if (PadStatus & PADLright) rotation.vy += 8;
-        if (PadStatus & PADRup) translation.vy -= 2;
-        if (PadStatus & PADRdown) translation.vy += 2;
-        if (PadStatus & PADRleft) translation.vx -= 2;
-        if (PadStatus & PADRright) translation.vx += 2;
+        if (PadStatus & PADL1) cube.position.vz -= 4;
+        if (PadStatus & PADR1) cube.position.vz += 4;
+        if (PadStatus & PADL2) cube.rotation.vz -= 8;
+        if (PadStatus & PADR2) cube.rotation.vz += 8;
+        if (PadStatus & PADLup) cube.rotation.vx -= 8;
+        if (PadStatus & PADLdown) cube.rotation.vx += 8;
+        if (PadStatus & PADLleft) cube.rotation.vy -= 8;
+        if (PadStatus & PADLright) cube.rotation.vy += 8;
+        if (PadStatus & PADRup) cube.position.vy -= 2;
+        if (PadStatus & PADRdown) cube.position.vy += 2;
+        if (PadStatus & PADRleft) cube.position.vx -= 2;
+        if (PadStatus & PADRright) cube.position.vx += 2;
         if (PadStatus & PADselect) {
-            rotation.vx = rotation.vy = rotation.vz = 0;
-            scale.vx = scale.vy = scale.vz = ONE / 2;
-            translation.vx = translation.vy = 0;
-            translation.vz = CENTERX * 3;
+            cube.rotation = {};
+            cube.position = {};
         }
     }
 
     if (PadStatus & PADstart) {
         if (!startPressed) {
-            autoRotate = (autoRotate + 1) & 1;
-            rotation.vx = rotation.vy = rotation.vz = 0;
-            scale.vx = scale.vy = scale.vz = ONE / 2;
-            translation.vx = translation.vy = 0;
-            translation.vz = CENTERX * 3;
+            autoRotate = !autoRotate;
+            cube.rotation = {};
+            cube.position = {};
         }
         startPressed = true;
     } else {
@@ -108,8 +158,8 @@ void Game::handleInput()
 void Game::update()
 {
     if (autoRotate) {
-        rotation.vy += 28;
-        rotation.vx += 28;
+        cube.rotation.vy += 28;
+        cube.rotation.vx += 28;
     }
 }
 
@@ -118,7 +168,7 @@ void Game::draw()
     ClearOTagR(ot[currBuffer], OTLEN);
     nextpri = primbuff[currBuffer];
 
-    drawCube(modelCube);
+    drawCube(cube);
 
     FntPrint("Hello world!");
     FntFlush(-1);
@@ -126,43 +176,62 @@ void Game::draw()
     display();
 }
 
-void Game::drawCube(const TMESH& cube)
+void Game::drawCube(Object& object)
 {
-    RotMatrix(&rotation, &matrix);
-    TransMatrix(&matrix, &translation);
-    ScaleMatrix(&matrix, &scale);
-    SetRotMatrix(&matrix);
-    SetTransMatrix(&matrix);
+    VECTOR globalUp{0, -ONE, 0};
+    camera::lookAt(&camera, &camera.position, &object.position, &globalUp);
 
-    for (int i = 0; i < cube.len * 3; i += 3) {
-        const auto polyg3 = (POLY_G3*)nextpri;
-        setPolyG3(polyg3);
+    // Draw the object
+    RotMatrix(&object.rotation, &worldmat);
+    TransMatrix(&worldmat, &object.position);
+    ScaleMatrix(&worldmat, &object.scale);
 
-        const auto c0 = cube.c[i];
-        const auto c1 = cube.c[i + 2];
-        const auto c2 = cube.c[i + 1];
-        setRGB0(polyg3, c0.r, c0.g, c0.b);
-        setRGB1(polyg3, c1.r, c1.g, c1.b);
-        setRGB2(polyg3, c2.r, c2.g, c2.b);
+    // Create the View Matrix combining the world matrix & lookat matrix
+    CompMatrixLV(&camera.lookat, &worldmat, &viewmat);
 
-        long p, otz, flags;
-        const auto nclip = RotAverageNclip3(
-            &modelCube_mesh[modelCube_index[i]],
-            &modelCube_mesh[modelCube_index[i + 2]],
-            &modelCube_mesh[modelCube_index[i + 1]],
-            (long*)&polyg3->x0,
-            (long*)&polyg3->x1,
-            (long*)&polyg3->x2,
-            &p,
-            &otz,
-            &flags);
-        if (nclip <= 0) {
+    SetRotMatrix(&viewmat);
+    SetTransMatrix(&viewmat);
+
+    for (int i = 0, q = 0; i < cube.faces.size(); i += 4, q++) {
+        auto* polyft4 = (POLY_FT4*)nextpri;
+        setPolyFT4(polyft4);
+
+        setRGB0(polyft4, 128, 128, 128);
+        setUV4(polyft4, 0, 0, 63, 0, 0, 63, 63, 63);
+
+        polyft4->tpage = getTPage(texture.mode & 0x3, 0, texture.prect->x, texture.prect->y);
+        polyft4->clut = getClut(texture.crect->x, texture.crect->y);
+
+        gte_ldv0(&object.vertices[object.faces[i + 0]]);
+        gte_ldv1(&object.vertices[object.faces[i + 1]]);
+        gte_ldv2(&object.vertices[object.faces[i + 2]]);
+
+        gte_rtpt();
+
+        gte_nclip();
+
+        long nclip;
+        gte_stopz(&nclip);
+
+        if (nclip < 0) {
             continue;
         }
+
+        gte_stsxy0(&polyft4->x0);
+
+        gte_ldv0(&object.vertices[object.faces[i + 3]]);
+        gte_rtps();
+
+        gte_stsxy3(&polyft4->x1, &polyft4->x2, &polyft4->x3);
+
+        gte_avsz4();
+        long otz;
+        gte_stotz(&otz);
+
         if ((otz > 0) && (otz < OTLEN)) {
-            addPrim(&ot[currBuffer][otz], polyg3);
+            addPrim(&ot[currBuffer][otz], polyft4);
+            nextpri += sizeof(POLY_FT4);
         }
-        nextpri += sizeof(POLY_G3);
     }
 }
 

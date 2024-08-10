@@ -26,6 +26,7 @@ add_executable(game
   ${PSYQO_DIR}/src/alloc.c
 
   src/Utils.cpp
+  src/Camera.cpp
   src/Game.cpp
   src/main.cpp
 )
