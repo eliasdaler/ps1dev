@@ -4,12 +4,12 @@
 #include <stdio.h>
 
 #define CD_SECTOR_SIZE 2048
-#define BtoS(len) ((len + CD_SECTOR_SIZE - 1) / CD_SECTOR_SIZE)
+#define bytesToSectors(len) ((len + CD_SECTOR_SIZE - 1) / CD_SECTOR_SIZE)
 
 namespace util
 {
 
-eastl::vector<u_long> readFile(eastl::string_view filename)
+eastl::vector<uint8_t> readFile(eastl::string_view filename)
 {
     CdlFILE filepos;
     if (!CdSearchFile(&filepos, const_cast<char*>(filename.data()))) {
@@ -19,8 +19,8 @@ eastl::vector<u_long> readFile(eastl::string_view filename)
 
     CdControl(CdlSetloc, (u_char*)&filepos.pos, nullptr);
 
-    eastl::vector<u_long> buffer(BtoS(filepos.size) * CD_SECTOR_SIZE);
-    CdRead((int)BtoS(filepos.size), buffer.data(), CdlModeSpeed);
+    eastl::vector<uint8_t> buffer(sizeof(u_long) * bytesToSectors(filepos.size) * CD_SECTOR_SIZE);
+    CdRead(bytesToSectors(filepos.size), (u_long*)buffer.data(), CdlModeSpeed);
 
     CdReadSync(0, 0);
 

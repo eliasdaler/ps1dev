@@ -9,54 +9,61 @@
 
 namespace
 {
-TIM_IMAGE loadTexture(const eastl::vector<u_long>& data)
+
+bool hasCLUT(const TIM_IMAGE& texture)
+{
+    return texture.mode & 0x8;
+}
+
+TIM_IMAGE loadTexture(const eastl::vector<uint8_t>& timData)
 {
     TIM_IMAGE texture;
-    OpenTIM(const_cast<u_long*>(data.data()));
+    OpenTIM((u_long*)(timData.data()));
     ReadTIM(&texture);
 
     LoadImage(texture.prect, texture.paddr);
     DrawSync(0);
 
-    if (texture.mode & 0x8) { // has a CLUT
+    if (hasCLUT(texture)) {
         LoadImage(texture.crect, texture.caddr);
         DrawSync(0);
+    } else {
+        texture.caddr = nullptr;
     }
 
     return texture;
 }
 
-void LoadModel(Object& object, eastl::string_view filename)
+void loadModel(Object& object, eastl::string_view filename)
 {
     const auto data = util::readFile(filename);
     const auto* bytes = (u_char*)data.data();
 
-    u_long b = 0;
-
     // vertices
-    const auto numverts = util::GetShortBE(bytes, &b);
+    util::FileReader fr{
+        .bytes = data.data(),
+    };
+
+    const auto numverts = fr.GetInt16BE();
     object.vertices.resize(numverts);
     for (int i = 0; i < numverts; i++) {
-        object.vertices[i].vx = util::GetShortBE(bytes, &b);
-        object.vertices[i].vy = util::GetShortBE(bytes, &b);
-        object.vertices[i].vz = util::GetShortBE(bytes, &b);
+        object.vertices[i].vx = fr.GetInt16BE();
+        object.vertices[i].vy = fr.GetInt16BE();
+        object.vertices[i].vz = fr.GetInt16BE();
     }
 
     // faces
-    const auto numfaces = util::GetShortBE(bytes, &b) * 4;
+    const auto numfaces = fr.GetInt16BE() * 4;
     object.faces.resize(numfaces);
     for (int i = 0; i < numfaces; i++) {
-        object.faces[i] = util::GetShortBE(bytes, &b);
+        object.faces[i] = fr.GetInt16BE();
     }
 
     // colors
-    const auto numcolors = util::GetChar(bytes, &b);
+    const auto numcolors = fr.GetInt8();
     object.colors.resize(numcolors);
     for (int i = 0; i < numcolors; i++) {
-        object.colors[i].r = util::GetChar(bytes, &b);
-        object.colors[i].g = util::GetChar(bytes, &b);
-        object.colors[i].b = util::GetChar(bytes, &b);
-        object.colors[i].cd = util::GetChar(bytes, &b);
+        object.colors[i] = fr.GetObj<CVECTOR>();
     }
 }
 
@@ -105,7 +112,7 @@ void Game::init()
     const auto textureData = util::readFile("\\BRICKS.TIM;1");
     texture = loadTexture(textureData);
 
-    LoadModel(cube, "\\MODEL.BIN;1");
+    loadModel(cube, "\\MODEL.BIN;1");
 
     cube.position = {};
     cube.rotation = {};

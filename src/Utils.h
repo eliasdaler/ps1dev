@@ -2,52 +2,64 @@
 
 #include <EASTL/vector.h>
 #include <EASTL/string_view.h>
+#include <EASTL/span.h>
 
-#include <sys/types.h>
+#include <string.h>
 
 namespace util
 {
-eastl::vector<u_long> readFile(eastl::string_view filename);
+eastl::vector<uint8_t> readFile(eastl::string_view filename);
 
-inline char GetChar(const u_char* bytes, u_long* b)
-{
-    return bytes[(*b)++];
-}
+struct FileReader {
+    const uint8_t* bytes;
+    int cursor{0};
 
-inline short GetShortLE(u_char* bytes, u_long* b)
-{
-    u_short value = 0;
-    value |= bytes[(*b)++] << 0;
-    value |= bytes[(*b)++] << 8;
-    return (short)value;
-}
+    char GetInt8() { return static_cast<int8_t>(bytes[cursor++]); }
 
-inline short GetShortBE(const u_char* bytes, u_long* b)
-{
-    u_short value = 0;
-    value |= bytes[(*b)++] << 8;
-    value |= bytes[(*b)++] << 0;
-    return (short)value;
-}
+    int16_t GetInt16()
+    {
+        uint16_t value = 0;
+        value |= bytes[cursor++];
+        value |= bytes[cursor++] << 8;
+        return static_cast<int16_t>(value);
+    }
 
-inline long GetLongLE(const u_char* bytes, u_long* b)
-{
-    u_long value = 0;
-    value |= bytes[(*b)++] << 0;
-    value |= bytes[(*b)++] << 8;
-    value |= bytes[(*b)++] << 16;
-    value |= bytes[(*b)++] << 24;
-    return (long)value;
-}
+    int16_t GetInt16BE()
+    {
+        uint16_t value = 0;
+        value |= bytes[cursor++] << 8;
+        value |= bytes[cursor++];
+        return static_cast<int16_t>(value);
+    }
 
-inline long GetLongBE(const u_char* bytes, u_long* b)
-{
-    u_long value = 0;
-    value |= bytes[(*b)++] << 24;
-    value |= bytes[(*b)++] << 16;
-    value |= bytes[(*b)++] << 8;
-    value |= bytes[(*b)++] << 0;
-    return (long)value;
-}
+    int32_t GetInt32()
+    {
+        uint32_t value = 0;
+        value |= bytes[cursor++];
+        value |= bytes[cursor++] << 8;
+        value |= bytes[cursor++] << 16;
+        value |= bytes[cursor++] << 24;
+        return static_cast<int32_t>(value);
+    }
+
+    int32_t GetInt32BE()
+    {
+        uint32_t value = 0;
+        value |= bytes[cursor++] << 24;
+        value |= bytes[cursor++] << 16;
+        value |= bytes[cursor++] << 8;
+        value |= bytes[cursor++];
+        return static_cast<int32_t>(value);
+    }
+
+    template<typename T>
+    T GetObj()
+    {
+        T obj{};
+        memcpy((void*)&obj, &bytes[cursor], sizeof(T));
+        cursor += sizeof(T);
+        return obj;
+    }
+};
 
 };

@@ -5,7 +5,9 @@
 # breaking clangd's target autodetection).
 
 CompileFlags:
-  Add:    [ --target=mipsel-none-elf, -march=mips1,
+  Add:    [
+    --target=mipsel-none-elf,
+    -march=mips1,
     -I/usr/mipsel-linux-gnu/include/c++/12/,
     -I/usr/mipsel-linux-gnu/include/c++/12/mipsel-linux-gnu/,
     -I/usr/mipsel-linux-gnu/include/
