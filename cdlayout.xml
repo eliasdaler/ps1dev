@@ -20,6 +20,8 @@
                 <file name="GAME.EXE" type="data" source="build/game.ps-exe"/>
                 <file name="MODEL.BIN" type="data" source="assets/model.bin"/>
                 <file name="BRICKS.TIM" type="data" source="assets/bricks.tim"/>
+                <file name="FLOOR.TIM" type="data" source="assets/wood_floor.tim"/>
+                <file name="FTEX.TIM" type="data" source="assets/ftex.tim"/>
                 <dummy sectors="1024"/>
             </directory_tree>
         </track>

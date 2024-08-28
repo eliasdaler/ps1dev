@@ -28,7 +28,7 @@ public:
     void handleInput();
     void update();
     void draw();
-    void drawCube(Object& object);
+    void drawObject(Object& object, TIM_IMAGE& texture);
     void display();
 
 private:
@@ -43,14 +43,17 @@ private:
     char* nextpri{nullptr};
     short currBuffer{0};
 
-    bool startPressed = false;
-    bool autoRotate = true;
-
     int CENTERX{SCREENXRES / 2};
     int CENTERY{SCREENYRES / 2};
 
     Object cube;
-    TIM_IMAGE texture;
+    TIM_IMAGE bricksTexture;
+
+    Object floorTile;
+    TIM_IMAGE floorTexture;
+
+    Object wallTile;
+    TIM_IMAGE fTexture;
 
     MATRIX worldmat = {0};
     MATRIX viewmat = {0};

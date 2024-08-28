@@ -93,8 +93,10 @@ void Game::init()
 
     SetDispMask(1); // Display on screen
 
-    setRGB0(&drawEnv[0], 100, 149, 237);
-    setRGB0(&drawEnv[1], 100, 149, 237);
+    // setRGB0(&drawEnv[0], 100, 149, 237);
+    // setRGB0(&drawEnv[1], 100, 149, 237);
+    setRGB0(&drawEnv[0], 0, 0, 0);
+    setRGB0(&drawEnv[1], 0, 0, 0);
     drawEnv[0].isbg = 1;
     drawEnv[1].isbg = 1;
 
@@ -104,19 +106,42 @@ void Game::init()
     FntLoad(960, 0);
     FntOpen(16, 16, 196, 64, 0, 256);
 
-    setVector(&camera.position, 500, -1000, -1200);
+    setVector(&camera.position, 0, -100, -100);
     camera.lookat = (MATRIX){0};
 
     CdInit();
 
-    const auto textureData = util::readFile("\\BRICKS.TIM;1");
-    texture = loadTexture(textureData);
+    const auto textureData2 = util::readFile("\\BRICKS.TIM;1");
+    bricksTexture = loadTexture(textureData2);
+
+    const auto textureData = util::readFile("\\FLOOR.TIM;1");
+    floorTexture = loadTexture(textureData);
+
+    const auto textureData3 = util::readFile("\\FTEX.TIM;1");
+    fTexture = loadTexture(textureData3);
 
     loadModel(cube, "\\MODEL.BIN;1");
 
-    cube.position = {};
+    cube.position = {0, -32, 0};
     cube.rotation = {};
-    cube.scale = {ONE * 2, ONE * 2, ONE * 2};
+    cube.scale = {ONE >> 4, ONE >> 4, ONE >> 4};
+
+    floorTile.vertices = {
+        SVECTOR{-32, 0, 32},
+        SVECTOR{32, 0, 32},
+        SVECTOR{-32, 0, -32},
+        SVECTOR{32, 0, -32},
+    };
+    floorTile.faces = {0, 1, 2, 3};
+
+    floorTile.position = {0, 0, 0};
+    floorTile.rotation = {};
+    floorTile.scale = {ONE, ONE, ONE};
+
+    wallTile = floorTile;
+    wallTile.position.vz = 256;
+    wallTile.position.vy = -32;
+    wallTile.rotation.vx = 1024;
 }
 
 void Game::run()
@@ -131,75 +156,69 @@ void Game::run()
 void Game::handleInput()
 {
     const auto PadStatus = PadRead(0);
-    if (!autoRotate) {
-        if (PadStatus & PADL1) cube.position.vz -= 4;
-        if (PadStatus & PADR1) cube.position.vz += 4;
-        if (PadStatus & PADL2) cube.rotation.vz -= 8;
-        if (PadStatus & PADR2) cube.rotation.vz += 8;
-        if (PadStatus & PADLup) cube.rotation.vx -= 8;
-        if (PadStatus & PADLdown) cube.rotation.vx += 8;
-        if (PadStatus & PADLleft) cube.rotation.vy -= 8;
-        if (PadStatus & PADLright) cube.rotation.vy += 8;
-        if (PadStatus & PADRup) cube.position.vy -= 2;
-        if (PadStatus & PADRdown) cube.position.vy += 2;
-        if (PadStatus & PADRleft) cube.position.vx -= 2;
-        if (PadStatus & PADRright) cube.position.vx += 2;
-        if (PadStatus & PADselect) {
-            cube.rotation = {};
-            cube.position = {};
-        }
-    }
+    if (PadStatus & PADLup) cube.position.vz += 2;
+    if (PadStatus & PADLdown) cube.position.vz -= 2;
 
-    if (PadStatus & PADstart) {
-        if (!startPressed) {
-            autoRotate = !autoRotate;
-            cube.rotation = {};
-            cube.position = {};
-        }
-        startPressed = true;
-    } else {
-        startPressed = false;
-    }
+    if (PadStatus & PADLleft) cube.position.vx -= 2;
+    if (PadStatus & PADLright) cube.position.vx += 2;
+
+    /* if (PadStatus & PADLleft) cube.rotation.vy -= 20;
+    if (PadStatus & PADLright) cube.rotation.vy += 20; */
 }
 
 void Game::update()
-{
-    if (autoRotate) {
-        cube.rotation.vy += 28;
-        cube.rotation.vx += 28;
-    }
-}
+{}
 
 void Game::draw()
 {
     ClearOTagR(ot[currBuffer], OTLEN);
     nextpri = primbuff[currBuffer];
 
-    drawCube(cube);
+    // camera.position.vx = cube.position.vx;
+    // camera.position.vz = cube.position.vz - 32;
 
-    FntPrint("Hello world!");
+    VECTOR globalUp{0, -ONE, 0};
+    camera::lookAt(&camera, &camera.position, &cube.position, &globalUp);
+
+    // draw floor
+    for (int x = -8; x < 8; ++x) {
+        for (int y = -8; y < 8; ++y) {
+            floorTile.position.vx = x * 64;
+            floorTile.position.vz = y * 64;
+            drawObject(floorTile, floorTexture);
+        }
+    }
+
+    // draw walls
+    for (int x = -8; x < 8; ++x) {
+        wallTile.position.vx = x * 64;
+        drawObject(wallTile, bricksTexture);
+    }
+
+    // draw player
+    drawObject(cube, fTexture);
+
+    FntPrint("Ppos: %d, %d, %d\n", cube.position.vx, cube.position.vy, cube.position.vz);
+    FntPrint("Rot: %d\n", cube.rotation.vy);
+    FntPrint("Cpos: %d, %d, %d", camera.position.vx, camera.position.vy, camera.position.vz);
     FntFlush(-1);
 
     display();
 }
 
-void Game::drawCube(Object& object)
+void Game::drawObject(Object& object, TIM_IMAGE& texture)
 {
-    VECTOR globalUp{0, -ONE, 0};
-    camera::lookAt(&camera, &camera.position, &object.position, &globalUp);
-
     // Draw the object
     RotMatrix(&object.rotation, &worldmat);
     TransMatrix(&worldmat, &object.position);
     ScaleMatrix(&worldmat, &object.scale);
 
-    // Create the View Matrix combining the world matrix & lookat matrix
     CompMatrixLV(&camera.lookat, &worldmat, &viewmat);
 
     SetRotMatrix(&viewmat);
     SetTransMatrix(&viewmat);
 
-    for (int i = 0, q = 0; i < cube.faces.size(); i += 4, q++) {
+    for (int i = 0, q = 0; i < object.faces.size(); i += 4, q++) {
         auto* polyft4 = (POLY_FT4*)nextpri;
         setPolyFT4(polyft4);
 
@@ -235,7 +254,7 @@ void Game::drawCube(Object& object)
         long otz;
         gte_stotz(&otz);
 
-        if ((otz > 0) && (otz < OTLEN)) {
+        if (otz > 0 && otz < OTLEN) {
             addPrim(&ot[currBuffer][otz], polyft4);
             nextpri += sizeof(POLY_FT4);
         }
