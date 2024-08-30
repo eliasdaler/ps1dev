@@ -10,6 +10,8 @@
 namespace
 {
 
+constexpr auto tileSize = 32;
+
 bool hasCLUT(const TIM_IMAGE& texture)
 {
     return texture.mode & 0x8;
@@ -127,10 +129,10 @@ void Game::init()
     cube.scale = {ONE >> 4, ONE >> 4, ONE >> 4};
 
     floorTile.vertices = {
-        SVECTOR{-32, 0, 32},
-        SVECTOR{32, 0, 32},
-        SVECTOR{-32, 0, -32},
-        SVECTOR{32, 0, -32},
+        SVECTOR{-tileSize, 0, tileSize},
+        SVECTOR{tileSize, 0, tileSize},
+        SVECTOR{-tileSize, 0, -tileSize},
+        SVECTOR{tileSize, 0, -tileSize},
     };
     floorTile.faces = {0, 1, 2, 3};
 
@@ -138,10 +140,21 @@ void Game::init()
     floorTile.rotation = {};
     floorTile.scale = {ONE, ONE, ONE};
 
-    wallTile = floorTile;
-    wallTile.position.vz = 256;
-    wallTile.position.vy = -32;
-    wallTile.rotation.vx = 1024;
+    floorTileTemplate = floorTile;
+
+    wallTile.vertices = {
+        SVECTOR{-tileSize, -tileSize, 0},
+        SVECTOR{tileSize, -tileSize, 0},
+        SVECTOR{-tileSize, tileSize, 0},
+        SVECTOR{tileSize, tileSize, 0},
+    };
+    wallTile.faces = {0, 1, 2, 3};
+
+    wallTile.position = {0, 0, 0};
+    wallTile.rotation = {};
+    wallTile.scale = {ONE, ONE, ONE};
+
+    wallTileTemplate = wallTile;
 }
 
 void Game::run()
@@ -181,18 +194,22 @@ void Game::draw()
     camera::lookAt(&camera, &camera.position, &cube.position, &globalUp);
 
     // draw floor
+    VECTOR posZero{};
+    TransMatrix(&worldmat, &posZero);
     for (int x = -8; x < 8; ++x) {
         for (int y = -8; y < 8; ++y) {
-            floorTile.position.vx = x * 64;
-            floorTile.position.vz = y * 64;
-            drawObject(floorTile, floorTexture);
+            floorTile.position.vx = x * tileSize * 2;
+            floorTile.position.vz = y * tileSize * 2;
+            drawObject(floorTile, floorTexture, true, &floorTileTemplate);
         }
     }
 
     // draw walls
     for (int x = -8; x < 8; ++x) {
-        wallTile.position.vx = x * 64;
-        drawObject(wallTile, bricksTexture);
+        wallTile.position.vx = x * tileSize * 2;
+        wallTile.position.vy = -32;
+        wallTile.position.vz = 256;
+        drawObject(wallTile, bricksTexture, true, &wallTileTemplate);
     }
 
     // draw player
@@ -206,17 +223,27 @@ void Game::draw()
     display();
 }
 
-void Game::drawObject(Object& object, TIM_IMAGE& texture)
+void Game::drawObject(Object& object, TIM_IMAGE& texture, bool cpuTrans, Object* tmpl)
 {
     // Draw the object
     RotMatrix(&object.rotation, &worldmat);
-    TransMatrix(&worldmat, &object.position);
+    if (!cpuTrans) {
+        TransMatrix(&worldmat, &object.position);
+    }
     ScaleMatrix(&worldmat, &object.scale);
 
     CompMatrixLV(&camera.lookat, &worldmat, &viewmat);
 
     SetRotMatrix(&viewmat);
     SetTransMatrix(&viewmat);
+
+    if (cpuTrans) {
+        for (int i = 0; i < object.vertices.size(); ++i) {
+            object.vertices[i].vx = tmpl->vertices[i].vx + object.position.vx;
+            object.vertices[i].vy = tmpl->vertices[i].vy + object.position.vy;
+            object.vertices[i].vz = tmpl->vertices[i].vz + object.position.vz;
+        }
+    }
 
     for (int i = 0, q = 0; i < object.faces.size(); i += 4, q++) {
         auto* polyft4 = (POLY_FT4*)nextpri;
@@ -228,7 +255,7 @@ void Game::drawObject(Object& object, TIM_IMAGE& texture)
         polyft4->tpage = getTPage(texture.mode & 0x3, 0, texture.prect->x, texture.prect->y);
         polyft4->clut = getClut(texture.crect->x, texture.crect->y);
 
-        gte_ldv0(&object.vertices[object.faces[i + 0]]);
+        /* gte_ldv0(&object.vertices[object.faces[i + 0]]);
         gte_ldv1(&object.vertices[object.faces[i + 1]]);
         gte_ldv2(&object.vertices[object.faces[i + 2]]);
 
@@ -251,8 +278,26 @@ void Game::drawObject(Object& object, TIM_IMAGE& texture)
         gte_stsxy3(&polyft4->x1, &polyft4->x2, &polyft4->x3);
 
         gte_avsz4();
-        long otz;
-        gte_stotz(&otz);
+        gte_stotz(&otz); */
+
+        long p, otz, flg;
+
+        const auto nclip = RotAverageNclip4(
+            &object.vertices[object.faces[i + 0]],
+            &object.vertices[object.faces[i + 1]],
+            &object.vertices[object.faces[i + 2]],
+            &object.vertices[object.faces[i + 3]],
+            (long*)&polyft4->x0,
+            (long*)&polyft4->x1,
+            (long*)&polyft4->x2,
+            (long*)&polyft4->x3,
+            &p,
+            &otz,
+            &flg);
+
+        if (nclip <= 0) {
+            continue;
+        }
 
         if (otz > 0 && otz < OTLEN) {
             addPrim(&ot[currBuffer][otz], polyft4);

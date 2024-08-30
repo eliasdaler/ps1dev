@@ -28,7 +28,11 @@ public:
     void handleInput();
     void update();
     void draw();
-    void drawObject(Object& object, TIM_IMAGE& texture);
+    void drawObject(
+        Object& object,
+        TIM_IMAGE& texture,
+        bool cpuTrans = false,
+        Object* tmpl = nullptr);
     void display();
 
 private:
@@ -50,9 +54,11 @@ private:
     TIM_IMAGE bricksTexture;
 
     Object floorTile;
+    Object floorTileTemplate;
     TIM_IMAGE floorTexture;
 
     Object wallTile;
+    Object wallTileTemplate;
     TIM_IMAGE fTexture;
 
     MATRIX worldmat = {0};
