@@ -218,7 +218,7 @@ void Game::draw()
     // camera.position.vz = cube.position.vz - 32;
 
     VECTOR globalUp{0, -ONE, 0};
-    camera::lookAt(&camera, &camera.position, &cube.position, &globalUp);
+    camera::lookAt(camera, camera.position, cube.position, globalUp);
 
     // draw floor
     VECTOR posZero{};

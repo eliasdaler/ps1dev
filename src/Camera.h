@@ -10,5 +10,5 @@ struct Camera {
 
 namespace camera
 {
-void lookAt(Camera* camera, VECTOR* eye, VECTOR* target, VECTOR* up);
+void lookAt(Camera& camera, const VECTOR& eye, const VECTOR& target, const VECTOR& up);
 }
