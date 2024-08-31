@@ -80,5 +80,8 @@ private:
     MATRIX worldmat = {0};
     MATRIX viewmat = {0};
 
+    VECTOR tpos; // Translation value for matrix calculations
+    SVECTOR trot; // Rotation value for matrix calculations
+
     Camera camera;
 };

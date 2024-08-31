@@ -4,8 +4,8 @@
 
 struct Camera {
     VECTOR position;
-    SVECTOR rotation;
-    MATRIX lookat;
+    VECTOR rotation;
+    MATRIX view;
 };
 
 namespace camera

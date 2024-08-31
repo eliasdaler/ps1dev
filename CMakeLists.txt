@@ -25,6 +25,7 @@ set(PSYQO_DIR "${CMAKE_CURRENT_LIST_DIR}/third_party/nugget/psyqo")
 add_executable(game
   ${PSYQO_DIR}/src/alloc.c
 
+  src/Trig.cpp
   src/Utils.cpp
   src/Camera.cpp
   src/Game.cpp

@@ -9,6 +9,8 @@
 
 #include "inline_n.h"
 
+#include "Trig.h"
+
 namespace
 {
 
@@ -111,7 +113,8 @@ void Game::init()
     FntOpen(16, 16, 196, 64, 0, 256);
 
     setVector(&camera.position, 0, -100, -100);
-    camera.lookat = (MATRIX){0};
+    setVector(&camera.position, 0, -ONE * 24, -100);
+    camera.view = (MATRIX){0};
 
     CdInit();
 
@@ -128,7 +131,7 @@ void Game::init()
     loadModel(cubeMesh, "\\MODEL.BIN;1");
     cubeMeshIdx = addMesh(std::move(cubeMesh));
 
-    cube.position = {0, -32, 0};
+    cube.position = {-64, -32, 0};
     cube.rotation = {};
     cube.scale = {ONE >> 4, ONE >> 4, ONE >> 4};
 
@@ -195,15 +198,33 @@ void Game::run()
 
 void Game::handleInput()
 {
+    trot.vx = camera.rotation.vx >> 12;
+    trot.vy = camera.rotation.vy >> 12;
+    trot.vz = camera.rotation.vz >> 12;
+
     const auto PadStatus = PadRead(0);
+#if 0
     if (PadStatus & PADLup) cube.position.vz += 2;
     if (PadStatus & PADLdown) cube.position.vz -= 2;
 
     if (PadStatus & PADLleft) cube.position.vx -= 2;
     if (PadStatus & PADLright) cube.position.vx += 2;
+#else
 
-    /* if (PadStatus & PADLleft) cube.rotation.vy -= 20;
-    if (PadStatus & PADLright) cube.rotation.vy += 20; */
+    if (PadStatus & PADLleft) camera.rotation.vy += ONE * 10;
+    if (PadStatus & PADLright) camera.rotation.vy -= ONE * 10;
+
+    if (PadStatus & PADLup) {
+        camera.position.vx -= math::isin(trot.vy) << 2;
+        camera.position.vz += math::icos(trot.vy) << 2;
+    }
+
+    if (PadStatus & PADLdown) {
+        camera.position.vx += math::isin(trot.vy) << 2;
+        camera.position.vz -= math::icos(trot.vy) << 2;
+    }
+
+#endif
 }
 
 void Game::update()
@@ -217,8 +238,19 @@ void Game::draw()
     // camera.position.vx = cube.position.vx;
     // camera.position.vz = cube.position.vz - 32;
 
-    VECTOR globalUp{0, -ONE, 0};
-    camera::lookAt(camera, camera.position, cube.position, globalUp);
+    // VECTOR globalUp{0, -ONE, 0};
+    // camera::lookAt(camera, camera.position, cube.position, globalUp);
+
+    { // fps camera
+        RotMatrix(&trot, &camera.view);
+
+        tpos.vx = -camera.position.vx >> 12;
+        tpos.vy = -camera.position.vy >> 12;
+        tpos.vz = -camera.position.vz >> 12;
+
+        ApplyMatrixLV(&camera.view, &tpos, &tpos);
+        TransMatrix(&camera.view, &tpos);
+    }
 
     // draw floor
     VECTOR posZero{};
@@ -240,14 +272,14 @@ void Game::draw()
         drawObject(wallTileObj, wallMeshIdx, bricksTextureIdx, true, &tileMesh);
     }
 
-    for (int x = 0; x < 5; ++x) {
+    for (int x = 0; x < 8; ++x) {
         wallTileObj.position.vx = -3 * tileSize * 2 - 32;
         wallTileObj.position.vy = -32;
         wallTileObj.position.vz = 128 + 32 - x * tileSize * 2;
         drawObject(wallTileObj, wallMeshLIdx, bricksTextureIdx, true, &tileMesh);
     }
 
-    for (int x = 0; x < 5; ++x) {
+    for (int x = 0; x < 8; ++x) {
         wallTileObj.position.vx = 3 * tileSize * 2 - 32;
         wallTileObj.position.vy = -32;
         wallTileObj.position.vz = 128 + 32 - x * tileSize * 2;
@@ -257,9 +289,13 @@ void Game::draw()
     // draw player
     drawObject(cube, cubeMeshIdx, fTextureIdx);
 
-    FntPrint("Ppos: %d, %d, %d\n", cube.position.vx, cube.position.vy, cube.position.vz);
-    FntPrint("Rot: %d\n", cube.rotation.vy);
-    FntPrint("Cpos: %d, %d, %d", camera.position.vx, camera.position.vy, camera.position.vz);
+    FntPrint(
+        "X=%d Y=%d Z=%d\n",
+        camera.position.vx >> 12,
+        camera.position.vy >> 12,
+        camera.position.vz >> 12);
+    FntPrint("RY=%d\n", trot.vy);
+
     FntFlush(-1);
 
     display();
@@ -279,7 +315,7 @@ void Game::drawObject(
     }
     ScaleMatrix(&worldmat, &object.scale);
 
-    CompMatrixLV(&camera.lookat, &worldmat, &viewmat);
+    CompMatrixLV(&camera.view, &worldmat, &viewmat);
 
     SetRotMatrix(&viewmat);
     SetTransMatrix(&viewmat);
