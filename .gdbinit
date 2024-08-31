@@ -1,3 +1,5 @@
+source gdb/eastl-prettyprint.py
+
 define target remote
 target extended-remote $arg0
 symbol-file build/game.elf
@@ -12,6 +14,6 @@ target remote localhost:3333
 tui new-layout horizontal-asm {-horizontal src 1 asm 1} 2 status 0 cmd 1
 layout horizontal-asm
 
-# b Game.cpp:124
-b Camera.cpp:43
+b Game.cpp:168
+b Game.cpp:321
 c

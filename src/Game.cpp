@@ -318,6 +318,8 @@ void Game::drawObject(
             continue;
         }
 
+        otz -= 64;
+
         if (otz > 0 && otz < OTLEN) {
             CVECTOR col;
 
