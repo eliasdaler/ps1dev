@@ -25,6 +25,11 @@ struct Mesh {
     eastl::vector<CVECTOR> colors;
 };
 
+struct TexRegion {
+    int u0, v0; // top left
+    int u1, v1; // bottom right
+};
+
 class Game {
 public:
     void init();
@@ -36,6 +41,7 @@ public:
         Object& object,
         std::uint16_t meshIdx,
         std::uint16_t textureIdx,
+        const TexRegion& uvs,
         bool cpuTrans = false,
         Mesh* cpuMesh = nullptr);
     void display();

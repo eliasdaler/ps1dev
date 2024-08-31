@@ -252,6 +252,10 @@ void Game::draw()
         TransMatrix(&camera.view, &tpos);
     }
 
+    auto tileUV = TexRegion{0, 0, 63, 63};
+    auto windowUV = TexRegion{64, 0, 127, 63};
+    auto doorUV = TexRegion{0, 64, 63, 127};
+
     // draw floor
     VECTOR posZero{};
     TransMatrix(&worldmat, &posZero);
@@ -259,35 +263,50 @@ void Game::draw()
         for (int y = -8; y < 8; ++y) {
             floorTileObj.position.vx = x * tileSize * 2;
             floorTileObj.position.vz = y * tileSize * 2;
-            drawObject(floorTileObj, floorMeshIdx, floorTextureIdx, true, &tileMesh);
+            drawObject(floorTileObj, floorMeshIdx, floorTextureIdx, tileUV, true, &tileMesh);
         }
     }
 
     // draw walls
-
     for (int x = -3; x < 3; ++x) {
         wallTileObj.position.vx = x * tileSize * 2;
         wallTileObj.position.vy = -32;
         wallTileObj.position.vz = 128 + 64;
-        drawObject(wallTileObj, wallMeshIdx, bricksTextureIdx, true, &tileMesh);
+        if (x == 0) {
+            drawObject(wallTileObj, wallMeshIdx, bricksTextureIdx, doorUV, true, &tileMesh);
+        } else {
+            drawObject(wallTileObj, wallMeshIdx, bricksTextureIdx, windowUV, true, &tileMesh);
+        }
     }
 
     for (int x = 0; x < 8; ++x) {
         wallTileObj.position.vx = -3 * tileSize * 2 - 32;
         wallTileObj.position.vy = -32;
         wallTileObj.position.vz = 128 + 32 - x * tileSize * 2;
-        drawObject(wallTileObj, wallMeshLIdx, bricksTextureIdx, true, &tileMesh);
+        drawObject(
+            wallTileObj,
+            wallMeshLIdx,
+            bricksTextureIdx,
+            (x % 2 == 0) ? tileUV : windowUV,
+            true,
+            &tileMesh);
     }
 
     for (int x = 0; x < 8; ++x) {
         wallTileObj.position.vx = 3 * tileSize * 2 - 32;
         wallTileObj.position.vy = -32;
         wallTileObj.position.vz = 128 + 32 - x * tileSize * 2;
-        drawObject(wallTileObj, wallMeshRIdx, bricksTextureIdx, true, &tileMesh);
+        drawObject(
+            wallTileObj,
+            wallMeshRIdx,
+            bricksTextureIdx,
+            (x % 2 == 0) ? tileUV : windowUV,
+            true,
+            &tileMesh);
     }
 
     // draw player
-    drawObject(cube, cubeMeshIdx, fTextureIdx);
+    drawObject(cube, cubeMeshIdx, fTextureIdx, tileUV);
 
     FntPrint(
         "X=%d Y=%d Z=%d\n",
@@ -305,6 +324,7 @@ void Game::drawObject(
     Object& object,
     std::uint16_t meshIdx,
     std::uint16_t textureIdx,
+    const TexRegion& uvs,
     bool cpuTrans,
     Mesh* cpuMesh)
 {
@@ -337,7 +357,7 @@ void Game::drawObject(
         setPolyFT4(polyft4);
 
         setRGB0(polyft4, 128, 128, 128);
-        setUV4(polyft4, 0, 0, 63, 0, 0, 63, 63, 63);
+        setUV4(polyft4, uvs.u0, uvs.v0, uvs.u1, uvs.v0, uvs.u0, uvs.v1, uvs.u1, uvs.v1);
 
         polyft4->tpage = getTPage(texture.mode & 0x3, 0, texture.prect->x, texture.prect->y);
         polyft4->clut = getClut(texture.crect->x, texture.crect->y);
