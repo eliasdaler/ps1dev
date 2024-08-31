@@ -1,10 +1,9 @@
 #include "Game.h"
 
-#include <stdio.h>
 #include <libetc.h>
 #include <libcd.h>
 
-#include <utility> // move
+#include <utility> //std::move
 
 #include "Utils.h"
 
@@ -15,7 +14,7 @@
 namespace
 {
 
-constexpr auto tileSize = 64;
+constexpr auto tileSize = 256;
 
 bool hasCLUT(const TIM_IMAGE& texture)
 {
@@ -113,8 +112,7 @@ void Game::init()
     FntLoad(960, 0);
     FntOpen(16, 16, 196, 64, 0, 256);
 
-    setVector(&camera.position, 0, -100, -100);
-    setVector(&camera.position, 0, -ONE * tileSize, -100);
+    setVector(&camera.position, 0, -ONE * tileSize, -ONE * 1500);
     camera.view = (MATRIX){0};
 
     CdInit();
@@ -132,9 +130,9 @@ void Game::init()
     loadModel(cubeMesh, "\\MODEL.BIN;1");
     cubeMeshIdx = addMesh(std::move(cubeMesh));
 
-    cube.position = {-64, -32, 0};
+    cube.position = {-64, -128, -1200};
     cube.rotation = {};
-    cube.scale = {ONE >> 4, ONE >> 4, ONE >> 4};
+    cube.scale = {ONE, ONE, ONE};
 
     Mesh floorTile;
     floorTile.vertices = {
@@ -212,20 +210,20 @@ void Game::handleInput()
     if (PadStatus & PADLright) cube.position.vx += 2;
 #else
 
-    if (PadStatus & PADLleft) camera.rotation.vy += ONE * 10;
-    if (PadStatus & PADLright) camera.rotation.vy -= ONE * 10;
+    if (PadStatus & PADLleft) camera.rotation.vy += ONE * 12;
+    if (PadStatus & PADLright) camera.rotation.vy -= ONE * 12;
 
     if (PadStatus & PADL1) camera.rotation.vx += ONE * 10;
     if (PadStatus & PADR1) camera.rotation.vx -= ONE * 10;
 
     if (PadStatus & PADLup) {
-        camera.position.vx -= math::isin(trot.vy) << 3;
-        camera.position.vz += math::icos(trot.vy) << 3;
+        camera.position.vx -= math::isin(trot.vy) << 5;
+        camera.position.vz += math::icos(trot.vy) << 5;
     }
 
     if (PadStatus & PADLdown) {
-        camera.position.vx += math::isin(trot.vy) << 3;
-        camera.position.vz -= math::icos(trot.vy) << 3;
+        camera.position.vx += math::isin(trot.vy) << 5;
+        camera.position.vz -= math::icos(trot.vy) << 5;
     }
 
 #endif
@@ -263,6 +261,7 @@ void Game::drawObject(
     if (dist == 0) {
         dist = 1;
     }
+    dist = 1;
 
     CVECTOR polyCol = {(u_char)(128 / dist), (u_char)(128 / dist), (u_char)(128 / dist)};
     for (int i = 0, q = 0; i < mesh.faces.size(); i += 4, q++) {
@@ -270,9 +269,6 @@ void Game::drawObject(
         setPolyFT4(polyft4);
 
         setRGB0(polyft4, polyCol.r, polyCol.g, polyCol.b);
-        if (dist < 2) {
-            setRGB0(polyft4, 255, 0, 0);
-        }
         setUV4(polyft4, uvs.u0, uvs.v0, uvs.u3, uvs.v0, uvs.u0, uvs.v3, uvs.u3, uvs.v3);
 
         polyft4->tpage = getTPage(texture.mode & 0x3, 0, texture.prect->x, texture.prect->y);
@@ -335,30 +331,13 @@ void Game::drawTile(
     Object& object,
     std::uint16_t meshIdx,
     std::uint16_t textureIdx,
-    const TexRegion& uvs,
-    bool cpuTrans,
-    Mesh* cpuMesh)
+    const TexRegion& uvs)
 {
-    // Draw the object
-    RotMatrix(&object.rotation, &worldmat);
-    if (!cpuTrans) {
-        TransMatrix(&worldmat, &object.position);
-    }
-    ScaleMatrix(&worldmat, &object.scale);
-
-    CompMatrixLV(&camera.view, &worldmat, &viewmat);
-
-    SetRotMatrix(&viewmat);
-    SetTransMatrix(&viewmat);
-
-    auto& mesh = cpuTrans ? *cpuMesh : meshes[meshIdx];
-    if (cpuTrans) {
-        auto& protoMesh = meshes[meshIdx];
-        for (int i = 0; i < protoMesh.vertices.size(); ++i) {
-            mesh.vertices[i].vx = protoMesh.vertices[i].vx + object.position.vx;
-            mesh.vertices[i].vy = protoMesh.vertices[i].vy + object.position.vy;
-            mesh.vertices[i].vz = protoMesh.vertices[i].vz + object.position.vz;
-        }
+    auto& protoMesh = meshes[meshIdx];
+    for (int i = 0; i < protoMesh.vertices.size(); ++i) {
+        tileMesh.vertices[i].vx = protoMesh.vertices[i].vx + object.position.vx;
+        tileMesh.vertices[i].vy = protoMesh.vertices[i].vy + object.position.vy;
+        tileMesh.vertices[i].vz = protoMesh.vertices[i].vz + object.position.vz;
     }
 
     auto& texture = textures[textureIdx];
@@ -374,22 +353,20 @@ void Game::drawTile(
         dist = 1;
     }
 
-    auto colDist = dist - 20;
+    auto colDist = dist - 200;
     if (colDist <= 0) {
         colDist = 1;
     }
+    colDist = 1;
 
     CVECTOR polyCol = {(u_char)(128 / colDist), (u_char)(128 / colDist), (u_char)(128 / colDist)};
     Quad quad{
-        mesh.vertices[mesh.faces[0]],
-        mesh.vertices[mesh.faces[1]],
-        mesh.vertices[mesh.faces[2]],
-        mesh.vertices[mesh.faces[3]]};
+        tileMesh.vertices[0], tileMesh.vertices[1], tileMesh.vertices[2], tileMesh.vertices[3]};
 
     auto depth = 0;
-    if (dist < 4) {
+    if (dist < 100) {
         depth = 2;
-    } else if (dist < 10) {
+    } else if (dist < 200) {
         depth = 1;
     }
     drawQuadRecursive(object, quad, uvs, polyCol, texture, depth);
@@ -413,43 +390,43 @@ void Game::drawQuadRecursive(
         const auto tu3 = uvs.u3;
         const auto tv3 = uvs.v3;
 
-        const auto tum01 = (tu0 + tu1) >> 1;
-        const auto tvm01 = (tv0 + tv1) >> 1;
-        const auto tum02 = (tu0 + tu2) >> 1;
-        const auto tvm02 = (tv0 + tv2) >> 1;
-        const auto tum03 = (tu0 + tu3) >> 1;
-        const auto tvm03 = (tv0 + tv3) >> 1;
-        const auto tum12 = (tu1 + tu2) >> 1;
-        const auto tvm12 = (tv1 + tv2) >> 1;
-        const auto tum13 = (tu1 + tu3) >> 1;
-        const auto tvm13 = (tv1 + tv3) >> 1;
-        const auto tum23 = (tu2 + tu3) >> 1;
-        const auto tvm23 = (tv2 + tv3) >> 1;
+        const auto tum01 = (tu0 + tu1) / 2;
+        const auto tvm01 = (tv0 + tv1) / 2;
+        const auto tum02 = (tu0 + tu2) / 2;
+        const auto tvm02 = (tv0 + tv2) / 2;
+        const auto tum03 = (tu0 + tu3) / 2;
+        const auto tvm03 = (tv0 + tv3) / 2;
+        const auto tum12 = (tu1 + tu2) / 2;
+        const auto tvm12 = (tv1 + tv2) / 2;
+        const auto tum13 = (tu1 + tu3) / 2;
+        const auto tvm13 = (tv1 + tv3) / 2;
+        const auto tum23 = (tu2 + tu3) / 2;
+        const auto tvm23 = (tv2 + tv3) / 2;
 
         const auto v01 = SVECTOR{
-            (short)((quad.v0.vx + quad.v1.vx) >> 1),
-            (short)((quad.v0.vy + quad.v1.vy) >> 1),
-            (short)((quad.v0.vz + quad.v1.vz) >> 1),
+            (short)((quad.v0.vx + quad.v1.vx) / 2),
+            (short)((quad.v0.vy + quad.v1.vy) / 2),
+            (short)((quad.v0.vz + quad.v1.vz) / 2),
         };
         const auto v02 = SVECTOR{
-            (short)((quad.v0.vx + quad.v2.vx) >> 1),
-            (short)((quad.v0.vy + quad.v2.vy) >> 1),
-            (short)((quad.v0.vz + quad.v2.vz) >> 1),
+            (short)((quad.v0.vx + quad.v2.vx) / 2),
+            (short)((quad.v0.vy + quad.v2.vy) / 2),
+            (short)((quad.v0.vz + quad.v2.vz) / 2),
         };
         const auto v03 = SVECTOR{
-            (short)((quad.v0.vx + quad.v3.vx) >> 1),
-            (short)((quad.v0.vy + quad.v3.vy) >> 1),
-            (short)((quad.v0.vz + quad.v3.vz) >> 1),
+            (short)((quad.v0.vx + quad.v3.vx) / 2),
+            (short)((quad.v0.vy + quad.v3.vy) / 2),
+            (short)((quad.v0.vz + quad.v3.vz) / 2),
         };
         const auto v13 = SVECTOR{
-            (short)((quad.v1.vx + quad.v3.vx) >> 1),
-            (short)((quad.v1.vy + quad.v3.vy) >> 1),
-            (short)((quad.v1.vz + quad.v3.vz) >> 1),
+            (short)((quad.v1.vx + quad.v3.vx) / 2),
+            (short)((quad.v1.vy + quad.v3.vy) / 2),
+            (short)((quad.v1.vz + quad.v3.vz) / 2),
         };
         const auto v23 = SVECTOR{
-            (short)((quad.v2.vx + quad.v3.vx) >> 1),
-            (short)((quad.v2.vy + quad.v3.vy) >> 1),
-            (short)((quad.v2.vz + quad.v3.vz) >> 1),
+            (short)((quad.v2.vx + quad.v3.vx) / 2),
+            (short)((quad.v2.vy + quad.v3.vy) / 2),
+            (short)((quad.v2.vz + quad.v3.vz) / 2),
         };
 
         Quad quadDiv;
@@ -566,50 +543,41 @@ void Game::draw()
     // draw floor
     VECTOR posZero{};
     TransMatrix(&worldmat, &posZero);
-    for (int x = -8; x < 8; ++x) {
-        for (int y = -8; y < 8; ++y) {
+    for (int x = -3; x < 3; ++x) {
+        for (int y = 0; y < 8; ++y) {
             floorTileObj.position.vx = x * tileSize * 2;
-            floorTileObj.position.vz = y * tileSize * 2;
-            drawTile(floorTileObj, floorMeshIdx, floorTextureIdx, tileUV, true, &tileMesh);
+            floorTileObj.position.vz = -tileSize - y * tileSize * 2;
+            drawTile(floorTileObj, floorMeshIdx, floorTextureIdx, tileUV);
         }
     }
 
     // draw walls
+    // far
     for (int x = -3; x < 3; ++x) {
         wallTileObj.position.vx = x * tileSize * 2;
         wallTileObj.position.vy = -tileSize;
-        wallTileObj.position.vz = 128 + 64;
+        wallTileObj.position.vz = 0;
         if (x == 0) {
-            drawTile(wallTileObj, wallMeshIdx, bricksTextureIdx, doorUV, true, &tileMesh);
+            drawTile(wallTileObj, wallMeshIdx, bricksTextureIdx, doorUV);
         } else {
-            drawTile(wallTileObj, wallMeshIdx, bricksTextureIdx, windowUV, true, &tileMesh);
+            drawTile(wallTileObj, wallMeshIdx, bricksTextureIdx, windowUV);
         }
     }
 
+    // left
     for (int x = 0; x < 8; ++x) {
-        wallTileObj.position.vx = -3 * tileSize * 2 - 32;
+        wallTileObj.position.vx = -3 * tileSize * 2 - tileSize;
         wallTileObj.position.vy = -tileSize;
-        wallTileObj.position.vz = 128 + 32 - x * tileSize * 2;
-        drawTile(
-            wallTileObj,
-            wallMeshLIdx,
-            bricksTextureIdx,
-            (x % 2 == 0) ? tileUV : windowUV,
-            true,
-            &tileMesh);
+        wallTileObj.position.vz = -x * tileSize * 2;
+        drawTile(wallTileObj, wallMeshLIdx, bricksTextureIdx, (x % 2 == 0) ? tileUV : windowUV);
     }
 
+    // right
     for (int x = 0; x < 8; ++x) {
-        wallTileObj.position.vx = 3 * tileSize * 2 - 32;
+        wallTileObj.position.vx = 3 * tileSize * 2 - tileSize;
         wallTileObj.position.vy = -tileSize;
-        wallTileObj.position.vz = 128 + 32 - x * tileSize * 2;
-        drawTile(
-            wallTileObj,
-            wallMeshRIdx,
-            bricksTextureIdx,
-            (x % 2 == 0) ? tileUV : windowUV,
-            true,
-            &tileMesh);
+        wallTileObj.position.vz = -x * tileSize * 2;
+        drawTile(wallTileObj, wallMeshRIdx, bricksTextureIdx, (x % 2 == 0) ? tileUV : windowUV);
     }
 
     // draw player

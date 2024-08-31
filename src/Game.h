@@ -56,9 +56,7 @@ private:
         Object& object,
         std::uint16_t meshIdx,
         std::uint16_t textureIdx,
-        const TexRegion& uvs,
-        bool cpuTrans = false,
-        Mesh* cpuMesh = nullptr);
+        const TexRegion& uvs);
 
     void drawQuadRecursive(
         Object& object,
