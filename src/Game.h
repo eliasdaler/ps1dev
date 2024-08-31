@@ -27,7 +27,14 @@ struct Mesh {
 
 struct TexRegion {
     int u0, v0; // top left
-    int u1, v1; // bottom right
+    int u3, v3; // bottom right
+};
+
+struct Quad {
+    SVECTOR v0;
+    SVECTOR v1;
+    SVECTOR v2;
+    SVECTOR v3;
 };
 
 class Game {
@@ -41,12 +48,26 @@ public:
         Object& object,
         std::uint16_t meshIdx,
         std::uint16_t textureIdx,
-        const TexRegion& uvs,
-        bool cpuTrans = false,
-        Mesh* cpuMesh = nullptr);
+        const TexRegion& uvs);
     void display();
 
 private:
+    void drawTile(
+        Object& object,
+        std::uint16_t meshIdx,
+        std::uint16_t textureIdx,
+        const TexRegion& uvs,
+        bool cpuTrans = false,
+        Mesh* cpuMesh = nullptr);
+
+    void drawQuadRecursive(
+        Object& object,
+        const Quad& quad,
+        const TexRegion& uvs,
+        const CVECTOR& polyCol,
+        const TIM_IMAGE& texture,
+        int depth);
+
     std::uint16_t addMesh(Mesh mesh);
     std::uint16_t addTexture(TIM_IMAGE texture);
 
