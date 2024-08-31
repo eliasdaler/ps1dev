@@ -131,8 +131,6 @@ void Game::init()
     cube.position = {0, -32, 0};
     cube.rotation = {};
     cube.scale = {ONE >> 4, ONE >> 4, ONE >> 4};
-    cube.meshIdx = cubeMeshIdx;
-    cube.textureIdx = fTextureIdx;
 
     Mesh floorTile;
     floorTile.vertices = {
@@ -147,8 +145,6 @@ void Game::init()
     floorTileObj.position = {0, 0, 0};
     floorTileObj.rotation = {};
     floorTileObj.scale = {ONE, ONE, ONE};
-    floorTileObj.meshIdx = floorMeshIdx;
-    floorTileObj.textureIdx = floorTextureIdx;
 
     Mesh wallTileMesh;
     wallTileMesh.vertices = {
@@ -160,12 +156,29 @@ void Game::init()
     wallTileMesh.faces = {0, 1, 2, 3};
     wallMeshIdx = addMesh(std::move(wallTileMesh));
 
+    Mesh wallTileMeshL;
+    wallTileMeshL.vertices = {
+        SVECTOR{0, -tileSize, -tileSize},
+        SVECTOR{0, -tileSize, tileSize},
+        SVECTOR{0, tileSize, -tileSize},
+        SVECTOR{0, tileSize, tileSize},
+    };
+    wallTileMeshL.faces = {0, 1, 2, 3};
+    wallMeshLIdx = addMesh(std::move(wallTileMeshL));
+
+    Mesh wallTileMeshR;
+    wallTileMeshR.vertices = {
+        SVECTOR{0, -tileSize, tileSize},
+        SVECTOR{0, -tileSize, -tileSize},
+        SVECTOR{0, tileSize, tileSize},
+        SVECTOR{0, tileSize, -tileSize},
+    };
+    wallTileMeshR.faces = {0, 1, 2, 3};
+    wallMeshRIdx = addMesh(std::move(wallTileMeshR));
+
     wallTileObj.position = {0, 0, 0};
     wallTileObj.rotation = {};
     wallTileObj.scale = {ONE, ONE, ONE};
-
-    wallTileObj.meshIdx = wallMeshIdx;
-    wallTileObj.textureIdx = bricksTextureIdx;
 
     tileMesh.vertices.resize(4);
     tileMesh.faces = {0, 1, 2, 3};
@@ -214,38 +227,35 @@ void Game::draw()
         for (int y = -8; y < 8; ++y) {
             floorTileObj.position.vx = x * tileSize * 2;
             floorTileObj.position.vz = y * tileSize * 2;
-            drawObject(floorTileObj, true, &tileMesh);
+            drawObject(floorTileObj, floorMeshIdx, floorTextureIdx, true, &tileMesh);
         }
     }
 
     // draw walls
 
-    /* for (int x = -5; x < 5; ++x) {
-        wallTile.position.vx = x * tileSize * 2;
-        wallTile.position.vy = -32;
-        wallTile.position.vz = 128 + 64;
-        wallTile.rotation.vy = 1024;
-        drawObject(wallTile, bricksTexture, true, &wallTileTemplate);
-    }
-
-    for (int x = -5; x < 5; ++x) {
-        wallTile.position.vx = x * tileSize * 2;
-        wallTile.position.vy = -32;
-        wallTile.position.vz = 128 + 64;
-        wallTile.rotation.vy = -1024;
-        drawObject(wallTile, bricksTexture, true, &wallTileTemplate);
-    } */
-
-    for (int x = -5; x < 5; ++x) {
+    for (int x = -3; x < 3; ++x) {
         wallTileObj.position.vx = x * tileSize * 2;
         wallTileObj.position.vy = -32;
         wallTileObj.position.vz = 128 + 64;
-        wallTileObj.rotation.vy = 0;
-        drawObject(wallTileObj, true, &tileMesh);
+        drawObject(wallTileObj, wallMeshIdx, bricksTextureIdx, true, &tileMesh);
+    }
+
+    for (int x = 0; x < 5; ++x) {
+        wallTileObj.position.vx = -3 * tileSize * 2 - 32;
+        wallTileObj.position.vy = -32;
+        wallTileObj.position.vz = 128 + 32 - x * tileSize * 2;
+        drawObject(wallTileObj, wallMeshLIdx, bricksTextureIdx, true, &tileMesh);
+    }
+
+    for (int x = 0; x < 5; ++x) {
+        wallTileObj.position.vx = 3 * tileSize * 2 - 32;
+        wallTileObj.position.vy = -32;
+        wallTileObj.position.vz = 128 + 32 - x * tileSize * 2;
+        drawObject(wallTileObj, wallMeshRIdx, bricksTextureIdx, true, &tileMesh);
     }
 
     // draw player
-    drawObject(cube);
+    drawObject(cube, cubeMeshIdx, fTextureIdx);
 
     FntPrint("Ppos: %d, %d, %d\n", cube.position.vx, cube.position.vy, cube.position.vz);
     FntPrint("Rot: %d\n", cube.rotation.vy);
@@ -255,7 +265,12 @@ void Game::draw()
     display();
 }
 
-void Game::drawObject(Object& object, bool cpuTrans, Mesh* cpuMesh)
+void Game::drawObject(
+    Object& object,
+    std::uint16_t meshIdx,
+    std::uint16_t textureIdx,
+    bool cpuTrans,
+    Mesh* cpuMesh)
 {
     // Draw the object
     RotMatrix(&object.rotation, &worldmat);
@@ -269,9 +284,9 @@ void Game::drawObject(Object& object, bool cpuTrans, Mesh* cpuMesh)
     SetRotMatrix(&viewmat);
     SetTransMatrix(&viewmat);
 
-    auto& mesh = cpuTrans ? *cpuMesh : meshes[object.meshIdx];
+    auto& mesh = cpuTrans ? *cpuMesh : meshes[meshIdx];
     if (cpuTrans) {
-        auto& protoMesh = meshes[object.meshIdx];
+        auto& protoMesh = meshes[meshIdx];
         for (int i = 0; i < protoMesh.vertices.size(); ++i) {
             mesh.vertices[i].vx = protoMesh.vertices[i].vx + object.position.vx;
             mesh.vertices[i].vy = protoMesh.vertices[i].vy + object.position.vy;
@@ -279,7 +294,7 @@ void Game::drawObject(Object& object, bool cpuTrans, Mesh* cpuMesh)
         }
     }
 
-    auto& texture = textures[object.textureIdx];
+    auto& texture = textures[textureIdx];
 
     for (int i = 0, q = 0; i < mesh.faces.size(); i += 4, q++) {
         auto* polyft4 = (POLY_FT4*)nextpri;

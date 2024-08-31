@@ -17,9 +17,6 @@ struct Object {
     SVECTOR rotation;
     VECTOR position;
     VECTOR scale;
-
-    std::uint16_t meshIdx;
-    std::uint16_t textureIdx;
 };
 
 struct Mesh {
@@ -35,7 +32,12 @@ public:
     void handleInput();
     void update();
     void draw();
-    void drawObject(Object& object, bool cpuTrans = false, Mesh* cpuMesh = nullptr);
+    void drawObject(
+        Object& object,
+        std::uint16_t meshIdx,
+        std::uint16_t textureIdx,
+        bool cpuTrans = false,
+        Mesh* cpuMesh = nullptr);
     void display();
 
 private:
@@ -69,6 +71,8 @@ private:
     std::uint16_t cubeMeshIdx;
     std::uint16_t floorMeshIdx;
     std::uint16_t wallMeshIdx;
+    std::uint16_t wallMeshLIdx;
+    std::uint16_t wallMeshRIdx;
 
     eastl::vector<Mesh> meshes;
     eastl::vector<TIM_IMAGE> textures;
