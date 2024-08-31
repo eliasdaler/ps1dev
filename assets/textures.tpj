@@ -21,9 +21,9 @@
                 <transparency_mode>0</transparency_mode>
             </import_parameters>
         </tim>
-        <tim file="ftex.tim" source="ftex.png">
+        <tim file="ftex.tim" source="face_cato.png">
             <import_parameters>
-                <target_bpp>4</target_bpp>
+                <target_bpp>8</target_bpp>
                 <dithering>0</dithering>
                 <quantize_mode>0</quantize_mode>
                 <set_color_stp>0</set_color_stp>

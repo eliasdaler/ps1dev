@@ -4,6 +4,8 @@
 #include <libgte.h>
 #include <libgpu.h>
 
+#include <cstdint>
+
 #include <EASTL/vector.h>
 
 #include "Camera.h"
@@ -16,6 +18,11 @@ struct Object {
     VECTOR position;
     VECTOR scale;
 
+    std::uint16_t meshIdx;
+    std::uint16_t textureIdx;
+};
+
+struct Mesh {
     eastl::vector<SVECTOR> vertices;
     eastl::vector<short> faces;
     eastl::vector<CVECTOR> colors;
@@ -28,14 +35,13 @@ public:
     void handleInput();
     void update();
     void draw();
-    void drawObject(
-        Object& object,
-        TIM_IMAGE& texture,
-        bool cpuTrans = false,
-        Object* tmpl = nullptr);
+    void drawObject(Object& object, bool cpuTrans = false, Mesh* cpuMesh = nullptr);
     void display();
 
 private:
+    std::uint16_t addMesh(Mesh mesh);
+    std::uint16_t addTexture(TIM_IMAGE texture);
+
     DISPENV dispEnv[2];
     DRAWENV drawEnv[2];
 
@@ -51,15 +57,21 @@ private:
     int CENTERY{SCREENYRES / 2};
 
     Object cube;
-    TIM_IMAGE bricksTexture;
+    Object floorTileObj;
+    Object wallTileObj;
 
-    Object floorTile;
-    Object floorTileTemplate;
-    TIM_IMAGE floorTexture;
+    Mesh tileMesh; // we use it for transforming tiles on CPU
 
-    Object wallTile;
-    Object wallTileTemplate;
-    TIM_IMAGE fTexture;
+    std::uint16_t bricksTextureIdx;
+    std::uint16_t floorTextureIdx;
+    std::uint16_t fTextureIdx;
+
+    std::uint16_t cubeMeshIdx;
+    std::uint16_t floorMeshIdx;
+    std::uint16_t wallMeshIdx;
+
+    eastl::vector<Mesh> meshes;
+    eastl::vector<TIM_IMAGE> textures;
 
     MATRIX worldmat = {0};
     MATRIX viewmat = {0};

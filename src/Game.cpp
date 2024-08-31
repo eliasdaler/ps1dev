@@ -3,6 +3,8 @@
 #include <libetc.h>
 #include <libcd.h>
 
+#include <utility> // move
+
 #include "Utils.h"
 
 #include "inline_n.h"
@@ -36,7 +38,7 @@ TIM_IMAGE loadTexture(const eastl::vector<uint8_t>& timData)
     return texture;
 }
 
-void loadModel(Object& object, eastl::string_view filename)
+void loadModel(Mesh& mesh, eastl::string_view filename)
 {
     const auto data = util::readFile(filename);
     const auto* bytes = (u_char*)data.data();
@@ -47,25 +49,25 @@ void loadModel(Object& object, eastl::string_view filename)
     };
 
     const auto numverts = fr.GetInt16BE();
-    object.vertices.resize(numverts);
+    mesh.vertices.resize(numverts);
     for (int i = 0; i < numverts; i++) {
-        object.vertices[i].vx = fr.GetInt16BE();
-        object.vertices[i].vy = fr.GetInt16BE();
-        object.vertices[i].vz = fr.GetInt16BE();
+        mesh.vertices[i].vx = fr.GetInt16BE();
+        mesh.vertices[i].vy = fr.GetInt16BE();
+        mesh.vertices[i].vz = fr.GetInt16BE();
     }
 
     // faces
     const auto numfaces = fr.GetInt16BE() * 4;
-    object.faces.resize(numfaces);
+    mesh.faces.resize(numfaces);
     for (int i = 0; i < numfaces; i++) {
-        object.faces[i] = fr.GetInt16BE();
+        mesh.faces[i] = fr.GetInt16BE();
     }
 
     // colors
     const auto numcolors = fr.GetInt8();
-    object.colors.resize(numcolors);
+    mesh.colors.resize(numcolors);
     for (int i = 0; i < numcolors; i++) {
-        object.colors[i] = fr.GetObj<CVECTOR>();
+        mesh.colors[i] = fr.GetObj<CVECTOR>();
     }
 }
 
@@ -114,20 +116,25 @@ void Game::init()
     CdInit();
 
     const auto textureData2 = util::readFile("\\BRICKS.TIM;1");
-    bricksTexture = loadTexture(textureData2);
+    bricksTextureIdx = addTexture(loadTexture(textureData2));
 
     const auto textureData = util::readFile("\\FLOOR.TIM;1");
-    floorTexture = loadTexture(textureData);
+    floorTextureIdx = addTexture(loadTexture(textureData));
 
     const auto textureData3 = util::readFile("\\FTEX.TIM;1");
-    fTexture = loadTexture(textureData3);
+    fTextureIdx = addTexture(loadTexture(textureData3));
 
-    loadModel(cube, "\\MODEL.BIN;1");
+    Mesh cubeMesh;
+    loadModel(cubeMesh, "\\MODEL.BIN;1");
+    cubeMeshIdx = addMesh(std::move(cubeMesh));
 
     cube.position = {0, -32, 0};
     cube.rotation = {};
     cube.scale = {ONE >> 4, ONE >> 4, ONE >> 4};
+    cube.meshIdx = cubeMeshIdx;
+    cube.textureIdx = fTextureIdx;
 
+    Mesh floorTile;
     floorTile.vertices = {
         SVECTOR{-tileSize, 0, tileSize},
         SVECTOR{tileSize, 0, tileSize},
@@ -135,26 +142,33 @@ void Game::init()
         SVECTOR{tileSize, 0, -tileSize},
     };
     floorTile.faces = {0, 1, 2, 3};
+    floorMeshIdx = addMesh(std::move(floorTile));
 
-    floorTile.position = {0, 0, 0};
-    floorTile.rotation = {};
-    floorTile.scale = {ONE, ONE, ONE};
+    floorTileObj.position = {0, 0, 0};
+    floorTileObj.rotation = {};
+    floorTileObj.scale = {ONE, ONE, ONE};
+    floorTileObj.meshIdx = floorMeshIdx;
+    floorTileObj.textureIdx = floorTextureIdx;
 
-    floorTileTemplate = floorTile;
-
-    wallTile.vertices = {
+    Mesh wallTileMesh;
+    wallTileMesh.vertices = {
         SVECTOR{-tileSize, -tileSize, 0},
         SVECTOR{tileSize, -tileSize, 0},
         SVECTOR{-tileSize, tileSize, 0},
         SVECTOR{tileSize, tileSize, 0},
     };
-    wallTile.faces = {0, 1, 2, 3};
+    wallTileMesh.faces = {0, 1, 2, 3};
+    wallMeshIdx = addMesh(std::move(wallTileMesh));
 
-    wallTile.position = {0, 0, 0};
-    wallTile.rotation = {};
-    wallTile.scale = {ONE, ONE, ONE};
+    wallTileObj.position = {0, 0, 0};
+    wallTileObj.rotation = {};
+    wallTileObj.scale = {ONE, ONE, ONE};
 
-    wallTileTemplate = wallTile;
+    wallTileObj.meshIdx = wallMeshIdx;
+    wallTileObj.textureIdx = bricksTextureIdx;
+
+    tileMesh.vertices.resize(4);
+    tileMesh.faces = {0, 1, 2, 3};
 }
 
 void Game::run()
@@ -198,22 +212,40 @@ void Game::draw()
     TransMatrix(&worldmat, &posZero);
     for (int x = -8; x < 8; ++x) {
         for (int y = -8; y < 8; ++y) {
-            floorTile.position.vx = x * tileSize * 2;
-            floorTile.position.vz = y * tileSize * 2;
-            drawObject(floorTile, floorTexture, true, &floorTileTemplate);
+            floorTileObj.position.vx = x * tileSize * 2;
+            floorTileObj.position.vz = y * tileSize * 2;
+            drawObject(floorTileObj, true, &tileMesh);
         }
     }
 
     // draw walls
-    for (int x = -8; x < 8; ++x) {
+
+    /* for (int x = -5; x < 5; ++x) {
         wallTile.position.vx = x * tileSize * 2;
         wallTile.position.vy = -32;
-        wallTile.position.vz = 256;
+        wallTile.position.vz = 128 + 64;
+        wallTile.rotation.vy = 1024;
         drawObject(wallTile, bricksTexture, true, &wallTileTemplate);
     }
 
+    for (int x = -5; x < 5; ++x) {
+        wallTile.position.vx = x * tileSize * 2;
+        wallTile.position.vy = -32;
+        wallTile.position.vz = 128 + 64;
+        wallTile.rotation.vy = -1024;
+        drawObject(wallTile, bricksTexture, true, &wallTileTemplate);
+    } */
+
+    for (int x = -5; x < 5; ++x) {
+        wallTileObj.position.vx = x * tileSize * 2;
+        wallTileObj.position.vy = -32;
+        wallTileObj.position.vz = 128 + 64;
+        wallTileObj.rotation.vy = 0;
+        drawObject(wallTileObj, true, &tileMesh);
+    }
+
     // draw player
-    drawObject(cube, fTexture);
+    drawObject(cube);
 
     FntPrint("Ppos: %d, %d, %d\n", cube.position.vx, cube.position.vy, cube.position.vz);
     FntPrint("Rot: %d\n", cube.rotation.vy);
@@ -223,7 +255,7 @@ void Game::draw()
     display();
 }
 
-void Game::drawObject(Object& object, TIM_IMAGE& texture, bool cpuTrans, Object* tmpl)
+void Game::drawObject(Object& object, bool cpuTrans, Mesh* cpuMesh)
 {
     // Draw the object
     RotMatrix(&object.rotation, &worldmat);
@@ -237,15 +269,19 @@ void Game::drawObject(Object& object, TIM_IMAGE& texture, bool cpuTrans, Object*
     SetRotMatrix(&viewmat);
     SetTransMatrix(&viewmat);
 
+    auto& mesh = cpuTrans ? *cpuMesh : meshes[object.meshIdx];
     if (cpuTrans) {
-        for (int i = 0; i < object.vertices.size(); ++i) {
-            object.vertices[i].vx = tmpl->vertices[i].vx + object.position.vx;
-            object.vertices[i].vy = tmpl->vertices[i].vy + object.position.vy;
-            object.vertices[i].vz = tmpl->vertices[i].vz + object.position.vz;
+        auto& protoMesh = meshes[object.meshIdx];
+        for (int i = 0; i < protoMesh.vertices.size(); ++i) {
+            mesh.vertices[i].vx = protoMesh.vertices[i].vx + object.position.vx;
+            mesh.vertices[i].vy = protoMesh.vertices[i].vy + object.position.vy;
+            mesh.vertices[i].vz = protoMesh.vertices[i].vz + object.position.vz;
         }
     }
 
-    for (int i = 0, q = 0; i < object.faces.size(); i += 4, q++) {
+    auto& texture = textures[object.textureIdx];
+
+    for (int i = 0, q = 0; i < mesh.faces.size(); i += 4, q++) {
         auto* polyft4 = (POLY_FT4*)nextpri;
         setPolyFT4(polyft4);
 
@@ -283,10 +319,10 @@ void Game::drawObject(Object& object, TIM_IMAGE& texture, bool cpuTrans, Object*
         long p, otz, flg;
 
         const auto nclip = RotAverageNclip4(
-            &object.vertices[object.faces[i + 0]],
-            &object.vertices[object.faces[i + 1]],
-            &object.vertices[object.faces[i + 2]],
-            &object.vertices[object.faces[i + 3]],
+            &mesh.vertices[mesh.faces[i + 0]],
+            &mesh.vertices[mesh.faces[i + 1]],
+            &mesh.vertices[mesh.faces[i + 2]],
+            &mesh.vertices[mesh.faces[i + 3]],
             (long*)&polyft4->x0,
             (long*)&polyft4->x1,
             (long*)&polyft4->x2,
@@ -314,4 +350,18 @@ void Game::display()
     PutDrawEnv(&drawEnv[currBuffer]);
     DrawOTag(&ot[currBuffer][OTLEN - 1]);
     currBuffer = !currBuffer;
+}
+
+std::uint16_t Game::addMesh(Mesh mesh)
+{
+    auto id = meshes.size();
+    meshes.push_back(std::move(mesh));
+    return static_cast<std::uint16_t>(id);
+}
+
+std::uint16_t Game::addTexture(TIM_IMAGE texture)
+{
+    auto id = textures.size();
+    textures.push_back(std::move(texture));
+    return static_cast<std::uint16_t>(id);
 }
