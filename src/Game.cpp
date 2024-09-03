@@ -82,7 +82,11 @@ void Game::init()
 
     InitGeom();
     SetGeomOffset(CENTERX, CENTERY);
-    SetGeomScreen(CENTERX);
+    SetGeomScreen(420);
+
+    SetBackColor(0, 0, 0);
+    SetFarColor(0, 0, 0);
+    SetFogNearFar(500, 2800, SCREENXRES / 2);
 
     SetDefDispEnv(&dispEnv[0], 0, 0, SCREENXRES, SCREENYRES);
     SetDefDrawEnv(&drawEnv[0], 0, SCREENYRES, SCREENXRES, SCREENYRES);
@@ -101,8 +105,10 @@ void Game::init()
 
     // setRGB0(&drawEnv[0], 100, 149, 237);
     // setRGB0(&drawEnv[1], 100, 149, 237);
+
     setRGB0(&drawEnv[0], 0, 0, 0);
     setRGB0(&drawEnv[1], 0, 0, 0);
+
     drawEnv[0].isbg = 1;
     drawEnv[1].isbg = 1;
 
@@ -112,7 +118,7 @@ void Game::init()
     FntLoad(960, 0);
     FntOpen(16, 16, 196, 64, 0, 256);
 
-    setVector(&camera.position, 0, -ONE * tileSize, -ONE * 1500);
+    setVector(&camera.position, 0, -ONE * (tileSize + tileSize / 8), -ONE * 2500);
     camera.view = (MATRIX){0};
 
     CdInit();
@@ -251,32 +257,18 @@ void Game::drawObject(
     auto& mesh = meshes[meshIdx];
     auto& texture = textures[textureIdx];
 
-    auto cpos =
-        VECTOR{camera.position.vx >> 12, camera.position.vy >> 12, camera.position.vz >> 12};
-    auto dist = (cpos.vx - object.position.vx) * (cpos.vx - object.position.vx) +
-                // (cpos.vy - object.position.vy) * (cpos.vy - object.position.vy) +
-                (cpos.vz - object.position.vz) * (cpos.vz - object.position.vz);
-
-    dist >>= 14;
-    if (dist == 0) {
-        dist = 1;
-    }
-    dist = 1;
-
-    CVECTOR polyCol = {(u_char)(128 / dist), (u_char)(128 / dist), (u_char)(128 / dist)};
     for (int i = 0, q = 0; i < mesh.faces.size(); i += 4, q++) {
         auto* polyft4 = (POLY_FT4*)nextpri;
         setPolyFT4(polyft4);
 
-        setRGB0(polyft4, polyCol.r, polyCol.g, polyCol.b);
         setUV4(polyft4, uvs.u0, uvs.v0, uvs.u3, uvs.v0, uvs.u0, uvs.v3, uvs.u3, uvs.v3);
 
         polyft4->tpage = getTPage(texture.mode & 0x3, 0, texture.prect->x, texture.prect->y);
         polyft4->clut = getClut(texture.crect->x, texture.crect->y);
 
-        /* gte_ldv0(&object.vertices[object.faces[i + 0]]);
-        gte_ldv1(&object.vertices[object.faces[i + 1]]);
-        gte_ldv2(&object.vertices[object.faces[i + 2]]);
+        gte_ldv0(&mesh.vertices[mesh.faces[i + 0]]);
+        gte_ldv1(&mesh.vertices[mesh.faces[i + 1]]);
+        gte_ldv2(&mesh.vertices[mesh.faces[i + 2]]);
 
         gte_rtpt();
 
@@ -291,15 +283,19 @@ void Game::drawObject(
 
         gte_stsxy0(&polyft4->x0);
 
-        gte_ldv0(&object.vertices[object.faces[i + 3]]);
+        gte_ldv0(&mesh.vertices[mesh.faces[i + 3]]);
         gte_rtps();
 
         gte_stsxy3(&polyft4->x1, &polyft4->x2, &polyft4->x3);
 
+        long otz;
         gte_avsz4();
-        gte_stotz(&otz); */
+        gte_stotz(&otz);
 
-        long p, otz, flg;
+        long p;
+        gte_stdp(&p);
+
+        /* long p, otz, flg;
 
         const auto nclip = RotAverageNclip4(
             &mesh.vertices[mesh.faces[i + 0]],
@@ -317,8 +313,14 @@ void Game::drawObject(
         if (nclip <= 0) {
             continue;
         }
+        */
 
-        otz -= 64;
+        CVECTOR near = {128, 128, 128, 44};
+        CVECTOR col;
+        DpqColor(&near, p, &col);
+        setRGB0(polyft4, col.r, col.g, col.b);
+
+        otz -= 64; // depth bias for not overlapping with tiles
 
         if (otz > 0 && otz < OTLEN) {
             CVECTOR col;
@@ -470,7 +472,6 @@ void Game::drawQuadRecursive(
         };
         drawQuadRecursive(object, quadDiv, tr, polyCol, texture, depth - 1);
     } else if (depth == 0) {
-        // Draw the object
         RotMatrix(&object.rotation, &worldmat);
         ScaleMatrix(&worldmat, &object.scale);
 
@@ -488,7 +489,36 @@ void Game::drawQuadRecursive(
         polyft4->tpage = getTPage(texture.mode & 0x3, 0, texture.prect->x, texture.prect->y);
         polyft4->clut = getClut(texture.crect->x, texture.crect->y);
 
-        long p, otz, flg;
+        gte_ldv0(&quad.v0);
+        gte_ldv1(&quad.v1);
+        gte_ldv2(&quad.v2);
+
+        gte_rtpt();
+
+        gte_nclip();
+
+        long nclip;
+        gte_stopz(&nclip);
+
+        if (nclip < 0) {
+            return;
+        }
+
+        gte_stsxy0(&polyft4->x0);
+
+        gte_ldv0(&quad.v3);
+        gte_rtps();
+
+        gte_stsxy3(&polyft4->x1, &polyft4->x2, &polyft4->x3);
+
+        long otz;
+        gte_avsz4();
+        gte_stotz(&otz);
+
+        long p;
+        gte_stdp(&p);
+
+        /* long p, otz, flg;
 
         const auto nclip = RotAverageNclip4(
             const_cast<SVECTOR*>(&quad.v0),
@@ -505,7 +535,12 @@ void Game::drawQuadRecursive(
 
         if (nclip <= 0) {
             return;
-        }
+        } */
+
+        CVECTOR near = {128, 128, 128, 44};
+        CVECTOR col;
+        DpqColor(&near, p, &col);
+        setRGB0(polyft4, col.r, col.g, col.b);
 
         if (otz > 0 && otz < OTLEN) {
             CVECTOR col;
