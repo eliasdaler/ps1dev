@@ -1,11 +1,14 @@
 #include "Camera.h"
 
+#include <inline_n.h>
+#include <gtemac.h>
+
 namespace
 {
 VECTOR VectorCross(const VECTOR& a, const VECTOR& b)
 {
     VECTOR out;
-    OuterProduct12(const_cast<VECTOR*>(&a), const_cast<VECTOR*>(&b), &out);
+    gte_OuterProduct12(const_cast<VECTOR*>(&a), const_cast<VECTOR*>(&b), &out);
     return out;
 }
 }

@@ -2,14 +2,15 @@
 
 #include <libetc.h>
 #include <libcd.h>
+#include <inline_n.h>
+#include <gtemac.h>
 
 #include <utility> //std::move
 
 #include "Utils.h"
 
-#include "inline_n.h"
-
 #include "Trig.h"
+#include "Clip.h"
 
 namespace
 {
@@ -93,6 +94,8 @@ void Game::init()
 
     SetDefDispEnv(&dispEnv[1], 0, SCREENYRES, SCREENXRES, SCREENYRES);
     SetDefDrawEnv(&drawEnv[1], 0, 0, SCREENXRES, SCREENYRES);
+
+    setRECT(&screen_clip, 0, 0, SCREENXRES, SCREENYRES);
 
     bool palMode = false;
     if (palMode) {
@@ -288,6 +291,15 @@ void Game::drawObject(
 
         gte_stsxy3(&polyft4->x1, &polyft4->x2, &polyft4->x3);
 
+        if (quad_clip(
+                &screen_clip,
+                (DVECTOR*)&polyft4->x0,
+                (DVECTOR*)&polyft4->x1,
+                (DVECTOR*)&polyft4->x2,
+                (DVECTOR*)&polyft4->x3)) {
+            continue;
+        }
+
         long otz;
         gte_avsz4();
         gte_stotz(&otz);
@@ -295,29 +307,9 @@ void Game::drawObject(
         long p;
         gte_stdp(&p);
 
-        /* long p, otz, flg;
-
-        const auto nclip = RotAverageNclip4(
-            &mesh.vertices[mesh.faces[i + 0]],
-            &mesh.vertices[mesh.faces[i + 1]],
-            &mesh.vertices[mesh.faces[i + 2]],
-            &mesh.vertices[mesh.faces[i + 3]],
-            (long*)&polyft4->x0,
-            (long*)&polyft4->x1,
-            (long*)&polyft4->x2,
-            (long*)&polyft4->x3,
-            &p,
-            &otz,
-            &flg);
-
-        if (nclip <= 0) {
-            continue;
-        }
-        */
-
         CVECTOR near = {128, 128, 128, 44};
         CVECTOR col;
-        DpqColor(&near, p, &col);
+        gte_DpqColor(&near, p, &col);
         setRGB0(polyft4, col.r, col.g, col.b);
 
         otz -= 64; // depth bias for not overlapping with tiles
@@ -346,6 +338,10 @@ void Game::drawTile(
 
     auto& texture = textures[textureIdx];
 
+    Quad quad{
+        tileMesh.vertices[0], tileMesh.vertices[1], tileMesh.vertices[2], tileMesh.vertices[3]};
+
+    auto depth = 0;
     auto cpos =
         VECTOR{camera.position.vx >> 12, camera.position.vy >> 12, camera.position.vz >> 12};
     auto dist = (cpos.vx - object.position.vx) * (cpos.vx - object.position.vx) +
@@ -356,31 +352,29 @@ void Game::drawTile(
     if (dist == 0) {
         dist = 1;
     }
-
-    auto colDist = dist - 200;
-    if (colDist <= 0) {
-        colDist = 1;
+    if (meshIdx != floorMeshIdx) {
+        if (dist < 250) {
+            depth = 2;
+        } else if (dist < 600) {
+            depth = 1;
+        }
+    } else {
+        // floor - TODO
+        // not subdividing it is a bit nicer since we don't get holes
+        // the distortion is not as apparent, unless you look down
+        /* if (trot.vx > 180) { // only subdivide when looking down
+            if (dist < 100) {
+                depth = 2;
+            }
+        } */
     }
-    colDist = 1;
-
-    CVECTOR polyCol = {(u_char)(128 / colDist), (u_char)(128 / colDist), (u_char)(128 / colDist)};
-    Quad quad{
-        tileMesh.vertices[0], tileMesh.vertices[1], tileMesh.vertices[2], tileMesh.vertices[3]};
-
-    auto depth = 0;
-    if (dist < 100) {
-        depth = 2;
-    } else if (dist < 200) {
-        depth = 1;
-    }
-    drawQuadRecursive(object, quad, uvs, polyCol, texture, depth);
+    drawQuadRecursive(object, quad, uvs, texture, depth);
 }
 
 void Game::drawQuadRecursive(
     Object& object,
     const Quad& quad,
     const TexRegion& uvs,
-    const CVECTOR& polyCol,
     const TIM_IMAGE& texture,
     int depth)
 {
@@ -436,6 +430,7 @@ void Game::drawQuadRecursive(
         Quad quadDiv;
         TexRegion tr;
 
+        // top left
         quadDiv = {quad.v0, v01, v02, v03};
         tr = {
             .u0 = tu0,
@@ -443,8 +438,9 @@ void Game::drawQuadRecursive(
             .u3 = tum03,
             .v3 = tvm03,
         };
-        drawQuadRecursive(object, quadDiv, tr, polyCol, texture, depth - 1);
+        drawQuadRecursive(object, quadDiv, tr, texture, depth - 1);
 
+        // top right
         quadDiv = {v01, quad.v1, v03, v13};
         tr = {
             .u0 = tum01,
@@ -452,8 +448,9 @@ void Game::drawQuadRecursive(
             .u3 = tum13,
             .v3 = tvm13,
         };
-        drawQuadRecursive(object, quadDiv, tr, polyCol, texture, depth - 1);
+        drawQuadRecursive(object, quadDiv, tr, texture, depth - 1);
 
+        // bottom keft
         quadDiv = {v02, v03, quad.v2, v23};
         tr = {
             .u0 = tum02,
@@ -461,8 +458,9 @@ void Game::drawQuadRecursive(
             .u3 = tum23,
             .v3 = tvm23,
         };
-        drawQuadRecursive(object, quadDiv, tr, polyCol, texture, depth - 1);
+        drawQuadRecursive(object, quadDiv, tr, texture, depth - 1);
 
+        // bottom right
         quadDiv = {v03, v13, v23, quad.v3};
         tr = {
             .u0 = tum03,
@@ -470,7 +468,7 @@ void Game::drawQuadRecursive(
             .u3 = tu3,
             .v3 = tv3,
         };
-        drawQuadRecursive(object, quadDiv, tr, polyCol, texture, depth - 1);
+        drawQuadRecursive(object, quadDiv, tr, texture, depth - 1);
     } else if (depth == 0) {
         RotMatrix(&object.rotation, &worldmat);
         ScaleMatrix(&worldmat, &object.scale);
@@ -483,7 +481,6 @@ void Game::drawQuadRecursive(
         auto* polyft4 = (POLY_FT4*)nextpri;
         setPolyFT4(polyft4);
 
-        setRGB0(polyft4, polyCol.r, polyCol.g, polyCol.b);
         setUV4(polyft4, uvs.u0, uvs.v0, uvs.u3, uvs.v0, uvs.u0, uvs.v3, uvs.u3, uvs.v3);
 
         polyft4->tpage = getTPage(texture.mode & 0x3, 0, texture.prect->x, texture.prect->y);
@@ -511,6 +508,15 @@ void Game::drawQuadRecursive(
 
         gte_stsxy3(&polyft4->x1, &polyft4->x2, &polyft4->x3);
 
+        if (quad_clip(
+                &screen_clip,
+                (DVECTOR*)&polyft4->x0,
+                (DVECTOR*)&polyft4->x1,
+                (DVECTOR*)&polyft4->x2,
+                (DVECTOR*)&polyft4->x3)) {
+            return;
+        }
+
         long otz;
         gte_avsz4();
         gte_stotz(&otz);
@@ -518,28 +524,9 @@ void Game::drawQuadRecursive(
         long p;
         gte_stdp(&p);
 
-        /* long p, otz, flg;
-
-        const auto nclip = RotAverageNclip4(
-            const_cast<SVECTOR*>(&quad.v0),
-            const_cast<SVECTOR*>(&quad.v1),
-            const_cast<SVECTOR*>(&quad.v2),
-            const_cast<SVECTOR*>(&quad.v3),
-            (long*)&polyft4->x0,
-            (long*)&polyft4->x1,
-            (long*)&polyft4->x2,
-            (long*)&polyft4->x3,
-            &p,
-            &otz,
-            &flg);
-
-        if (nclip <= 0) {
-            return;
-        } */
-
         CVECTOR near = {128, 128, 128, 44};
         CVECTOR col;
-        DpqColor(&near, p, &col);
+        gte_DpqColor(&near, p, &col);
         setRGB0(polyft4, col.r, col.g, col.b);
 
         if (otz > 0 && otz < OTLEN) {
@@ -573,9 +560,9 @@ void Game::draw()
         TransMatrix(&camera.view, &tpos);
     }
 
-    auto tileUV = TexRegion{0, 0, 63, 63};
-    auto windowUV = TexRegion{64, 0, 127, 63};
-    auto doorUV = TexRegion{0, 64, 63, 127};
+    const auto tileUV = TexRegion{0, 0, 63, 63};
+    const auto windowUV = TexRegion{64, 0, 127, 63};
+    const auto doorUV = TexRegion{0, 64, 63, 127};
 
     // draw floor
     VECTOR posZero{};

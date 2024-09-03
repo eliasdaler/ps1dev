@@ -62,7 +62,6 @@ private:
         Object& object,
         const Quad& quad,
         const TexRegion& uvs,
-        const CVECTOR& polyCol,
         const TIM_IMAGE& texture,
         int depth);
 
@@ -82,6 +81,8 @@ private:
 
     int CENTERX{SCREENXRES / 2};
     int CENTERY{SCREENYRES / 2};
+
+    RECT screen_clip;
 
     Object cube;
     Object floorTileObj;
