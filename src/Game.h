@@ -19,10 +19,13 @@ struct Object {
     VECTOR scale;
 };
 
+struct SVEC2 {
+    std::uint8_t x, y;
+};
+
 struct Mesh {
     eastl::vector<SVECTOR> vertices;
-    eastl::vector<short> faces;
-    eastl::vector<CVECTOR> colors;
+    eastl::vector<SVEC2> uvs;
 };
 
 struct TexRegion {
@@ -85,6 +88,7 @@ private:
     RECT screen_clip;
 
     Object cube;
+    Object roll;
     Object floorTileObj;
     Object wallTileObj;
 
@@ -95,6 +99,7 @@ private:
     std::uint16_t fTextureIdx;
 
     std::uint16_t cubeMeshIdx;
+    std::uint16_t rollMeshIdx;
     std::uint16_t floorMeshIdx;
     std::uint16_t wallMeshIdx;
     std::uint16_t wallMeshLIdx;

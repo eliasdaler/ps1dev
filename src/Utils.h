@@ -14,7 +14,8 @@ struct FileReader {
     const uint8_t* bytes;
     int cursor{0};
 
-    char GetInt8() { return static_cast<int8_t>(bytes[cursor++]); }
+    uint8_t GetUInt8() { return static_cast<uint8_t>(bytes[cursor++]); }
+    int8_t GetInt8() { return static_cast<int8_t>(bytes[cursor++]); }
 
     int16_t GetInt16()
     {
@@ -22,6 +23,14 @@ struct FileReader {
         value |= bytes[cursor++];
         value |= bytes[cursor++] << 8;
         return static_cast<int16_t>(value);
+    }
+
+    uint16_t GetUInt16()
+    {
+        uint16_t value = 0;
+        value |= bytes[cursor++];
+        value |= bytes[cursor++] << 8;
+        return static_cast<uint16_t>(value);
     }
 
     int16_t GetInt16BE()

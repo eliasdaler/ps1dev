@@ -1,5 +1,6 @@
 #include "Game.h"
 
+#include <stdio.h>
 #include <libetc.h>
 #include <libcd.h>
 #include <inline_n.h>
@@ -51,29 +52,26 @@ void loadModel(Mesh& mesh, eastl::string_view filename)
         .bytes = data.data(),
     };
 
-    const auto numverts = fr.GetInt16BE();
-    mesh.vertices.resize(numverts);
-    for (int i = 0; i < numverts; i++) {
-        mesh.vertices[i].vx = fr.GetInt16BE();
-        mesh.vertices[i].vy = fr.GetInt16BE();
-        mesh.vertices[i].vz = fr.GetInt16BE();
-    }
-
-    // faces
-    const auto numfaces = fr.GetInt16BE() * 4;
-    mesh.faces.resize(numfaces);
-    for (int i = 0; i < numfaces; i++) {
-        mesh.faces[i] = fr.GetInt16BE();
-    }
-
-    // colors
-    const auto numcolors = fr.GetInt8();
-    mesh.colors.resize(numcolors);
-    for (int i = 0; i < numcolors; i++) {
-        mesh.colors[i] = fr.GetObj<CVECTOR>();
+    const auto numSubmeshes = fr.GetUInt16();
+    for (int i = 0; i < numSubmeshes; ++i) {
+        const auto numTris = fr.GetUInt16();
+        for (int j = 0; j < numTris; ++j) {
+            for (int k = 0; k < 3; ++k) {
+                const auto vx = fr.GetInt16();
+                const auto vy = fr.GetInt16();
+                const auto vz = fr.GetInt16();
+                const auto u = fr.GetUInt8();
+                const auto v = fr.GetUInt8();
+                mesh.vertices.push_back(SVECTOR{
+                    .vx = vx,
+                    .vy = vy,
+                    .vz = vz,
+                });
+                mesh.uvs.push_back({u, v});
+            }
+        }
     }
 }
-
 }
 
 void Game::init()
@@ -132,16 +130,20 @@ void Game::init()
     const auto textureData = util::readFile("\\FLOOR.TIM;1");
     floorTextureIdx = addTexture(loadTexture(textureData));
 
-    const auto textureData3 = util::readFile("\\FTEX.TIM;1");
+    const auto textureData3 = util::readFile("\\ROLL.TIM;1");
     fTextureIdx = addTexture(loadTexture(textureData3));
 
-    Mesh cubeMesh;
-    loadModel(cubeMesh, "\\MODEL.BIN;1");
-    cubeMeshIdx = addMesh(std::move(cubeMesh));
+    Mesh rollMesh;
+    loadModel(rollMesh, "\\ROLL.BIN;1");
+    rollMeshIdx = addMesh(std::move(rollMesh));
 
-    cube.position = {-64, -128, -1200};
+    cube.position = {-64, 0, -1200};
     cube.rotation = {};
     cube.scale = {ONE, ONE, ONE};
+
+    roll.position = {-256, 0, -1200};
+    roll.rotation = {};
+    roll.scale = {ONE, ONE, ONE};
 
     Mesh floorTile;
     floorTile.vertices = {
@@ -150,7 +152,6 @@ void Game::init()
         SVECTOR{-tileSize, 0, -tileSize},
         SVECTOR{tileSize, 0, -tileSize},
     };
-    floorTile.faces = {0, 1, 2, 3};
     floorMeshIdx = addMesh(std::move(floorTile));
 
     floorTileObj.position = {0, 0, 0};
@@ -164,7 +165,6 @@ void Game::init()
         SVECTOR{-tileSize, tileSize, 0},
         SVECTOR{tileSize, tileSize, 0},
     };
-    wallTileMesh.faces = {0, 1, 2, 3};
     wallMeshIdx = addMesh(std::move(wallTileMesh));
 
     Mesh wallTileMeshL;
@@ -174,7 +174,6 @@ void Game::init()
         SVECTOR{0, tileSize, -tileSize},
         SVECTOR{0, tileSize, tileSize},
     };
-    wallTileMeshL.faces = {0, 1, 2, 3};
     wallMeshLIdx = addMesh(std::move(wallTileMeshL));
 
     Mesh wallTileMeshR;
@@ -184,7 +183,6 @@ void Game::init()
         SVECTOR{0, tileSize, tileSize},
         SVECTOR{0, tileSize, -tileSize},
     };
-    wallTileMeshR.faces = {0, 1, 2, 3};
     wallMeshRIdx = addMesh(std::move(wallTileMeshR));
 
     wallTileObj.position = {0, 0, 0};
@@ -192,7 +190,6 @@ void Game::init()
     wallTileObj.scale = {ONE, ONE, ONE};
 
     tileMesh.vertices.resize(4);
-    tileMesh.faces = {0, 1, 2, 3};
 }
 
 void Game::run()
@@ -254,24 +251,33 @@ void Game::drawObject(
 
     CompMatrixLV(&camera.view, &worldmat, &viewmat);
 
-    SetRotMatrix(&viewmat);
-    SetTransMatrix(&viewmat);
+    gte_SetRotMatrix(&viewmat);
+    gte_SetTransMatrix(&viewmat);
 
-    auto& mesh = meshes[meshIdx];
-    auto& texture = textures[textureIdx];
+    const auto& texture = textures[textureIdx];
+    const auto tpage = getTPage(texture.mode & 0x3, 0, texture.prect->x, texture.prect->y);
+    const auto clut = getClut(texture.crect->x, texture.crect->y);
 
-    for (int i = 0, q = 0; i < mesh.faces.size(); i += 4, q++) {
-        auto* polyft4 = (POLY_FT4*)nextpri;
-        setPolyFT4(polyft4);
+    const auto& mesh = meshes[meshIdx];
+    for (std::size_t i = 0; i < mesh.vertices.size(); i += 3) {
+        auto* polyft3 = (POLY_FT3*)nextpri;
+        setPolyFT3(polyft3);
 
-        setUV4(polyft4, uvs.u0, uvs.v0, uvs.u3, uvs.v0, uvs.u0, uvs.v3, uvs.u3, uvs.v3);
+        setUV3(
+            polyft3,
+            mesh.uvs[i + 0].x,
+            mesh.uvs[i + 0].y,
+            mesh.uvs[i + 1].x,
+            mesh.uvs[i + 1].y,
+            mesh.uvs[i + 2].x,
+            mesh.uvs[i + 2].y);
 
-        polyft4->tpage = getTPage(texture.mode & 0x3, 0, texture.prect->x, texture.prect->y);
-        polyft4->clut = getClut(texture.crect->x, texture.crect->y);
+        polyft3->tpage = tpage;
+        polyft3->clut = clut;
 
-        gte_ldv0(&mesh.vertices[mesh.faces[i + 0]]);
-        gte_ldv1(&mesh.vertices[mesh.faces[i + 1]]);
-        gte_ldv2(&mesh.vertices[mesh.faces[i + 2]]);
+        gte_ldv0(&mesh.vertices[i]);
+        gte_ldv1(&mesh.vertices[i + 1]);
+        gte_ldv2(&mesh.vertices[i + 2]);
 
         gte_rtpt();
 
@@ -284,24 +290,10 @@ void Game::drawObject(
             continue;
         }
 
-        gte_stsxy0(&polyft4->x0);
+        gte_stsxy3(&polyft3->x0, &polyft3->x1, &polyft3->x2);
 
-        gte_ldv0(&mesh.vertices[mesh.faces[i + 3]]);
-        gte_rtps();
-
-        gte_stsxy3(&polyft4->x1, &polyft4->x2, &polyft4->x3);
-
-        if (quad_clip(
-                &screen_clip,
-                (DVECTOR*)&polyft4->x0,
-                (DVECTOR*)&polyft4->x1,
-                (DVECTOR*)&polyft4->x2,
-                (DVECTOR*)&polyft4->x3)) {
-            continue;
-        }
-
+        gte_avsz3();
         long otz;
-        gte_avsz4();
         gte_stotz(&otz);
 
         long p;
@@ -310,15 +302,15 @@ void Game::drawObject(
         CVECTOR near = {128, 128, 128, 44};
         CVECTOR col;
         gte_DpqColor(&near, p, &col);
-        setRGB0(polyft4, col.r, col.g, col.b);
+        setRGB0(polyft3, col.r, col.g, col.b);
 
         otz -= 64; // depth bias for not overlapping with tiles
 
         if (otz > 0 && otz < OTLEN) {
             CVECTOR col;
 
-            addPrim(&ot[currBuffer][otz], polyft4);
-            nextpri += sizeof(POLY_FT4);
+            addPrim(&ot[currBuffer][otz], polyft3);
+            nextpri += sizeof(POLY_FT3);
         }
     }
 }
@@ -475,8 +467,8 @@ void Game::drawQuadRecursive(
 
         CompMatrixLV(&camera.view, &worldmat, &viewmat);
 
-        SetRotMatrix(&viewmat);
-        SetTransMatrix(&viewmat);
+        gte_SetRotMatrix(&viewmat);
+        gte_SetTransMatrix(&viewmat);
 
         auto* polyft4 = (POLY_FT4*)nextpri;
         setPolyFT4(polyft4);
@@ -605,7 +597,9 @@ void Game::draw()
     }
 
     // draw player
-    drawObject(cube, cubeMeshIdx, fTextureIdx, tileUV);
+    // drawObject(cube, cubeMeshIdx, fTextureIdx, tileUV);
+    drawObject(cube, rollMeshIdx, fTextureIdx, tileUV);
+    // drawObjectNew(roll, rollMeshIdx, fTextureIdx, tileUV);
 
     FntPrint(
         "X=%d Y=%d Z=%d\n",
