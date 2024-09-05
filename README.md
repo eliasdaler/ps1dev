@@ -2,6 +2,12 @@
 
 PS1 development experiments.
 
+# Current progress
+
+(Roll model is from Mega Man Legends 2 and is used temporarily until I make my own models)
+
+![progress](media/progress.jpg)
+
 # Requirements
 
 For now, only Linux build is supported.
