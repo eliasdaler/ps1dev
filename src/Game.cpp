@@ -50,8 +50,8 @@ void Game::init()
     ResetGraph(0);
 
     InitGeom();
-    SetGeomOffset(CENTERX, CENTERY);
-    SetGeomScreen(420);
+    SetGeomOffset(SCREENXRES / 2, SCREENYRES / 2);
+    SetGeomScreen(420); // fov
 
     SetBackColor(0, 0, 0);
     SetFarColor(0, 0, 0);
@@ -119,10 +119,10 @@ void Game::init()
 
     Mesh floorTile;
     floorTile.vertices = {
-        SVECTOR{-tileSize, 0, tileSize},
-        SVECTOR{tileSize, 0, tileSize},
-        SVECTOR{-tileSize, 0, -tileSize},
-        SVECTOR{tileSize, 0, -tileSize},
+        {-tileSize, 0, tileSize},
+        {tileSize, 0, tileSize},
+        {-tileSize, 0, -tileSize},
+        {tileSize, 0, -tileSize},
     };
     floorMeshIdx = addMesh(std::move(floorTile));
 
@@ -132,28 +132,28 @@ void Game::init()
 
     Mesh wallTileMesh;
     wallTileMesh.vertices = {
-        SVECTOR{-tileSize, -tileSize, 0},
-        SVECTOR{tileSize, -tileSize, 0},
-        SVECTOR{-tileSize, tileSize, 0},
-        SVECTOR{tileSize, tileSize, 0},
+        {-tileSize, -tileSize, 0},
+        {tileSize, -tileSize, 0},
+        {-tileSize, tileSize, 0},
+        {tileSize, tileSize, 0},
     };
     wallMeshIdx = addMesh(std::move(wallTileMesh));
 
     Mesh wallTileMeshL;
     wallTileMeshL.vertices = {
-        SVECTOR{0, -tileSize, -tileSize},
-        SVECTOR{0, -tileSize, tileSize},
-        SVECTOR{0, tileSize, -tileSize},
-        SVECTOR{0, tileSize, tileSize},
+        {0, -tileSize, -tileSize},
+        {0, -tileSize, tileSize},
+        {0, tileSize, -tileSize},
+        {0, tileSize, tileSize},
     };
     wallMeshLIdx = addMesh(std::move(wallTileMeshL));
 
     Mesh wallTileMeshR;
     wallTileMeshR.vertices = {
-        SVECTOR{0, -tileSize, tileSize},
-        SVECTOR{0, -tileSize, -tileSize},
-        SVECTOR{0, tileSize, tileSize},
-        SVECTOR{0, tileSize, -tileSize},
+        {0, -tileSize, tileSize},
+        {0, -tileSize, -tileSize},
+        {0, tileSize, tileSize},
+        {0, tileSize, -tileSize},
     };
     wallMeshRIdx = addMesh(std::move(wallTileMeshR));
 
@@ -175,40 +175,31 @@ void Game::loadModel(Model& model, eastl::string_view filename)
     };
 
     const auto numSubmeshes = fr.GetUInt16();
+    Vertex vertex;
     for (int i = 0; i < numSubmeshes; ++i) {
         Mesh mesh;
 
         mesh.numTris = fr.GetUInt16();
         for (int j = 0; j < mesh.numTris; ++j) {
             for (int k = 0; k < 3; ++k) {
-                const auto vx = fr.GetInt16();
-                const auto vy = fr.GetInt16();
-                const auto vz = fr.GetInt16();
-                const auto u = fr.GetUInt8();
-                const auto v = fr.GetUInt8();
-                mesh.vertices.push_back(SVECTOR{
-                    .vx = vx,
-                    .vy = vy,
-                    .vz = vz,
-                });
-                mesh.uvs.push_back({u, v});
+                vertex.x = fr.GetInt16();
+                vertex.y = fr.GetInt16();
+                vertex.z = fr.GetInt16();
+                vertex.u = fr.GetUInt8();
+                vertex.v = fr.GetUInt8();
+                mesh.vertices.push_back(vertex);
             }
         }
 
         mesh.numQuads = fr.GetUInt16();
         for (int j = 0; j < mesh.numQuads; ++j) {
             for (int k = 0; k < 4; ++k) {
-                const auto vx = fr.GetInt16();
-                const auto vy = fr.GetInt16();
-                const auto vz = fr.GetInt16();
-                const auto u = fr.GetUInt8();
-                const auto v = fr.GetUInt8();
-                mesh.vertices.push_back(SVECTOR{
-                    .vx = vx,
-                    .vy = vy,
-                    .vz = vz,
-                });
-                mesh.uvs.push_back({u, v});
+                vertex.x = fr.GetInt16();
+                vertex.y = fr.GetInt16();
+                vertex.z = fr.GetInt16();
+                vertex.u = fr.GetUInt8();
+                vertex.v = fr.GetUInt8();
+                mesh.vertices.push_back(vertex);
             }
         }
 
@@ -296,27 +287,23 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx)
     const auto clut = getClut(texture.crect->x, texture.crect->y);
 
     std::size_t vertexIdx = 0;
+
     for (std::size_t i = 0; i < mesh.numTris; ++i, vertexIdx += 3) {
         auto* polyft3 = (POLY_FT3*)nextpri;
         setPolyFT3(polyft3);
 
-#if 1
-        setUV3(
-            polyft3,
-            mesh.uvs[vertexIdx + 0].x,
-            mesh.uvs[vertexIdx + 0].y,
-            mesh.uvs[vertexIdx + 1].x,
-            mesh.uvs[vertexIdx + 1].y,
-            mesh.uvs[vertexIdx + 2].x,
-            mesh.uvs[vertexIdx + 2].y);
-#endif
+        const auto& v0 = mesh.vertices[vertexIdx + 0];
+        const auto& v1 = mesh.vertices[vertexIdx + 1];
+        const auto& v2 = mesh.vertices[vertexIdx + 2];
+
+        setUV3(polyft3, v0.u, v0.v, v1.u, v1.v, v2.u, v2.v);
 
         polyft3->tpage = tpage;
         polyft3->clut = clut;
 
-        gte_ldv0(&mesh.vertices[vertexIdx]);
-        gte_ldv1(&mesh.vertices[vertexIdx + 1]);
-        gte_ldv2(&mesh.vertices[vertexIdx + 2]);
+        gte_ldv0(&v0.x);
+        gte_ldv1(&v1.x);
+        gte_ldv2(&v2.x);
 
         gte_rtpt();
 
@@ -357,23 +344,19 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx)
         auto* polyft4 = (POLY_FT4*)nextpri;
         setPolyFT4(polyft4);
 
-        setUV4(
-            polyft4,
-            mesh.uvs[vertexIdx + 0].x,
-            mesh.uvs[vertexIdx + 0].y,
-            mesh.uvs[vertexIdx + 1].x,
-            mesh.uvs[vertexIdx + 1].y,
-            mesh.uvs[vertexIdx + 2].x,
-            mesh.uvs[vertexIdx + 2].y,
-            mesh.uvs[vertexIdx + 3].x,
-            mesh.uvs[vertexIdx + 3].y);
+        const auto& v0 = mesh.vertices[vertexIdx + 0];
+        const auto& v1 = mesh.vertices[vertexIdx + 1];
+        const auto& v2 = mesh.vertices[vertexIdx + 2];
+        const auto& v3 = mesh.vertices[vertexIdx + 2];
+
+        setUV4(polyft4, v0.u, v0.v, v1.u, v1.v, v2.u, v2.v, v3.u, v3.v);
 
         polyft4->tpage = tpage;
         polyft4->clut = clut;
 
-        gte_ldv0(&mesh.vertices[vertexIdx]);
-        gte_ldv1(&mesh.vertices[vertexIdx + 1]);
-        gte_ldv2(&mesh.vertices[vertexIdx + 2]);
+        gte_ldv0(&v0);
+        gte_ldv1(&v1);
+        gte_ldv2(&v2);
 
         gte_rtpt();
 
@@ -388,7 +371,7 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx)
 
         gte_stsxy0(&polyft4->x0);
 
-        gte_ldv0(&mesh.vertices[vertexIdx + 3]);
+        gte_ldv0(&v3);
         gte_rtps();
 
         gte_stsxy3(&polyft4->x1, &polyft4->x2, &polyft4->x3);
@@ -432,16 +415,14 @@ void Game::drawTile(
     const TexRegion& uvs)
 {
     auto& protoMesh = meshes[meshIdx];
+    Quad quad{};
     for (int i = 0; i < protoMesh.vertices.size(); ++i) {
-        tileMesh.vertices[i].vx = protoMesh.vertices[i].vx + object.position.vx;
-        tileMesh.vertices[i].vy = protoMesh.vertices[i].vy + object.position.vy;
-        tileMesh.vertices[i].vz = protoMesh.vertices[i].vz + object.position.vz;
+        quad.vs[i].vx = protoMesh.vertices[i].x + object.position.vx;
+        quad.vs[i].vy = protoMesh.vertices[i].y + object.position.vy;
+        quad.vs[i].vz = protoMesh.vertices[i].z + object.position.vz;
     }
 
     auto& texture = textures[textureIdx];
-
-    Quad quad{
-        tileMesh.vertices[0], tileMesh.vertices[1], tileMesh.vertices[2], tileMesh.vertices[3]};
 
     auto depth = 0;
     auto cpos =
@@ -513,36 +494,36 @@ void Game::drawQuadRecursive(
         const auto tvm23 = (tv2 + tv3) / 2;
 
         const auto v01 = SVECTOR{
-            (short)((quad.v0.vx + quad.v1.vx) / 2),
-            (short)((quad.v0.vy + quad.v1.vy) / 2),
-            (short)((quad.v0.vz + quad.v1.vz) / 2),
+            (short)((quad.vs[0].vx + quad.vs[1].vx) / 2),
+            (short)((quad.vs[0].vy + quad.vs[1].vy) / 2),
+            (short)((quad.vs[0].vz + quad.vs[1].vz) / 2),
         };
         const auto v02 = SVECTOR{
-            (short)((quad.v0.vx + quad.v2.vx) / 2),
-            (short)((quad.v0.vy + quad.v2.vy) / 2),
-            (short)((quad.v0.vz + quad.v2.vz) / 2),
+            (short)((quad.vs[0].vx + quad.vs[2].vx) / 2),
+            (short)((quad.vs[0].vy + quad.vs[2].vy) / 2),
+            (short)((quad.vs[0].vz + quad.vs[2].vz) / 2),
         };
         const auto v03 = SVECTOR{
-            (short)((quad.v0.vx + quad.v3.vx) / 2),
-            (short)((quad.v0.vy + quad.v3.vy) / 2),
-            (short)((quad.v0.vz + quad.v3.vz) / 2),
+            (short)((quad.vs[0].vx + quad.vs[3].vx) / 2),
+            (short)((quad.vs[0].vy + quad.vs[3].vy) / 2),
+            (short)((quad.vs[0].vz + quad.vs[3].vz) / 2),
         };
         const auto v13 = SVECTOR{
-            (short)((quad.v1.vx + quad.v3.vx) / 2),
-            (short)((quad.v1.vy + quad.v3.vy) / 2),
-            (short)((quad.v1.vz + quad.v3.vz) / 2),
+            (short)((quad.vs[1].vx + quad.vs[3].vx) / 2),
+            (short)((quad.vs[1].vy + quad.vs[3].vy) / 2),
+            (short)((quad.vs[1].vz + quad.vs[3].vz) / 2),
         };
         const auto v23 = SVECTOR{
-            (short)((quad.v2.vx + quad.v3.vx) / 2),
-            (short)((quad.v2.vy + quad.v3.vy) / 2),
-            (short)((quad.v2.vz + quad.v3.vz) / 2),
+            (short)((quad.vs[2].vx + quad.vs[3].vx) / 2),
+            (short)((quad.vs[2].vy + quad.vs[3].vy) / 2),
+            (short)((quad.vs[2].vz + quad.vs[3].vz) / 2),
         };
 
         Quad quadDiv;
         TexRegion tr;
 
         // top left
-        quadDiv = {quad.v0, v01, v02, v03};
+        quadDiv = {quad.vs[0], v01, v02, v03};
         tr = {
             .u0 = tu0,
             .v0 = tv1,
@@ -552,7 +533,7 @@ void Game::drawQuadRecursive(
         drawQuadRecursive(object, quadDiv, tr, texture, depth - 1);
 
         // top right
-        quadDiv = {v01, quad.v1, v03, v13};
+        quadDiv = {v01, quad.vs[1], v03, v13};
         tr = {
             .u0 = tum01,
             .v0 = tvm01,
@@ -562,7 +543,7 @@ void Game::drawQuadRecursive(
         drawQuadRecursive(object, quadDiv, tr, texture, depth - 1);
 
         // bottom keft
-        quadDiv = {v02, v03, quad.v2, v23};
+        quadDiv = {v02, v03, quad.vs[2], v23};
         tr = {
             .u0 = tum02,
             .v0 = tvm02,
@@ -572,7 +553,7 @@ void Game::drawQuadRecursive(
         drawQuadRecursive(object, quadDiv, tr, texture, depth - 1);
 
         // bottom right
-        quadDiv = {v03, v13, v23, quad.v3};
+        quadDiv = {v03, v13, v23, quad.vs[3]};
         tr = {
             .u0 = tum03,
             .v0 = tvm03,
@@ -589,9 +570,9 @@ void Game::drawQuadRecursive(
         polyft4->tpage = getTPage(texture.mode & 0x3, 0, texture.prect->x, texture.prect->y);
         polyft4->clut = getClut(texture.crect->x, texture.crect->y);
 
-        gte_ldv0(&quad.v0);
-        gte_ldv1(&quad.v1);
-        gte_ldv2(&quad.v2);
+        gte_ldv0(&quad.vs[0]);
+        gte_ldv1(&quad.vs[1]);
+        gte_ldv2(&quad.vs[2]);
 
         gte_rtpt();
 
@@ -606,7 +587,7 @@ void Game::drawQuadRecursive(
 
         gte_stsxy0(&polyft4->x0);
 
-        gte_ldv0(&quad.v3);
+        gte_ldv0(&quad.vs[3]);
         gte_rtps();
 
         gte_stsxy3(&polyft4->x1, &polyft4->x2, &polyft4->x3);
@@ -668,10 +649,10 @@ void Game::draw()
     auto pos = roll.position;
     drawModel(roll, rollModel, rollTextureIdx);
 
-    /* for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 6; ++i) {
         roll.position.vx += 128;
         drawModel(roll, rollModel, rollTextureIdx);
-    } */
+    }
 
     roll.position = pos;
 

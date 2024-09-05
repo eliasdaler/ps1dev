@@ -122,7 +122,7 @@ set(common_compiler_flags
   -mno-llsc
   # TODO: maybe make it optional or config dependent?
   -g
-  # -Os
+  -Os
 )
 
 # CMake makes "${LIST}" expand to "elem1;elem2;elem3", but we want "elem1 elem2 elem3"

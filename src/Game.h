@@ -21,12 +21,16 @@ struct Object {
 };
 
 struct SVEC2 {
-    std::uint8_t x, y;
+    short x, y;
+};
+
+struct Vertex {
+    std::int16_t x, y, z;
+    std::uint8_t u, v;
 };
 
 struct Mesh {
-    eastl::vector<SVECTOR> vertices;
-    eastl::vector<SVEC2> uvs;
+    eastl::vector<Vertex> vertices;
     int numTris;
     int numQuads;
 };
@@ -41,10 +45,7 @@ struct TexRegion {
 };
 
 struct Quad {
-    SVECTOR v0;
-    SVECTOR v1;
-    SVECTOR v2;
-    SVECTOR v3;
+    SVECTOR vs[4];
 };
 
 class Game {
@@ -85,15 +86,12 @@ private:
     DRAWENV drawEnv[2];
 
     static constexpr int OTLEN = 1 << 12;
-    static constexpr int PRIMBUFFLEN = 32768 * 2;
+    static constexpr int PRIMBUFFLEN = 32768 * 4;
     u_long ot[2][OTLEN];
     char primbuff[2][PRIMBUFFLEN];
 
     char* nextpri{nullptr};
     short currBuffer{0};
-
-    int CENTERX{SCREENXRES / 2};
-    int CENTERY{SCREENYRES / 2};
 
     RECT screenClip;
 
