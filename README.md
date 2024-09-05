@@ -2,6 +2,8 @@
 
 PS1 development experiments.
 
+Done with converted PsyQ libs (nugget), in C++20, without libgs.
+
 See also: [psxtools](https://github.com/eliasdaler/psxtools) (to be incorporated into build process).
 
 # Current progress
