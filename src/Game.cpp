@@ -649,10 +649,12 @@ void Game::draw()
     auto pos = roll.position;
     drawModel(roll, rollModel, rollTextureIdx);
 
+#if 0
     for (int i = 0; i < 6; ++i) {
         roll.position.vx += 128;
         drawModel(roll, rollModel, rollTextureIdx);
     }
+#endif
 
     roll.position = pos;
 
