@@ -42,36 +42,6 @@ TIM_IMAGE loadTexture(const eastl::vector<uint8_t>& timData)
     return texture;
 }
 
-void loadModel(Mesh& mesh, eastl::string_view filename)
-{
-    const auto data = util::readFile(filename);
-    const auto* bytes = (u_char*)data.data();
-
-    // vertices
-    util::FileReader fr{
-        .bytes = data.data(),
-    };
-
-    const auto numSubmeshes = fr.GetUInt16();
-    for (int i = 0; i < numSubmeshes; ++i) {
-        const auto numTris = fr.GetUInt16();
-        for (int j = 0; j < numTris; ++j) {
-            for (int k = 0; k < 3; ++k) {
-                const auto vx = fr.GetInt16();
-                const auto vy = fr.GetInt16();
-                const auto vz = fr.GetInt16();
-                const auto u = fr.GetUInt8();
-                const auto v = fr.GetUInt8();
-                mesh.vertices.push_back(SVECTOR{
-                    .vx = vx,
-                    .vy = vy,
-                    .vz = vz,
-                });
-                mesh.uvs.push_back({u, v});
-            }
-        }
-    }
-}
 }
 
 void Game::init()
@@ -93,7 +63,7 @@ void Game::init()
     SetDefDispEnv(&dispEnv[1], 0, SCREENYRES, SCREENXRES, SCREENYRES);
     SetDefDrawEnv(&drawEnv[1], 0, 0, SCREENXRES, SCREENYRES);
 
-    setRECT(&screen_clip, 0, 0, SCREENXRES, SCREENYRES);
+    setRECT(&screenClip, 0, 0, SCREENXRES, SCREENYRES);
 
     bool palMode = false;
     if (palMode) {
@@ -120,7 +90,15 @@ void Game::init()
     FntOpen(16, 16, 196, 64, 0, 256);
 
     setVector(&camera.position, 0, -ONE * (tileSize + tileSize / 5), -ONE * 2500);
+    // camera.position.vy = -ONE * 51;
     camera.view = (MATRIX){0};
+
+    // testing
+    /* camera.position.vx = ONE * 79;
+    camera.position.vy = ONE * -307;
+    camera.position.vz = ONE * -1538;
+    camera.rotation.vx = ONE * 250;
+    camera.rotation.vy = ONE * 275; */
 
     CdInit();
 
@@ -133,9 +111,7 @@ void Game::init()
     const auto textureData3 = util::readFile("\\ROLL.TIM;1");
     rollTextureIdx = addTexture(loadTexture(textureData3));
 
-    Mesh rollMesh;
-    loadModel(rollMesh, "\\ROLL.BIN;1");
-    rollMeshIdx = addMesh(std::move(rollMesh));
+    loadModel(rollModel, "\\ROLL.BIN;1");
 
     roll.position = {-64, 0, -1200};
     roll.rotation = {};
@@ -186,6 +162,58 @@ void Game::init()
     wallTileObj.scale = {ONE, ONE, ONE};
 
     tileMesh.vertices.resize(4);
+}
+
+void Game::loadModel(Model& model, eastl::string_view filename)
+{
+    const auto data = util::readFile(filename);
+    const auto* bytes = (u_char*)data.data();
+
+    // vertices
+    util::FileReader fr{
+        .bytes = data.data(),
+    };
+
+    const auto numSubmeshes = fr.GetUInt16();
+    for (int i = 0; i < numSubmeshes; ++i) {
+        Mesh mesh;
+
+        mesh.numTris = fr.GetUInt16();
+        for (int j = 0; j < mesh.numTris; ++j) {
+            for (int k = 0; k < 3; ++k) {
+                const auto vx = fr.GetInt16();
+                const auto vy = fr.GetInt16();
+                const auto vz = fr.GetInt16();
+                const auto u = fr.GetUInt8();
+                const auto v = fr.GetUInt8();
+                mesh.vertices.push_back(SVECTOR{
+                    .vx = vx,
+                    .vy = vy,
+                    .vz = vz,
+                });
+                mesh.uvs.push_back({u, v});
+            }
+        }
+
+        mesh.numQuads = fr.GetUInt16();
+        for (int j = 0; j < mesh.numQuads; ++j) {
+            for (int k = 0; k < 4; ++k) {
+                const auto vx = fr.GetInt16();
+                const auto vy = fr.GetInt16();
+                const auto vz = fr.GetInt16();
+                const auto u = fr.GetUInt8();
+                const auto v = fr.GetUInt8();
+                mesh.vertices.push_back(SVECTOR{
+                    .vx = vx,
+                    .vy = vy,
+                    .vz = vz,
+                });
+                mesh.uvs.push_back({u, v});
+            }
+        }
+
+        model.meshesIndices.push_back(addMesh(std::move(mesh)));
+    }
 }
 
 void Game::run()
@@ -245,9 +273,8 @@ void Game::handleInput()
 void Game::update()
 {}
 
-void Game::drawObject(Object& object, std::uint16_t meshIdx, std::uint16_t textureIdx)
+void Game::drawModel(Object& object, const Model& model, std::uint16_t textureIdx)
 {
-    // Draw the object
     RotMatrix(&object.rotation, &worldmat);
     TransMatrix(&worldmat, &object.position);
     ScaleMatrix(&worldmat, &object.scale);
@@ -257,30 +284,39 @@ void Game::drawObject(Object& object, std::uint16_t meshIdx, std::uint16_t textu
     gte_SetRotMatrix(&viewmat);
     gte_SetTransMatrix(&viewmat);
 
+    for (const auto& meshIdx : model.meshesIndices) {
+        drawMesh(object, meshes[meshIdx], textureIdx);
+    }
+}
+
+void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx)
+{
     const auto& texture = textures[textureIdx];
     const auto tpage = getTPage(texture.mode & 0x3, 0, texture.prect->x, texture.prect->y);
     const auto clut = getClut(texture.crect->x, texture.crect->y);
 
-    const auto& mesh = meshes[meshIdx];
-    for (std::size_t i = 0; i < mesh.vertices.size(); i += 3) {
+    std::size_t vertexIdx = 0;
+    for (std::size_t i = 0; i < mesh.numTris; ++i, vertexIdx += 3) {
         auto* polyft3 = (POLY_FT3*)nextpri;
         setPolyFT3(polyft3);
 
+#if 1
         setUV3(
             polyft3,
-            mesh.uvs[i + 0].x,
-            mesh.uvs[i + 0].y,
-            mesh.uvs[i + 1].x,
-            mesh.uvs[i + 1].y,
-            mesh.uvs[i + 2].x,
-            mesh.uvs[i + 2].y);
+            mesh.uvs[vertexIdx + 0].x,
+            mesh.uvs[vertexIdx + 0].y,
+            mesh.uvs[vertexIdx + 1].x,
+            mesh.uvs[vertexIdx + 1].y,
+            mesh.uvs[vertexIdx + 2].x,
+            mesh.uvs[vertexIdx + 2].y);
+#endif
 
         polyft3->tpage = tpage;
         polyft3->clut = clut;
 
-        gte_ldv0(&mesh.vertices[i]);
-        gte_ldv1(&mesh.vertices[i + 1]);
-        gte_ldv2(&mesh.vertices[i + 2]);
+        gte_ldv0(&mesh.vertices[vertexIdx]);
+        gte_ldv1(&mesh.vertices[vertexIdx + 1]);
+        gte_ldv2(&mesh.vertices[vertexIdx + 2]);
 
         gte_rtpt();
 
@@ -314,6 +350,77 @@ void Game::drawObject(Object& object, std::uint16_t meshIdx, std::uint16_t textu
 
             addPrim(&ot[currBuffer][otz], polyft3);
             nextpri += sizeof(POLY_FT3);
+        }
+    }
+
+    for (int i = 0; i < mesh.numQuads; ++i, vertexIdx += 4) {
+        auto* polyft4 = (POLY_FT4*)nextpri;
+        setPolyFT4(polyft4);
+
+        setUV4(
+            polyft4,
+            mesh.uvs[vertexIdx + 0].x,
+            mesh.uvs[vertexIdx + 0].y,
+            mesh.uvs[vertexIdx + 1].x,
+            mesh.uvs[vertexIdx + 1].y,
+            mesh.uvs[vertexIdx + 2].x,
+            mesh.uvs[vertexIdx + 2].y,
+            mesh.uvs[vertexIdx + 3].x,
+            mesh.uvs[vertexIdx + 3].y);
+
+        polyft4->tpage = tpage;
+        polyft4->clut = clut;
+
+        gte_ldv0(&mesh.vertices[vertexIdx]);
+        gte_ldv1(&mesh.vertices[vertexIdx + 1]);
+        gte_ldv2(&mesh.vertices[vertexIdx + 2]);
+
+        gte_rtpt();
+
+        gte_nclip();
+
+        long nclip;
+        gte_stopz(&nclip);
+
+        if (nclip < 0) {
+            return;
+        }
+
+        gte_stsxy0(&polyft4->x0);
+
+        gte_ldv0(&mesh.vertices[vertexIdx + 3]);
+        gte_rtps();
+
+        gte_stsxy3(&polyft4->x1, &polyft4->x2, &polyft4->x3);
+
+        if (quad_clip(
+                &screenClip,
+                (DVECTOR*)&polyft4->x0,
+                (DVECTOR*)&polyft4->x1,
+                (DVECTOR*)&polyft4->x2,
+                (DVECTOR*)&polyft4->x3)) {
+            return;
+        }
+
+        long otz;
+        gte_avsz4();
+        gte_stotz(&otz);
+
+        long p;
+        gte_stdp(&p);
+
+        CVECTOR near = {128, 128, 128, 44};
+        CVECTOR col;
+        gte_DpqColor(&near, p, &col);
+        setRGB0(polyft4, col.r, col.g, col.b);
+
+        otz -= 64; // depth bias for not overlapping with tiles
+
+        if (otz > 0 && otz < OTLEN) {
+            CVECTOR col;
+
+            addPrim(&ot[currBuffer][otz], polyft4);
+            nextpri += sizeof(POLY_FT4);
         }
     }
 }
@@ -363,6 +470,15 @@ void Game::drawTile(
             }
         } */
     }
+
+    RotMatrix(&object.rotation, &worldmat);
+    ScaleMatrix(&worldmat, &object.scale);
+
+    CompMatrixLV(&camera.view, &worldmat, &viewmat);
+
+    gte_SetRotMatrix(&viewmat);
+    gte_SetTransMatrix(&viewmat);
+
     drawQuadRecursive(object, quad, uvs, texture, depth);
 }
 
@@ -465,14 +581,6 @@ void Game::drawQuadRecursive(
         };
         drawQuadRecursive(object, quadDiv, tr, texture, depth - 1);
     } else if (depth == 0) {
-        RotMatrix(&object.rotation, &worldmat);
-        ScaleMatrix(&worldmat, &object.scale);
-
-        CompMatrixLV(&camera.view, &worldmat, &viewmat);
-
-        gte_SetRotMatrix(&viewmat);
-        gte_SetTransMatrix(&viewmat);
-
         auto* polyft4 = (POLY_FT4*)nextpri;
         setPolyFT4(polyft4);
 
@@ -504,7 +612,7 @@ void Game::drawQuadRecursive(
         gte_stsxy3(&polyft4->x1, &polyft4->x2, &polyft4->x3);
 
         if (quad_clip(
-                &screen_clip,
+                &screenClip,
                 (DVECTOR*)&polyft4->x0,
                 (DVECTOR*)&polyft4->x1,
                 (DVECTOR*)&polyft4->x2,
@@ -556,8 +664,16 @@ void Game::draw()
     }
 
     drawLevel();
-    // draw player
-    drawObject(roll, rollMeshIdx, rollTextureIdx);
+
+    auto pos = roll.position;
+    drawModel(roll, rollModel, rollTextureIdx);
+
+    /* for (int i = 0; i < 3; ++i) {
+        roll.position.vx += 128;
+        drawModel(roll, rollModel, rollTextureIdx);
+    } */
+
+    roll.position = pos;
 
     FntPrint(
         "X=%d Y=%d Z=%d\n",

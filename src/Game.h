@@ -7,6 +7,7 @@
 #include <cstdint>
 
 #include <EASTL/vector.h>
+#include <EASTL/string_view.h>
 
 #include "Camera.h"
 
@@ -26,6 +27,12 @@ struct SVEC2 {
 struct Mesh {
     eastl::vector<SVECTOR> vertices;
     eastl::vector<SVEC2> uvs;
+    int numTris;
+    int numQuads;
+};
+
+struct Model {
+    eastl::vector<std::uint16_t> meshesIndices;
 };
 
 struct TexRegion {
@@ -47,10 +54,15 @@ public:
     void handleInput();
     void update();
     void draw();
-    void drawObject(Object& object, std::uint16_t meshIdx, std::uint16_t textureIdx);
+
     void display();
 
 private:
+    void loadModel(Model& model, eastl::string_view filename);
+
+    void drawModel(Object& object, const Model& model, std::uint16_t textureIdx);
+    void drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx);
+
     void drawLevel();
 
     void drawTile(
@@ -72,8 +84,8 @@ private:
     DISPENV dispEnv[2];
     DRAWENV drawEnv[2];
 
-    static constexpr int OTLEN = 2048;
-    static constexpr int PRIMBUFFLEN = 32768;
+    static constexpr int OTLEN = 1 << 12;
+    static constexpr int PRIMBUFFLEN = 32768 * 2;
     u_long ot[2][OTLEN];
     char primbuff[2][PRIMBUFFLEN];
 
@@ -83,7 +95,7 @@ private:
     int CENTERX{SCREENXRES / 2};
     int CENTERY{SCREENYRES / 2};
 
-    RECT screen_clip;
+    RECT screenClip;
 
     Object roll;
     Object floorTileObj;
@@ -95,7 +107,8 @@ private:
     std::uint16_t floorTextureIdx;
     std::uint16_t rollTextureIdx;
 
-    std::uint16_t rollMeshIdx;
+    Model rollModel;
+
     std::uint16_t floorMeshIdx;
     std::uint16_t wallMeshIdx;
     std::uint16_t wallMeshLIdx;
