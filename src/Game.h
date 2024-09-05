@@ -47,14 +47,12 @@ public:
     void handleInput();
     void update();
     void draw();
-    void drawObject(
-        Object& object,
-        std::uint16_t meshIdx,
-        std::uint16_t textureIdx,
-        const TexRegion& uvs);
+    void drawObject(Object& object, std::uint16_t meshIdx, std::uint16_t textureIdx);
     void display();
 
 private:
+    void drawLevel();
+
     void drawTile(
         Object& object,
         std::uint16_t meshIdx,
@@ -87,7 +85,6 @@ private:
 
     RECT screen_clip;
 
-    Object cube;
     Object roll;
     Object floorTileObj;
     Object wallTileObj;
@@ -96,9 +93,8 @@ private:
 
     std::uint16_t bricksTextureIdx;
     std::uint16_t floorTextureIdx;
-    std::uint16_t fTextureIdx;
+    std::uint16_t rollTextureIdx;
 
-    std::uint16_t cubeMeshIdx;
     std::uint16_t rollMeshIdx;
     std::uint16_t floorMeshIdx;
     std::uint16_t wallMeshIdx;

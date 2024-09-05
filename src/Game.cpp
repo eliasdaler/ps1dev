@@ -119,7 +119,7 @@ void Game::init()
     FntLoad(960, 0);
     FntOpen(16, 16, 196, 64, 0, 256);
 
-    setVector(&camera.position, 0, -ONE * (tileSize + tileSize / 8), -ONE * 2500);
+    setVector(&camera.position, 0, -ONE * (tileSize + tileSize / 5), -ONE * 2500);
     camera.view = (MATRIX){0};
 
     CdInit();
@@ -131,17 +131,13 @@ void Game::init()
     floorTextureIdx = addTexture(loadTexture(textureData));
 
     const auto textureData3 = util::readFile("\\ROLL.TIM;1");
-    fTextureIdx = addTexture(loadTexture(textureData3));
+    rollTextureIdx = addTexture(loadTexture(textureData3));
 
     Mesh rollMesh;
     loadModel(rollMesh, "\\ROLL.BIN;1");
     rollMeshIdx = addMesh(std::move(rollMesh));
 
-    cube.position = {-64, 0, -1200};
-    cube.rotation = {};
-    cube.scale = {ONE, ONE, ONE};
-
-    roll.position = {-256, 0, -1200};
+    roll.position = {-64, 0, -1200};
     roll.rotation = {};
     roll.scale = {ONE, ONE, ONE};
 
@@ -208,41 +204,48 @@ void Game::handleInput()
     trot.vz = camera.rotation.vz >> 12;
 
     const auto PadStatus = PadRead(0);
-#if 0
-    if (PadStatus & PADLup) cube.position.vz += 2;
-    if (PadStatus & PADLdown) cube.position.vz -= 2;
 
-    if (PadStatus & PADLleft) cube.position.vx -= 2;
-    if (PadStatus & PADLright) cube.position.vx += 2;
-#else
+    // rotating the camera around Y
+    if (PadStatus & PADLleft) {
+        camera.rotation.vy += ONE * 25;
+    }
+    if (PadStatus & PADLright) {
+        camera.rotation.vy -= ONE * 25;
+    }
 
-    if (PadStatus & PADLleft) camera.rotation.vy += ONE * 12;
-    if (PadStatus & PADLright) camera.rotation.vy -= ONE * 12;
+    // strafing
+    if (PadStatus & PADL1) {
+        camera.position.vx -= math::icos(trot.vy) << 4;
+        camera.position.vz -= math::isin(trot.vy) << 4;
+    }
+    if (PadStatus & PADR1) {
+        camera.position.vx += math::icos(trot.vy) << 4;
+        camera.position.vz += math::isin(trot.vy) << 4;
+    }
 
-    if (PadStatus & PADL1) camera.rotation.vx += ONE * 10;
-    if (PadStatus & PADR1) camera.rotation.vx -= ONE * 10;
+    // looking up/down
+    if (PadStatus & PADL2) {
+        camera.rotation.vx += ONE * 10;
+    }
+    if (PadStatus & PADR2) {
+        camera.rotation.vx -= ONE * 10;
+    }
 
+    // Moving forwards/backwards
     if (PadStatus & PADLup) {
         camera.position.vx -= math::isin(trot.vy) << 5;
         camera.position.vz += math::icos(trot.vy) << 5;
     }
-
     if (PadStatus & PADLdown) {
         camera.position.vx += math::isin(trot.vy) << 5;
         camera.position.vz -= math::icos(trot.vy) << 5;
     }
-
-#endif
 }
 
 void Game::update()
 {}
 
-void Game::drawObject(
-    Object& object,
-    std::uint16_t meshIdx,
-    std::uint16_t textureIdx,
-    const TexRegion& uvs)
+void Game::drawObject(Object& object, std::uint16_t meshIdx, std::uint16_t textureIdx)
 {
     // Draw the object
     RotMatrix(&object.rotation, &worldmat);
@@ -552,6 +555,24 @@ void Game::draw()
         TransMatrix(&camera.view, &tpos);
     }
 
+    drawLevel();
+    // draw player
+    drawObject(roll, rollMeshIdx, rollTextureIdx);
+
+    FntPrint(
+        "X=%d Y=%d Z=%d\n",
+        camera.position.vx >> 12,
+        camera.position.vy >> 12,
+        camera.position.vz >> 12);
+    FntPrint("RX=%d, RY=%d\n", trot.vx, trot.vy);
+
+    FntFlush(-1);
+
+    display();
+}
+
+void Game::drawLevel()
+{
     const auto tileUV = TexRegion{0, 0, 63, 63};
     const auto windowUV = TexRegion{64, 0, 127, 63};
     const auto doorUV = TexRegion{0, 64, 63, 127};
@@ -595,22 +616,6 @@ void Game::draw()
         wallTileObj.position.vz = -x * tileSize * 2;
         drawTile(wallTileObj, wallMeshRIdx, bricksTextureIdx, (x % 2 == 0) ? tileUV : windowUV);
     }
-
-    // draw player
-    // drawObject(cube, cubeMeshIdx, fTextureIdx, tileUV);
-    drawObject(cube, rollMeshIdx, fTextureIdx, tileUV);
-    // drawObjectNew(roll, rollMeshIdx, fTextureIdx, tileUV);
-
-    FntPrint(
-        "X=%d Y=%d Z=%d\n",
-        camera.position.vx >> 12,
-        camera.position.vy >> 12,
-        camera.position.vz >> 12);
-    FntPrint("RX=%d, RY=%d\n", trot.vx, trot.vy);
-
-    FntFlush(-1);
-
-    display();
 }
 
 void Game::display()
