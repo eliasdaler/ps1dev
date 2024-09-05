@@ -2,6 +2,8 @@
 
 PS1 development experiments.
 
+See also: [psxtools](https://github.com/eliasdaler/psxtools) (to be incorporated into build process).
+
 # Current progress
 
 (Roll model is from Mega Man Legends 2 and is used temporarily until I make my own models)
