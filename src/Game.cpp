@@ -15,6 +15,23 @@
 
 namespace
 {
+template<typename T>
+T max(T a, T b)
+{
+    return a > b ? a : b;
+}
+
+template<typename T>
+T maxVar(T a)
+{
+    return a;
+}
+
+template<typename T, typename... Args>
+T maxVar(T a, Args... args)
+{
+    return max(maxVar(args...), a);
+}
 
 constexpr auto tileSize = 256;
 
@@ -318,9 +335,21 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx)
 
         gte_stsxy3(&polyft3->x0, &polyft3->x1, &polyft3->x2);
 
+#if 1
+        int sz1, sz2, sz3;
+        __asm__ volatile("mfc2 %0, $17\n"
+                         "mfc2 %1, $18\n"
+                         "mfc2 %2, $19\n"
+                         : "=r"(sz1), "=r"(sz2), "=r"(sz3));
+
+        long otz = maxVar(sz1, sz2, sz3) / 4;
+
+#else
         gte_avsz3();
+
         long otz;
         gte_stotz(&otz);
+#endif
 
         long p;
         gte_stdp(&p);
@@ -385,9 +414,20 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx)
             return;
         }
 
+#if 1
+        int sz0, sz1, sz2, sz3;
+        __asm__ volatile("mfc2 %0, $16\n"
+                         "mfc2 %1, $17\n"
+                         "mfc2 %2, $18\n"
+                         "mfc2 %3, $29\n"
+                         : "=r"(sz0), "=r"(sz1), "=r"(sz2), "=r"(sz3));
+
+        long otz = maxVar(sz0, sz1, sz2, sz3) / 4;
+#else
         long otz;
         gte_avsz4();
         gte_stotz(&otz);
+#endif
 
         long p;
         gte_stdp(&p);
