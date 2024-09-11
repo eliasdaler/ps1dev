@@ -1,0 +1,26 @@
+[
+  {
+    "input": "raw/bricks.png",
+    "output": "bricks.tim",
+    "clut": [0, 480],
+    "pix": [320, 0]
+  },
+  {
+    "input": "raw/wood_floor.png",
+    "output": "wood_floor.tim",
+    "clut": [0, 481],
+    "pix": [384, 0]
+  },
+  {
+    "input": "raw/face_cato.png",
+    "output": "ftex.tim",
+    "clut": [0, 482],
+    "pix": [448, 0]
+  },
+  {
+    "input": "raw/roll.png",
+    "output": "roll.tim",
+    "clut": [0, 483],
+    "pix": [512, 0]
+  }
+]
