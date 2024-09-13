@@ -21,8 +21,10 @@
                 <file name="ROLL.BIN" type="data" source="assets/roll.bin"/>
                 <file name="ROLL.TIM" type="data" source="assets/roll.tim"/>
                 <file name="BRICKS.TIM" type="data" source="assets/bricks.tim"/>
+                <file name="LEVEL.BIN" type="data" source="assets/level.bin"/>
                 <file name="FLOOR.TIM" type="data" source="assets/wood_floor.tim"/>
                 <file name="FTEX.TIM" type="data" source="assets/ftex.tim"/>
+                <file name="PS1.TIM" type="data" source="assets/ps1.tim"/>
                 <dummy sectors="1024"/>
             </directory_tree>
         </track>

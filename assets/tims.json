@@ -22,5 +22,11 @@
     "output": "roll.tim",
     "clut": [0, 483],
     "pix": [512, 0]
+  },
+  {
+    "input": "raw/doge.png",
+    "output": "ps1.tim",
+    "clut": [0, 484],
+    "pix": [320, 256]
   }
 ]

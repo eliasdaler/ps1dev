@@ -107,6 +107,9 @@ private:
 
     Model rollModel;
 
+    Object level;
+    Model levelModel;
+
     std::uint16_t floorMeshIdx;
     std::uint16_t wallMeshIdx;
     std::uint16_t wallMeshLIdx;

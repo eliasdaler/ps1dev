@@ -72,7 +72,7 @@ void Game::init()
 
     SetBackColor(0, 0, 0);
     SetFarColor(0, 0, 0);
-    SetFogNearFar(500, 2800, SCREENXRES / 2);
+    SetFogNearFar(500, 12800, SCREENXRES / 2);
 
     SetDefDispEnv(&dispEnv[0], 0, 0, SCREENXRES, SCREENYRES);
     SetDefDrawEnv(&drawEnv[0], 0, SCREENYRES, SCREENXRES, SCREENYRES);
@@ -125,14 +125,22 @@ void Game::init()
     const auto textureData = util::readFile("\\FLOOR.TIM;1");
     floorTextureIdx = addTexture(loadTexture(textureData));
 
+    const auto textureData4 = util::readFile("\\PS1.TIM;1");
+    rollTextureIdx = addTexture(loadTexture(textureData4));
+
     const auto textureData3 = util::readFile("\\ROLL.TIM;1");
     rollTextureIdx = addTexture(loadTexture(textureData3));
 
     loadModel(rollModel, "\\ROLL.BIN;1");
 
-    roll.position = {-64, 0, -1200};
+    roll.position = {-64, 0, 0};
     roll.rotation = {};
     roll.scale = {ONE, ONE, ONE};
+
+    loadModel(levelModel, "\\LEVEL.BIN;1");
+    level.position = {};
+    level.rotation = {};
+    level.scale = {ONE, ONE, ONE};
 
     Mesh floorTile;
     floorTile.vertices = {
@@ -376,7 +384,7 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx)
         const auto& v0 = mesh.vertices[vertexIdx + 0];
         const auto& v1 = mesh.vertices[vertexIdx + 1];
         const auto& v2 = mesh.vertices[vertexIdx + 2];
-        const auto& v3 = mesh.vertices[vertexIdx + 2];
+        const auto& v3 = mesh.vertices[vertexIdx + 3];
 
         setUV4(polyft4, v0.u, v0.v, v1.u, v1.v, v2.u, v2.v, v3.u, v3.v);
 
@@ -395,7 +403,7 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx)
         gte_stopz(&nclip);
 
         if (nclip < 0) {
-            return;
+            continue;
         }
 
         gte_stsxy0(&polyft4->x0);
@@ -405,16 +413,16 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx)
 
         gte_stsxy3(&polyft4->x1, &polyft4->x2, &polyft4->x3);
 
-        if (quad_clip(
+        /* if (quad_clip(
                 &screenClip,
                 (DVECTOR*)&polyft4->x0,
                 (DVECTOR*)&polyft4->x1,
                 (DVECTOR*)&polyft4->x2,
                 (DVECTOR*)&polyft4->x3)) {
             return;
-        }
+        } */
 
-#if 1
+#if 0
         int sz0, sz1, sz2, sz3;
         __asm__ volatile("mfc2 %0, $16\n"
                          "mfc2 %1, $17\n"
@@ -684,13 +692,15 @@ void Game::draw()
         TransMatrix(&camera.view, &tpos);
     }
 
-    drawLevel();
+    // drawLevel();
 
     auto pos = roll.position;
     drawModel(roll, rollModel, rollTextureIdx);
 
+    drawModel(level, levelModel, bricksTextureIdx);
+
 #if 0
-    for (int i = 0; i < 6; ++i) {
+    for (int i = 0; i < 10; ++i) {
         roll.position.vx += 128;
         drawModel(roll, rollModel, rollTextureIdx);
     }
