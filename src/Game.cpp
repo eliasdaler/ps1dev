@@ -138,7 +138,7 @@ void Game::init()
     roll.scale = {ONE, ONE, ONE};
 
     loadModel(levelModel, "\\LEVEL.BIN;1");
-    level.position = {};
+    level.position = {0, 0, 0};
     level.rotation = {};
     level.scale = {ONE, ONE, ONE};
 
@@ -289,7 +289,7 @@ void Game::handleInput()
 void Game::update()
 {}
 
-void Game::drawModel(Object& object, const Model& model, std::uint16_t textureIdx)
+void Game::drawModel(Object& object, const Model& model, std::uint16_t textureIdx, bool subdivide)
 {
     RotMatrix(&object.rotation, &worldmat);
     TransMatrix(&worldmat, &object.position);
@@ -301,11 +301,11 @@ void Game::drawModel(Object& object, const Model& model, std::uint16_t textureId
     gte_SetTransMatrix(&viewmat);
 
     for (const auto& meshIdx : model.meshesIndices) {
-        drawMesh(object, meshes[meshIdx], textureIdx);
+        drawMesh(object, meshes[meshIdx], textureIdx, subdivide);
     }
 }
 
-void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx)
+void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, bool subdivide)
 {
     const auto& texture = textures[textureIdx];
     const auto tpage = getTPage(texture.mode & 0x3, 0, texture.prect->x, texture.prect->y);
@@ -313,6 +313,7 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx)
 
     std::size_t vertexIdx = 0;
 
+    // TODO: subdiv for triangles
     for (std::size_t i = 0; i < mesh.numTris; ++i, vertexIdx += 3) {
         auto* polyft3 = (POLY_FT3*)nextpri;
         setPolyFT3(polyft3);
@@ -377,50 +378,89 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx)
         }
     }
 
-    for (int i = 0; i < mesh.numQuads; ++i, vertexIdx += 4) {
-        auto* polyft4 = (POLY_FT4*)nextpri;
-        setPolyFT4(polyft4);
+    if (subdivide) {
+        const auto& texture = textures[textureIdx];
+        Quad quad{};
+        auto uvs = TexRegion{};
 
-        const auto& v0 = mesh.vertices[vertexIdx + 0];
-        const auto& v1 = mesh.vertices[vertexIdx + 1];
-        const auto& v2 = mesh.vertices[vertexIdx + 2];
-        const auto& v3 = mesh.vertices[vertexIdx + 3];
+        for (int i = 0; i < mesh.numQuads; ++i, vertexIdx += 4) {
+            for (int j = 0; j < 4; ++j) {
+                quad.vs[j].vx = mesh.vertices[vertexIdx + j].x;
+                quad.vs[j].vy = mesh.vertices[vertexIdx + j].y;
+                quad.vs[j].vz = mesh.vertices[vertexIdx + j].z;
+            }
 
-        setUV4(polyft4, v0.u, v0.v, v1.u, v1.v, v2.u, v2.v, v3.u, v3.v);
+            auto depth = 0;
+            if (subdivide) {
+                const auto cpos = VECTOR{
+                    camera.position.vx >> 12, camera.position.vy >> 12, camera.position.vz >> 12};
+                auto dist = (cpos.vx - quad.vs[0].vx) * (cpos.vx - quad.vs[0].vx) +
+                            (cpos.vy - quad.vs[0].vy) * (cpos.vy - quad.vs[0].vy) +
+                            (cpos.vz - quad.vs[0].vz) * (cpos.vz - quad.vs[0].vz);
+                dist >>= 12;
+                if (dist == 0) {
+                    dist = 1;
+                }
+                if (dist < 350) {
+                    depth = 2;
+                } else if (dist < 600) {
+                    depth = 1;
+                }
+            }
 
-        polyft4->tpage = tpage;
-        polyft4->clut = clut;
-
-        gte_ldv0(&v0);
-        gte_ldv1(&v1);
-        gte_ldv2(&v2);
-
-        gte_rtpt();
-
-        gte_nclip();
-
-        long nclip;
-        gte_stopz(&nclip);
-
-        if (nclip < 0) {
-            continue;
+            uvs = TexRegion{
+                mesh.vertices[vertexIdx].u,
+                mesh.vertices[vertexIdx].v,
+                mesh.vertices[vertexIdx + 3].u,
+                mesh.vertices[vertexIdx + 3].v,
+            };
+            drawQuadRecursive(object, quad, uvs, texture, depth);
         }
+    } else {
+        for (int i = 0; i < mesh.numQuads; ++i, vertexIdx += 4) {
+            auto* polyft4 = (POLY_FT4*)nextpri;
+            setPolyFT4(polyft4);
 
-        gte_stsxy0(&polyft4->x0);
+            const auto& v0 = mesh.vertices[vertexIdx + 0];
+            const auto& v1 = mesh.vertices[vertexIdx + 1];
+            const auto& v2 = mesh.vertices[vertexIdx + 2];
+            const auto& v3 = mesh.vertices[vertexIdx + 3];
 
-        gte_ldv0(&v3);
-        gte_rtps();
+            setUV4(polyft4, v0.u, v0.v, v1.u, v1.v, v2.u, v2.v, v3.u, v3.v);
 
-        gte_stsxy3(&polyft4->x1, &polyft4->x2, &polyft4->x3);
+            polyft4->tpage = tpage;
+            polyft4->clut = clut;
 
-        /* if (quad_clip(
-                &screenClip,
-                (DVECTOR*)&polyft4->x0,
-                (DVECTOR*)&polyft4->x1,
-                (DVECTOR*)&polyft4->x2,
-                (DVECTOR*)&polyft4->x3)) {
-            return;
-        } */
+            gte_ldv0(&v0);
+            gte_ldv1(&v1);
+            gte_ldv2(&v2);
+
+            gte_rtpt();
+
+            gte_nclip();
+
+            long nclip;
+            gte_stopz(&nclip);
+
+            if (nclip < 0) {
+                continue;
+            }
+
+            gte_stsxy0(&polyft4->x0);
+
+            gte_ldv0(&v3);
+            gte_rtps();
+
+            gte_stsxy3(&polyft4->x1, &polyft4->x2, &polyft4->x3);
+
+            /* if (quad_clip(
+                    &screenClip,
+                    (DVECTOR*)&polyft4->x0,
+                    (DVECTOR*)&polyft4->x1,
+                    (DVECTOR*)&polyft4->x2,
+                    (DVECTOR*)&polyft4->x3)) {
+                return;
+            } */
 
 #if 0
         int sz0, sz1, sz2, sz3;
@@ -432,26 +472,27 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx)
 
         long otz = maxVar(sz0, sz1, sz2, sz3) / 4;
 #else
-        long otz;
-        gte_avsz4();
-        gte_stotz(&otz);
+            long otz;
+            gte_avsz4();
+            gte_stotz(&otz);
 #endif
 
-        long p;
-        gte_stdp(&p);
+            long p;
+            gte_stdp(&p);
 
-        CVECTOR near = {128, 128, 128, 44};
-        CVECTOR col;
-        gte_DpqColor(&near, p, &col);
-        setRGB0(polyft4, col.r, col.g, col.b);
-
-        otz -= 64; // depth bias for not overlapping with tiles
-
-        if (otz > 0 && otz < OTLEN) {
+            CVECTOR near = {128, 128, 128, 44};
             CVECTOR col;
+            gte_DpqColor(&near, p, &col);
+            setRGB0(polyft4, col.r, col.g, col.b);
 
-            addPrim(&ot[currBuffer][otz], polyft4);
-            nextpri += sizeof(POLY_FT4);
+            otz -= 64; // depth bias for not overlapping with tiles
+
+            if (otz > 0 && otz < OTLEN) {
+                CVECTOR col;
+
+                addPrim(&ot[currBuffer][otz], polyft4);
+                nextpri += sizeof(POLY_FT4);
+            }
         }
     }
 }
@@ -697,7 +738,7 @@ void Game::draw()
     auto pos = roll.position;
     drawModel(roll, rollModel, rollTextureIdx);
 
-    drawModel(level, levelModel, bricksTextureIdx);
+    drawModel(level, levelModel, bricksTextureIdx, true);
 
 #if 0
     for (int i = 0; i < 10; ++i) {

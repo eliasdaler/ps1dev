@@ -61,8 +61,12 @@ public:
 private:
     void loadModel(Model& model, eastl::string_view filename);
 
-    void drawModel(Object& object, const Model& model, std::uint16_t textureIdx);
-    void drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx);
+    void drawModel(
+        Object& object,
+        const Model& model,
+        std::uint16_t textureIdx,
+        bool subdivide = false);
+    void drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, bool subdivide);
 
     void drawLevel();
 
