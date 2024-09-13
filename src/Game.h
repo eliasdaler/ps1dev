@@ -20,10 +20,6 @@ struct Object {
     VECTOR scale;
 };
 
-struct SVEC2 {
-    short x, y;
-};
-
 struct Vertex {
     std::int16_t x, y, z;
     std::uint8_t u, v;
@@ -67,15 +63,6 @@ private:
         std::uint16_t textureIdx,
         bool subdivide = false);
     void drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, bool subdivide);
-
-    void drawLevel();
-
-    void drawTile(
-        Object& object,
-        std::uint16_t meshIdx,
-        std::uint16_t textureIdx,
-        const TexRegion& uvs);
-
     void drawQuadRecursive(
         Object& object,
         const Quad& quad,
@@ -99,25 +86,14 @@ private:
 
     RECT screenClip;
 
-    Object roll;
-    Object floorTileObj;
-    Object wallTileObj;
-
-    Mesh tileMesh; // we use it for transforming tiles on CPU
-
     std::uint16_t bricksTextureIdx;
-    std::uint16_t floorTextureIdx;
     std::uint16_t rollTextureIdx;
 
+    Object roll;
     Model rollModel;
 
     Object level;
     Model levelModel;
-
-    std::uint16_t floorMeshIdx;
-    std::uint16_t wallMeshIdx;
-    std::uint16_t wallMeshLIdx;
-    std::uint16_t wallMeshRIdx;
 
     eastl::vector<Mesh> meshes;
     eastl::vector<TIM_IMAGE> textures;

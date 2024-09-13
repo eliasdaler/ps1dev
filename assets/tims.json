@@ -6,12 +6,6 @@
     "pix": [320, 0]
   },
   {
-    "input": "raw/wood_floor.png",
-    "output": "wood_floor.tim",
-    "clut": [0, 481],
-    "pix": [384, 0]
-  },
-  {
     "input": "raw/face_cato.png",
     "output": "ftex.tim",
     "clut": [0, 482],

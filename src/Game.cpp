@@ -122,9 +122,6 @@ void Game::init()
     const auto textureData2 = util::readFile("\\BRICKS.TIM;1");
     bricksTextureIdx = addTexture(loadTexture(textureData2));
 
-    const auto textureData = util::readFile("\\FLOOR.TIM;1");
-    floorTextureIdx = addTexture(loadTexture(textureData));
-
     const auto textureData4 = util::readFile("\\PS1.TIM;1");
     rollTextureIdx = addTexture(loadTexture(textureData4));
 
@@ -141,52 +138,6 @@ void Game::init()
     level.position = {0, 0, 0};
     level.rotation = {};
     level.scale = {ONE, ONE, ONE};
-
-    Mesh floorTile;
-    floorTile.vertices = {
-        {-tileSize, 0, tileSize},
-        {tileSize, 0, tileSize},
-        {-tileSize, 0, -tileSize},
-        {tileSize, 0, -tileSize},
-    };
-    floorMeshIdx = addMesh(std::move(floorTile));
-
-    floorTileObj.position = {0, 0, 0};
-    floorTileObj.rotation = {};
-    floorTileObj.scale = {ONE, ONE, ONE};
-
-    Mesh wallTileMesh;
-    wallTileMesh.vertices = {
-        {-tileSize, -tileSize, 0},
-        {tileSize, -tileSize, 0},
-        {-tileSize, tileSize, 0},
-        {tileSize, tileSize, 0},
-    };
-    wallMeshIdx = addMesh(std::move(wallTileMesh));
-
-    Mesh wallTileMeshL;
-    wallTileMeshL.vertices = {
-        {0, -tileSize, -tileSize},
-        {0, -tileSize, tileSize},
-        {0, tileSize, -tileSize},
-        {0, tileSize, tileSize},
-    };
-    wallMeshLIdx = addMesh(std::move(wallTileMeshL));
-
-    Mesh wallTileMeshR;
-    wallTileMeshR.vertices = {
-        {0, -tileSize, tileSize},
-        {0, -tileSize, -tileSize},
-        {0, tileSize, tileSize},
-        {0, tileSize, -tileSize},
-    };
-    wallMeshRIdx = addMesh(std::move(wallTileMeshR));
-
-    wallTileObj.position = {0, 0, 0};
-    wallTileObj.rotation = {};
-    wallTileObj.scale = {ONE, ONE, ONE};
-
-    tileMesh.vertices.resize(4);
 }
 
 void Game::loadModel(Model& model, eastl::string_view filename)
@@ -497,61 +448,6 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
     }
 }
 
-void Game::drawTile(
-    Object& object,
-    std::uint16_t meshIdx,
-    std::uint16_t textureIdx,
-    const TexRegion& uvs)
-{
-    auto& protoMesh = meshes[meshIdx];
-    Quad quad{};
-    for (int i = 0; i < protoMesh.vertices.size(); ++i) {
-        quad.vs[i].vx = protoMesh.vertices[i].x + object.position.vx;
-        quad.vs[i].vy = protoMesh.vertices[i].y + object.position.vy;
-        quad.vs[i].vz = protoMesh.vertices[i].z + object.position.vz;
-    }
-
-    auto& texture = textures[textureIdx];
-
-    auto depth = 0;
-    auto cpos =
-        VECTOR{camera.position.vx >> 12, camera.position.vy >> 12, camera.position.vz >> 12};
-    auto dist = (cpos.vx - object.position.vx) * (cpos.vx - object.position.vx) +
-                (cpos.vy - object.position.vy) * (cpos.vy - object.position.vy) +
-                (cpos.vz - object.position.vz) * (cpos.vz - object.position.vz);
-
-    dist >>= 12;
-    if (dist == 0) {
-        dist = 1;
-    }
-    if (meshIdx != floorMeshIdx) {
-        if (dist < 250) {
-            depth = 2;
-        } else if (dist < 600) {
-            depth = 1;
-        }
-    } else {
-        // floor - TODO
-        // not subdividing it is a bit nicer since we don't get holes
-        // the distortion is not as apparent, unless you look down
-        /* if (trot.vx > 180) { // only subdivide when looking down
-            if (dist < 100) {
-                depth = 2;
-            }
-        } */
-    }
-
-    RotMatrix(&object.rotation, &worldmat);
-    ScaleMatrix(&worldmat, &object.scale);
-
-    CompMatrixLV(&camera.view, &worldmat, &viewmat);
-
-    gte_SetRotMatrix(&viewmat);
-    gte_SetTransMatrix(&viewmat);
-
-    drawQuadRecursive(object, quad, uvs, texture, depth);
-}
-
 void Game::drawQuadRecursive(
     Object& object,
     const Quad& quad,
@@ -733,8 +629,6 @@ void Game::draw()
         TransMatrix(&camera.view, &tpos);
     }
 
-    // drawLevel();
-
     auto pos = roll.position;
     drawModel(roll, rollModel, rollTextureIdx);
 
@@ -759,53 +653,6 @@ void Game::draw()
     FntFlush(-1);
 
     display();
-}
-
-void Game::drawLevel()
-{
-    const auto tileUV = TexRegion{0, 0, 63, 63};
-    const auto windowUV = TexRegion{64, 0, 127, 63};
-    const auto doorUV = TexRegion{0, 64, 63, 127};
-
-    // draw floor
-    VECTOR posZero{};
-    TransMatrix(&worldmat, &posZero);
-    for (int x = -3; x < 3; ++x) {
-        for (int y = 0; y < 8; ++y) {
-            floorTileObj.position.vx = x * tileSize * 2;
-            floorTileObj.position.vz = -tileSize - y * tileSize * 2;
-            drawTile(floorTileObj, floorMeshIdx, floorTextureIdx, tileUV);
-        }
-    }
-
-    // draw walls
-    // far
-    for (int x = -3; x < 3; ++x) {
-        wallTileObj.position.vx = x * tileSize * 2;
-        wallTileObj.position.vy = -tileSize;
-        wallTileObj.position.vz = 0;
-        if (x == 0) {
-            drawTile(wallTileObj, wallMeshIdx, bricksTextureIdx, doorUV);
-        } else {
-            drawTile(wallTileObj, wallMeshIdx, bricksTextureIdx, windowUV);
-        }
-    }
-
-    // left
-    for (int x = 0; x < 8; ++x) {
-        wallTileObj.position.vx = -3 * tileSize * 2 - tileSize;
-        wallTileObj.position.vy = -tileSize;
-        wallTileObj.position.vz = -x * tileSize * 2;
-        drawTile(wallTileObj, wallMeshLIdx, bricksTextureIdx, (x % 2 == 0) ? tileUV : windowUV);
-    }
-
-    // right
-    for (int x = 0; x < 8; ++x) {
-        wallTileObj.position.vx = 3 * tileSize * 2 - tileSize;
-        wallTileObj.position.vy = -tileSize;
-        wallTileObj.position.vz = -x * tileSize * 2;
-        drawTile(wallTileObj, wallMeshRIdx, bricksTextureIdx, (x % 2 == 0) ? tileUV : windowUV);
-    }
 }
 
 void Game::display()
