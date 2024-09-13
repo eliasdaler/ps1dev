@@ -295,7 +295,7 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
 
         gte_stsxy3(&polyft3->x0, &polyft3->x1, &polyft3->x2);
 
-#if 1
+#if 0
         int sz1, sz2, sz3;
         __asm__ volatile("mfc2 %0, $17\n"
                          "mfc2 %1, $18\n"
@@ -414,14 +414,14 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
             } */
 
 #if 0
-        int sz0, sz1, sz2, sz3;
-        __asm__ volatile("mfc2 %0, $16\n"
-                         "mfc2 %1, $17\n"
-                         "mfc2 %2, $18\n"
-                         "mfc2 %3, $29\n"
-                         : "=r"(sz0), "=r"(sz1), "=r"(sz2), "=r"(sz3));
+            int sz0, sz1, sz2, sz3;
+            __asm__ volatile("mfc2 %0, $16\n"
+                             "mfc2 %1, $17\n"
+                             "mfc2 %2, $18\n"
+                             "mfc2 %3, $29\n"
+                             : "=r"(sz0), "=r"(sz1), "=r"(sz2), "=r"(sz3));
 
-        long otz = maxVar(sz0, sz1, sz2, sz3) / 4;
+            long otz = maxVar(sz0, sz1, sz2, sz3) / 4;
 #else
             long otz;
             gte_avsz4();
