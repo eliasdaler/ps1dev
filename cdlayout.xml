@@ -14,6 +14,7 @@
                 data_preparer	= "MKPSXISO"
                 copyright		= "NONE"
             />
+            <! license file is only needed for running on JP consoles >
             <! license file="a\license_data.dat"/>
             <directory_tree>
                 <file name="SYSTEM.CNF"	type="data" source="system.cnf"/>

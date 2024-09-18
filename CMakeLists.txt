@@ -61,9 +61,18 @@ add_custom_target(build_iso
   WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
   COMMENT "Building game.iso"
   COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:game> "${CMAKE_CURRENT_BINARY_DIR}/game.ps-exe"
-  COMMAND ${MKPSXISO_EXECUTABLE} "${PROJECT_SOURCE_DIR}/cdlayout.xml" -y -q
+  COMMAND "${MKPSXISO_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/cdlayout.xml" -y -q
+)
+
+set(ASSETS_DIR "${PROJECT_SOURCE_DIR}/assets")
+set(ASSETS_DIR_RAW "${PROJECT_SOURCE_DIR}/assets/raw")
+
+set(models
+  "${ASSETS_DIR}/raw/level.blend"
+  "${ASSETS_DIR}/raw/roll.blend"
 )
 
 include(BuildAssets)
-add_dependencies(build_iso assets)
 
+add_dependencies(build_iso game)
+add_dependencies(build_iso assets)
