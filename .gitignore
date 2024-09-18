@@ -13,3 +13,6 @@ pcsx.json
 
 build/
 .cache/
+
+# Blender backup files
+*.blend1

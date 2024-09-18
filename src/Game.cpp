@@ -107,15 +107,14 @@ void Game::init()
     FntOpen(16, 16, 196, 64, 0, 256);
 
     setVector(&camera.position, 0, -ONE * (tileSize + tileSize / 5), -ONE * 2500);
-    // camera.position.vy = -ONE * 51;
     camera.view = (MATRIX){0};
 
     // testing
-    /* camera.position.vx = ONE * 79;
-    camera.position.vy = ONE * -307;
-    camera.position.vz = ONE * -1538;
-    camera.rotation.vx = ONE * 250;
-    camera.rotation.vy = ONE * 275; */
+    /* camera.position.vx = ONE * 360;
+    camera.position.vy = ONE * -1007;
+    camera.position.vz = ONE * -1590;
+    camera.rotation.vx = ONE * 260;
+    camera.rotation.vy = ONE * 325; */
 
     CdInit();
 
@@ -161,8 +160,14 @@ void Game::loadModel(Model& model, eastl::string_view filename)
                 vertex.x = fr.GetInt16();
                 vertex.y = fr.GetInt16();
                 vertex.z = fr.GetInt16();
+
                 vertex.u = fr.GetUInt8();
                 vertex.v = fr.GetUInt8();
+
+                vertex.r = fr.GetUInt8();
+                vertex.g = fr.GetUInt8();
+                vertex.b = fr.GetUInt8();
+
                 mesh.vertices.push_back(vertex);
             }
         }
@@ -173,8 +178,28 @@ void Game::loadModel(Model& model, eastl::string_view filename)
                 vertex.x = fr.GetInt16();
                 vertex.y = fr.GetInt16();
                 vertex.z = fr.GetInt16();
+
                 vertex.u = fr.GetUInt8();
                 vertex.v = fr.GetUInt8();
+
+                vertex.r = fr.GetUInt8();
+                vertex.g = fr.GetUInt8();
+                vertex.b = fr.GetUInt8();
+
+                /* if (vertex.u == 63) {
+                    vertex.u = 64;
+                }
+                if (vertex.v == 63) {
+                    vertex.v = 64;
+                } */
+                /* printf(
+                    "(%d, %d, %d), (%d %d %d)\n",
+                    vertex.x,
+                    vertex.y,
+                    vertex.z,
+                    vertex.r,
+                    vertex.g,
+                    vertex.b); */
                 mesh.vertices.push_back(vertex);
             }
         }
@@ -369,18 +394,18 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
         }
     } else {
         for (int i = 0; i < mesh.numQuads; ++i, vertexIdx += 4) {
-            auto* polyft4 = (POLY_FT4*)nextpri;
-            setPolyFT4(polyft4);
+            auto* polygt4 = (POLY_GT4*)nextpri;
+            setPolyGT4(polygt4);
 
             const auto& v0 = mesh.vertices[vertexIdx + 0];
             const auto& v1 = mesh.vertices[vertexIdx + 1];
             const auto& v2 = mesh.vertices[vertexIdx + 2];
             const auto& v3 = mesh.vertices[vertexIdx + 3];
 
-            setUV4(polyft4, v0.u, v0.v, v1.u, v1.v, v2.u, v2.v, v3.u, v3.v);
+            setUV4(polygt4, v0.u, v0.v, v1.u, v1.v, v2.u, v2.v, v3.u, v3.v);
 
-            polyft4->tpage = tpage;
-            polyft4->clut = clut;
+            polygt4->tpage = tpage;
+            polygt4->clut = clut;
 
             gte_ldv0(&v0);
             gte_ldv1(&v1);
@@ -397,12 +422,12 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
                 continue;
             }
 
-            gte_stsxy0(&polyft4->x0);
+            gte_stsxy0(&polygt4->x0);
 
             gte_ldv0(&v3);
             gte_rtps();
 
-            gte_stsxy3(&polyft4->x1, &polyft4->x2, &polyft4->x3);
+            gte_stsxy3(&polygt4->x1, &polygt4->x2, &polygt4->x3);
 
             /* if (quad_clip(
                     &screenClip,
@@ -431,18 +456,38 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
             long p;
             gte_stdp(&p);
 
-            CVECTOR near = {128, 128, 128, 44};
-            CVECTOR col;
-            gte_DpqColor(&near, p, &col);
-            setRGB0(polyft4, col.r, col.g, col.b);
+            // CVECTOR near = {128, 128, 128, 44};
+            // CVECTOR col;
+            // gte_DpqColor(&near, p, &col);
+            // setRGB0(polygt4, col.r, col.g, col.b);
+
+            auto interpolateCol = [](std::uint8_t r, std::uint8_t g, std::uint8_t b, long p) {
+                CVECTOR near = {r, g, b, 44};
+                // return near;
+                CVECTOR col;
+                gte_DpqColor(&near, p, &col);
+                return col;
+            };
+
+            auto col = interpolateCol(v0.r, v0.g, v0.b, p);
+            setRGB0(polygt4, col.r, col.g, col.b);
+
+            col = interpolateCol(v1.r, v1.g, v1.b, p);
+            setRGB1(polygt4, col.r, col.g, col.b);
+
+            col = interpolateCol(v2.r, v2.g, v2.b, p);
+            setRGB2(polygt4, col.r, col.g, col.b);
+
+            col = interpolateCol(v3.r, v3.g, v3.b, p);
+            setRGB3(polygt4, col.r, col.g, col.b);
 
             otz -= 64; // depth bias for not overlapping with tiles
 
             if (otz > 0 && otz < OTLEN) {
                 CVECTOR col;
 
-                addPrim(&ot[currBuffer][otz], polyft4);
-                nextpri += sizeof(POLY_FT4);
+                addPrim(&ot[currBuffer][otz], polygt4);
+                nextpri += sizeof(POLY_GT4);
             }
         }
     }
@@ -632,7 +677,7 @@ void Game::draw()
     auto pos = roll.position;
     drawModel(roll, rollModel, rollTextureIdx);
 
-    drawModel(level, levelModel, bricksTextureIdx, true);
+    drawModel(level, levelModel, bricksTextureIdx, false);
 
 #if 0
     for (int i = 0; i < 10; ++i) {

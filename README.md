@@ -10,7 +10,7 @@ See also: [psxtools](https://github.com/eliasdaler/psxtools) (to be incorporated
 
 (Roll model is from Mega Man Legends 2 and is used temporarily until I make my own models)
 
-![progress](media/s2.jpg)
+![progress](media/s3.jpg)
 
 # Requirements
 

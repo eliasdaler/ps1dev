@@ -23,6 +23,7 @@ struct Object {
 struct Vertex {
     std::int16_t x, y, z;
     std::uint8_t u, v;
+    std::uint8_t r, g, b;
 };
 
 struct Mesh {
