@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/cmake/Toolchain.cmake")
 
 project(
@@ -17,6 +19,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(PSYQ_DIR "${CMAKE_CURRENT_LIST_DIR}/../psyq" CACHE PATH "Location of PsyQ libraries")
+
+set(PSXTOOLS_DIR "${CMAKE_CURRENT_LIST_DIR}/../psxtools" CACHE PATH "Location of psxtools")
+set(PSXTOOLS_BIN_DIR "${CMAKE_CURRENT_LIST_DIR}/../psxtools/build" CACHE PATH "Location of built psxtools")
 
 add_subdirectory(third_party)
 
@@ -47,17 +52,18 @@ find_program (
     mkpsxiso
   HINTS
     "${PROJECT_SOURCE_DIR}/tools/bin"
+  REQUIRED
 )
 
-if(MKPSXISO_EXECUTABLE-NOTFOUND)
-  message(FATAL_ERROR "mkpsxiso was not found")
-endif()
-
-add_custom_command(TARGET game
-  POST_BUILD
+add_custom_target(build_iso
+  ALL
   BYPRODUCTS game.ps-exe game.iso game.cue
   WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
   COMMENT "Building game.iso"
   COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:game> "${CMAKE_CURRENT_BINARY_DIR}/game.ps-exe"
   COMMAND ${MKPSXISO_EXECUTABLE} "${PROJECT_SOURCE_DIR}/cdlayout.xml" -y -q
 )
+
+include(BuildAssets)
+add_dependencies(build_iso assets)
+
