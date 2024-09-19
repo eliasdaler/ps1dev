@@ -87,7 +87,7 @@ void Game::init()
 
     SetBackColor(0, 0, 0);
     SetFarColor(0, 0, 0);
-    SetFogNearFar(500, 12800, SCREENXRES / 2);
+    SetFogNearFar(500, 2800, SCREENXRES / 2);
 
     SetDefDispEnv(&dispEnv[0], 0, 0, SCREENXRES, SCREENYRES);
     SetDefDrawEnv(&drawEnv[0], 0, SCREENYRES, SCREENXRES, SCREENYRES);
@@ -125,33 +125,30 @@ void Game::init()
     camera.view = (MATRIX){0};
 
     // testing
-    camera.position.vx = ONE * -379;
+    /* camera.position.vx = ONE * -379;
     camera.position.vy = ONE * -307;
     camera.position.vz = ONE * -3496;
     camera.rotation.vx = ONE * 64;
-    camera.rotation.vy = ONE * -236;
+    camera.rotation.vy = ONE * -236; */
 
     CdInit();
 
     const auto textureData2 = util::readFile("\\BRICKS.TIM;1");
     bricksTextureIdx = addTexture(loadTexture(textureData2));
 
-    const auto textureData4 = util::readFile("\\PS1.TIM;1");
-    rollTextureIdx = addTexture(loadTexture(textureData4));
-
     const auto textureData3 = util::readFile("\\ROLL.TIM;1");
     rollTextureIdx = addTexture(loadTexture(textureData3));
 
     loadModel(rollModel, "\\ROLL.BIN;1");
 
-    loadModel(levelModel, "\\LEVEL.BIN;1");
+    // loadModel(levelModel, "\\LEVEL.BIN;1");
     level.position = {0, 0, 0};
     level.rotation = {};
     level.scale = {ONE, ONE, ONE};
 
-    for (int i = 0; i < numRolls; ++i) {
+    /* for (int i = 0; i < numRolls; ++i) {
         rollModelFast[i] = makeFastModel(rollModel);
-    }
+    } */
 
     roll.position = {-64, 0, 0};
     roll.rotation = {};
@@ -890,7 +887,7 @@ void Game::draw()
     drawModelFast(roll, rollModelFast[0]);
 #endif
 
-    drawModel(level, levelModel, bricksTextureIdx, false);
+    // drawModel(level, levelModel, bricksTextureIdx, false);
 
 #if 1
     for (int i = 1; i < numRolls; ++i) {

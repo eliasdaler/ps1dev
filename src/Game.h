@@ -105,7 +105,7 @@ private:
     Model rollModel;
 
     Object level;
-    Model levelModel;
+    // Model levelModel;
 
     static constexpr int numRolls{5};
     FastModel rollModelFast[numRolls];
