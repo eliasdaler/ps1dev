@@ -1,6 +1,7 @@
 #include "Game.h"
 
 #include <stdio.h>
+#include <psyqo/alloc.h>
 #include <libetc.h>
 #include <libcd.h>
 #include <inline_n.h>
@@ -129,14 +130,18 @@ void Game::init()
 
     loadModel(rollModel, "\\ROLL.BIN;1");
 
-    roll.position = {-64, 0, 0};
-    roll.rotation = {};
-    roll.scale = {ONE, ONE, ONE};
-
     loadModel(levelModel, "\\LEVEL.BIN;1");
     level.position = {0, 0, 0};
     level.rotation = {};
     level.scale = {ONE, ONE, ONE};
+
+    for (int i = 0; i < numRolls; ++i) {
+        rollModelFast[i] = makeFastModel(rollModel);
+    }
+
+    roll.position = {-64, 0, 0};
+    roll.rotation = {};
+    roll.scale = {ONE, ONE, ONE};
 }
 
 void Game::loadModel(Model& model, eastl::string_view filename)
@@ -206,6 +211,102 @@ void Game::loadModel(Model& model, eastl::string_view filename)
 
         model.meshesIndices.push_back(addMesh(std::move(mesh)));
     }
+}
+
+FastModel Game::makeFastModel(Model& model)
+{
+    FastModel fm;
+    int totalVertices = 0;
+    int totalTris = 0;
+    int totalQuads = 0;
+    for (const auto& idx : model.meshesIndices) {
+        const auto& mesh = meshes[idx];
+        totalVertices += mesh.vertices.size();
+        totalTris += mesh.numTris;
+        totalQuads += mesh.numQuads;
+    }
+
+    fm.vertices.resize(totalVertices);
+
+    const auto primDataSize = (totalTris * sizeof(POLY_GT3) + totalQuads * sizeof(POLY_GT4));
+    fm.primData = (char*)psyqo_malloc(2 * primDataSize);
+
+    for (int i = 0; i < 2; ++i) {
+        auto* trisStart = fm.primData + i * primDataSize;
+        auto* trisEnd = trisStart + totalTris * sizeof(POLY_GT3);
+
+        fm.trianglePrims[i] = eastl::span<POLY_GT3>((POLY_GT3*)trisStart, (POLY_GT3*)trisEnd);
+        fm.quadPrims[i] = eastl::span<
+            POLY_GT4>((POLY_GT4*)trisEnd, (POLY_GT4*)(trisEnd + totalQuads * sizeof(POLY_GT4)));
+    }
+
+    std::size_t currentIndex{0};
+    // tris
+    for (const auto& idx : model.meshesIndices) {
+        const auto& mesh = meshes[idx];
+        for (std::uint16_t vi = 0; vi < mesh.numTris * 3; ++vi) {
+            fm.vertices[currentIndex] = mesh.vertices[vi];
+            ++currentIndex;
+        }
+    }
+
+    // quads
+    for (const auto& idx : model.meshesIndices) {
+        const auto& mesh = meshes[idx];
+        std::uint16_t vi;
+        for (vi = 0; vi < mesh.numQuads * 4; ++vi) {
+            fm.vertices[currentIndex] = mesh.vertices[mesh.numTris * 3 + vi];
+            ++currentIndex;
+        }
+    }
+
+    // TODO: pass textureIdx?
+    const auto& texture = textures[rollTextureIdx];
+    const auto tpage = getTPage(texture.mode & 0x3, 0, texture.prect->x, texture.prect->y);
+    const auto clut = getClut(texture.crect->x, texture.crect->y);
+
+    for (int i = 0; i < 2; ++i) {
+        auto& trianglePrims = fm.trianglePrims[i];
+        for (std::uint16_t triIndex = 0; triIndex < trianglePrims.size(); ++triIndex) {
+            auto* polygt3 = &trianglePrims[triIndex];
+            setPolyGT3(polygt3);
+
+            const auto& v0 = fm.vertices[triIndex * 3 + 0];
+            const auto& v1 = fm.vertices[triIndex * 3 + 1];
+            const auto& v2 = fm.vertices[triIndex * 3 + 2];
+
+            setUV3(polygt3, v0.u, v0.v, v1.u, v1.v, v2.u, v2.v);
+            setRGB0(polygt3, v0.r, v0.g, v0.b);
+            setRGB1(polygt3, v1.r, v1.g, v1.b);
+            setRGB2(polygt3, v2.r, v2.g, v2.b);
+
+            polygt3->tpage = tpage;
+            polygt3->clut = clut;
+        }
+
+        std::uint16_t startIndex = trianglePrims.size() * 3;
+        auto& quadPrims = fm.quadPrims[i];
+        for (std::uint16_t quadIndex = 0; quadIndex < quadPrims.size(); ++quadIndex) {
+            auto* polygt4 = &quadPrims[quadIndex];
+            setPolyGT4(polygt4);
+
+            const auto& v0 = fm.vertices[startIndex + quadIndex * 4 + 0];
+            const auto& v1 = fm.vertices[startIndex + quadIndex * 4 + 1];
+            const auto& v2 = fm.vertices[startIndex + quadIndex * 4 + 2];
+            const auto& v3 = fm.vertices[startIndex + quadIndex * 4 + 3];
+
+            setUV4(polygt4, v0.u, v0.v, v1.u, v1.v, v2.u, v2.v, v3.u, v3.v);
+            setRGB0(polygt4, v0.r, v0.g, v0.b);
+            setRGB1(polygt4, v1.r, v1.g, v1.b);
+            setRGB2(polygt4, v2.r, v2.g, v2.b);
+            setRGB3(polygt4, v3.r, v3.g, v3.b);
+
+            polygt4->tpage = tpage;
+            polygt4->clut = clut;
+        }
+    }
+
+    return fm;
 }
 
 void Game::run()
@@ -278,6 +379,99 @@ void Game::drawModel(Object& object, const Model& model, std::uint16_t textureId
 
     for (const auto& meshIdx : model.meshesIndices) {
         drawMesh(object, meshes[meshIdx], textureIdx, subdivide);
+    }
+}
+
+void Game::drawModelFast(Object& object, const FastModel& fm)
+{
+    RotMatrix(&object.rotation, &worldmat);
+    TransMatrix(&worldmat, &object.position);
+    ScaleMatrix(&worldmat, &object.scale);
+
+    CompMatrixLV(&camera.view, &worldmat, &viewmat);
+
+    gte_SetRotMatrix(&viewmat);
+    gte_SetTransMatrix(&viewmat);
+
+    auto& trianglePrims = fm.trianglePrims[currBuffer];
+    for (std::uint16_t triIndex = 0; triIndex < trianglePrims.size(); ++triIndex) {
+        const auto& v0 = fm.vertices[triIndex * 3 + 0];
+        const auto& v1 = fm.vertices[triIndex * 3 + 1];
+        const auto& v2 = fm.vertices[triIndex * 3 + 2];
+
+        gte_ldv0(&v0.x);
+        gte_ldv1(&v1.x);
+        gte_ldv2(&v2.x);
+
+        gte_rtpt();
+
+        gte_nclip();
+
+        long nclip;
+        gte_stopz(&nclip);
+
+        if (nclip < 0) {
+            continue;
+        }
+
+        auto* polygt3 = &trianglePrims[triIndex];
+        gte_stsxy3(&polygt3->x0, &polygt3->x1, &polygt3->x2);
+
+        gte_avsz3();
+        long otz;
+        gte_stotz(&otz);
+
+        otz -= 64; // depth bias for not overlapping with tiles
+        if (otz > 0 && otz < OTLEN) {
+            addPrim(&ot[currBuffer][otz], polygt3);
+        }
+    }
+
+    std::uint16_t startIndex = trianglePrims.size() * 3;
+    auto& quadPrims = fm.quadPrims[currBuffer];
+    for (std::uint16_t quadIndex = 0; quadIndex < quadPrims.size(); ++quadIndex) {
+        const auto& v0 = fm.vertices[startIndex + quadIndex * 4 + 0];
+
+        const auto& v1 = fm.vertices[startIndex + quadIndex * 4 + 1];
+        const auto& v2 = fm.vertices[startIndex + quadIndex * 4 + 2];
+
+        gte_ldv0(&v0);
+        gte_ldv1(&v1);
+        gte_ldv2(&v2);
+
+        gte_rtpt();
+
+        gte_nclip();
+
+        long nclip;
+        gte_stopz(&nclip);
+
+        if (nclip < 0) {
+            continue;
+        }
+
+        const auto& v3 = fm.vertices[startIndex + quadIndex * 4 + 3];
+
+        auto* polygt4 = &quadPrims[quadIndex];
+        gte_stsxy0(&polygt4->x0);
+
+        gte_ldv0(&v3);
+        gte_rtps();
+
+        gte_stsxy3(&polygt4->x1, &polygt4->x2, &polygt4->x3);
+
+        long otz;
+        gte_avsz4();
+        gte_stotz(&otz);
+
+        otz -= 64; // depth bias for not overlapping with tiles
+
+        if (otz > 0 && otz < OTLEN) {
+            CVECTOR col;
+
+            addPrim(&ot[currBuffer][otz], polygt4);
+            nextpri += sizeof(POLY_GT4);
+        }
     }
 }
 
@@ -674,15 +868,27 @@ void Game::draw()
         TransMatrix(&camera.view, &tpos);
     }
 
-    auto pos = roll.position;
-    drawModel(roll, rollModel, rollTextureIdx);
-
-    drawModel(level, levelModel, bricksTextureIdx, false);
-
 #if 0
-    for (int i = 0; i < 10; ++i) {
+#define METHOD_SLOW
+#endif
+
+    auto pos = roll.position;
+#ifdef METHOD_SLOW
+    drawModel(roll, rollModel, rollTextureIdx);
+#else
+    drawModelFast(roll, rollModelFast[0]);
+#endif
+
+    // drawModel(level, levelModel, bricksTextureIdx, false);
+
+#if 1
+    for (int i = 1; i < numRolls; ++i) {
         roll.position.vx += 128;
+#ifdef METHOD_SLOW
         drawModel(roll, rollModel, rollTextureIdx);
+#else
+        drawModelFast(roll, rollModelFast[i]);
+#endif
     }
 #endif
 

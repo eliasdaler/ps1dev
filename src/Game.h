@@ -8,6 +8,7 @@
 
 #include <EASTL/vector.h>
 #include <EASTL/string_view.h>
+#include <EASTL/span.h>
 
 #include "Camera.h"
 
@@ -36,6 +37,13 @@ struct Model {
     eastl::vector<std::uint16_t> meshesIndices;
 };
 
+struct FastModel {
+    eastl::vector<Vertex> vertices;
+    char* primData;
+    eastl::span<POLY_GT3> trianglePrims[2];
+    eastl::span<POLY_GT4> quadPrims[2];
+};
+
 struct TexRegion {
     int u0, v0; // top left
     int u3, v3; // bottom right
@@ -58,11 +66,14 @@ public:
 private:
     void loadModel(Model& model, eastl::string_view filename);
 
+    FastModel makeFastModel(Model& model);
+
     void drawModel(
         Object& object,
         const Model& model,
         std::uint16_t textureIdx,
         bool subdivide = false);
+    void drawModelFast(Object& object, const FastModel& mesh);
     void drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, bool subdivide);
     void drawQuadRecursive(
         Object& object,
@@ -95,6 +106,9 @@ private:
 
     Object level;
     Model levelModel;
+
+    static constexpr int numRolls{19};
+    FastModel rollModelFast[numRolls];
 
     eastl::vector<Mesh> meshes;
     eastl::vector<TIM_IMAGE> textures;
