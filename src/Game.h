@@ -107,7 +107,7 @@ private:
     Object level;
     Model levelModel;
 
-    static constexpr int numRolls{19};
+    static constexpr int numRolls{5};
     FastModel rollModelFast[numRolls];
 
     eastl::vector<Mesh> meshes;

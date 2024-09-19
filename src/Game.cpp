@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <psyqo/alloc.h>
+#include <psyqo/gte-registers.hh>
 #include <libetc.h>
 #include <libcd.h>
 #include <inline_n.h>
@@ -60,10 +61,23 @@ TIM_IMAGE loadTexture(const eastl::vector<uint8_t>& timData)
     return texture;
 }
 
+template<unsigned... regs>
+static inline void clearAllGTERegistersInternal(std::integer_sequence<unsigned, regs...> regSeq)
+{
+    ((psyqo::GTE::clear<psyqo::GTE::Register{regs}, psyqo::GTE::Safety::Safe>()), ...);
+}
+
+static inline void clearAllGTERegisters()
+{
+    clearAllGTERegistersInternal(std::make_integer_sequence<unsigned, 64>{});
+}
+
 }
 
 void Game::init()
 {
+    clearAllGTERegisters();
+
     PadInit(0);
     ResetGraph(0);
 
@@ -111,11 +125,11 @@ void Game::init()
     camera.view = (MATRIX){0};
 
     // testing
-    /* camera.position.vx = ONE * 360;
-    camera.position.vy = ONE * -1007;
-    camera.position.vz = ONE * -1590;
-    camera.rotation.vx = ONE * 260;
-    camera.rotation.vy = ONE * 325; */
+    camera.position.vx = ONE * -379;
+    camera.position.vy = ONE * -307;
+    camera.position.vz = ONE * -3496;
+    camera.rotation.vx = ONE * 64;
+    camera.rotation.vy = ONE * -236;
 
     CdInit();
 
@@ -865,7 +879,7 @@ void Game::draw()
         TransMatrix(&camera.view, &tpos);
     }
 
-#if 0
+#if 1
 #define METHOD_SLOW
 #endif
 
@@ -876,7 +890,7 @@ void Game::draw()
     drawModelFast(roll, rollModelFast[0]);
 #endif
 
-    // drawModel(level, levelModel, bricksTextureIdx, false);
+    drawModel(level, levelModel, bricksTextureIdx, false);
 
 #if 1
     for (int i = 1; i < numRolls; ++i) {
