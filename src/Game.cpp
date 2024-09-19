@@ -467,10 +467,7 @@ void Game::drawModelFast(Object& object, const FastModel& fm)
         otz -= 64; // depth bias for not overlapping with tiles
 
         if (otz > 0 && otz < OTLEN) {
-            CVECTOR col;
-
             addPrim(&ot[currBuffer][otz], polygt4);
-            nextpri += sizeof(POLY_GT4);
         }
     }
 }
