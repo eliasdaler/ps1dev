@@ -3,9 +3,9 @@
 #include <libgpu.h>
 
 struct Camera {
-    VECTOR position;
-    VECTOR rotation;
-    MATRIX view;
+    VECTOR position{};
+    VECTOR rotation{};
+    MATRIX view{};
 };
 
 namespace camera

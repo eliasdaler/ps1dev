@@ -38,6 +38,39 @@ add_executable(game
   src/main.cpp
 )
 
+target_compile_options(game PRIVATE
+  -Wall
+  -Wextra
+  # -pedantic - FIXME: libgpu.h gets annoying with this (anonymous struct usage)
+  -Wno-parentheses
+  -Wno-pointer-arith # psyqo alloc.c
+  -Wno-unused-parameter
+  -Wno-unused-variable
+  -Wno-missing-field-initializers
+  -Wno-sign-compare # TODO: enable
+  # sadly GCC static analyzer is not yet very helpful
+  # -fanalyzer
+  # -Wno-analyzer-possible-null-dereference
+  # -Wno-analyzer-null-argument
+  # -Wno-analyzer-null-dereference
+  # -Wno-analyzer-possible-null-argument
+  # -Wno-unused-function
+)
+
+# TODO: try LTO and see how good it works
+# But it can make code much easier to debug, so only enable in Release build
+# set_target_properties(game PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
+
+# target_link_libraries(game PRIVATE
+#  -fanalyzer
+#  -Wno-analyzer-possible-null-dereference
+#  -Wno-analyzer-null-argument
+#  -Wno-analyzer-null-dereference
+#  -Wno-analyzer-possible-null-argument
+#  -Wno-analyzer-out-of-bounds
+#  -Wno-analyzer-allocation-size
+#)
+
 target_include_directories(game PRIVATE "${PSYQO_DIR}")
 
 target_link_libraries(game PRIVATE

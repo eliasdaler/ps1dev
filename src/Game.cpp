@@ -87,7 +87,7 @@ void Game::init()
 
     SetBackColor(0, 0, 0);
     SetFarColor(0, 0, 0);
-    SetFogNearFar(500, 2800, SCREENXRES / 2);
+    SetFogNearFar(500, 12800, SCREENXRES / 2);
 
     SetDefDispEnv(&dispEnv[0], 0, 0, SCREENXRES, SCREENYRES);
     SetDefDrawEnv(&drawEnv[0], 0, SCREENYRES, SCREENXRES, SCREENYRES);
@@ -122,7 +122,6 @@ void Game::init()
     FntOpen(16, 16, 196, 64, 0, 256);
 
     setVector(&camera.position, 0, -ONE * (tileSize + tileSize / 5), -ONE * 2500);
-    camera.view = (MATRIX){0};
 
     // testing
     /* camera.position.vx = ONE * -379;
@@ -141,7 +140,7 @@ void Game::init()
 
     loadModel(rollModel, "\\ROLL.BIN;1");
 
-    // loadModel(levelModel, "\\LEVEL.BIN;1");
+    loadModel(levelModel, "\\LEVEL.BIN;1");
     level.position = {0, 0, 0};
     level.rotation = {};
     level.scale = {ONE, ONE, ONE};
@@ -240,10 +239,10 @@ FastModel Game::makeFastModel(Model& model)
     fm.vertices.resize(totalVertices);
 
     const auto primDataSize = (totalTris * sizeof(POLY_GT3) + totalQuads * sizeof(POLY_GT4));
-    fm.primData = (char*)psyqo_malloc(2 * primDataSize);
+    fm.primData = eastl::unique_ptr<std::uint8_t>((std::uint8_t*)psyqo_malloc(2 * primDataSize));
 
     for (int i = 0; i < 2; ++i) {
-        auto* trisStart = fm.primData + i * primDataSize;
+        auto* trisStart = fm.primData.get() + i * primDataSize;
         auto* trisEnd = trisStart + totalTris * sizeof(POLY_GT3);
 
         fm.trianglePrims[i] = eastl::span<POLY_GT3>((POLY_GT3*)trisStart, (POLY_GT3*)trisEnd);
@@ -887,7 +886,7 @@ void Game::draw()
     drawModelFast(roll, rollModelFast[0]);
 #endif
 
-    // drawModel(level, levelModel, bricksTextureIdx, false);
+    drawModel(level, levelModel, bricksTextureIdx, false);
 
 #if 1
     for (int i = 1; i < numRolls; ++i) {

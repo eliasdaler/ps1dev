@@ -9,6 +9,7 @@
 #include <EASTL/vector.h>
 #include <EASTL/string_view.h>
 #include <EASTL/span.h>
+#include <EASTL/unique_ptr.h>
 
 #include "Camera.h"
 
@@ -16,9 +17,9 @@ inline constexpr int SCREENXRES = 320;
 inline constexpr int SCREENYRES = 240;
 
 struct Object {
-    SVECTOR rotation;
-    VECTOR position;
-    VECTOR scale;
+    SVECTOR rotation{};
+    VECTOR position{};
+    VECTOR scale{ONE, ONE, ONE};
 };
 
 struct Vertex {
@@ -29,8 +30,8 @@ struct Vertex {
 
 struct Mesh {
     eastl::vector<Vertex> vertices;
-    int numTris;
-    int numQuads;
+    int numTris{0};
+    int numQuads{0};
 };
 
 struct Model {
@@ -39,7 +40,7 @@ struct Model {
 
 struct FastModel {
     eastl::vector<Vertex> vertices;
-    char* primData;
+    eastl::unique_ptr<std::uint8_t> primData{nullptr};
     eastl::span<POLY_GT3> trianglePrims[2];
     eastl::span<POLY_GT4> quadPrims[2];
 };
@@ -105,7 +106,7 @@ private:
     Model rollModel;
 
     Object level;
-    // Model levelModel;
+    Model levelModel;
 
     static constexpr int numRolls{5};
     FastModel rollModelFast[numRolls];
@@ -113,8 +114,8 @@ private:
     eastl::vector<Mesh> meshes;
     eastl::vector<TIM_IMAGE> textures;
 
-    MATRIX worldmat = {0};
-    MATRIX viewmat = {0};
+    MATRIX worldmat{};
+    MATRIX viewmat{};
 
     VECTOR tpos; // Translation value for matrix calculations
     SVECTOR trot; // Rotation value for matrix calculations
