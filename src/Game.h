@@ -43,14 +43,14 @@ struct FastVertex {
 };
 
 struct FastModel {
-    eastl::vector<Vertex> vertices;
+    eastl::unique_ptr<FastVertex> vertexData{nullptr};
+    std::uint16_t numVertices{0};
     eastl::unique_ptr<std::uint8_t> primData{nullptr};
-    eastl::span<POLY_GT3> trianglePrims[2];
-    eastl::span<POLY_GT4> quadPrims[2];
+    std::uint16_t numTris{0};
+    std::uint16_t numQuads{0};
 };
 
-struct MegaFastModel {
-    eastl::unique_ptr<FastVertex> vertexData;
+struct FastModelInstance {
     eastl::span<FastVertex> vertices;
     eastl::unique_ptr<std::uint8_t> primData{nullptr};
     eastl::span<POLY_GT3> trianglePrims[2];
@@ -78,14 +78,16 @@ public:
 
 private:
     void loadModel(Model& model, eastl::string_view filename);
-    void loadFastModel(MegaFastModel& model, eastl::string_view filename);
+    void loadFastModel(FastModel& model, eastl::string_view filename);
+
+    FastModelInstance makeFastModelInstance(FastModel& model);
 
     void drawModel(
         Object& object,
         const Model& model,
         std::uint16_t textureIdx,
         bool subdivide = false);
-    void drawModelFast(Object& object, const MegaFastModel& mesh);
+    void drawModelFast(Object& object, const FastModelInstance& mesh);
     void drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, bool subdivide);
     void drawQuadRecursive(
         Object& object,
@@ -114,13 +116,14 @@ private:
     std::uint16_t rollTextureIdx;
 
     Object roll;
-    Model rollModel;
+    // Model rollModel;
 
     Object level;
     Model levelModel;
 
-    static constexpr int numRolls{1};
-    MegaFastModel megaFastRollModel;
+    static constexpr int numRolls{5};
+    FastModel rollModel;
+    FastModelInstance rollModelInstances[numRolls];
 
     eastl::vector<Mesh> meshes;
     eastl::vector<TIM_IMAGE> textures;

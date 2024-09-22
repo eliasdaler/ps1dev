@@ -7,7 +7,7 @@
 #include <libcd.h>
 #include <inline_n.h>
 #include <gtemac.h>
-#include <algorithm>
+#include <string.h>
 
 #include <utility> //std::move
 
@@ -139,22 +139,26 @@ void Game::init()
     const auto textureData3 = util::readFile("\\ROLL.TIM;1");
     rollTextureIdx = addTexture(loadTexture(textureData3));
 
-    loadModel(rollModel, "\\ROLL.BIN;1");
+    // loadModel(rollModel, "\\ROLL.BIN;1");
 
-    loadFastModel(megaFastRollModel, "\\ROLL.FM;1");
+    printf("Load models...\n");
+    loadFastModel(rollModel, "\\ROLL.FM;1");
 
     loadModel(levelModel, "\\LEVEL.BIN;1");
     level.position = {0, 0, 0};
     level.rotation = {};
     level.scale = {ONE, ONE, ONE};
 
-    /* for (int i = 0; i < numRolls; ++i) {
-        rollModelFast[i] = makeFastModel(rollModel);
-    } */
+    printf("Make models...\n");
+    for (int i = 0; i < numRolls; ++i) {
+        rollModelInstances[i] = makeFastModelInstance(rollModel);
+    }
 
     roll.position = {-64, 0, 0};
     roll.rotation = {};
     roll.scale = {ONE, ONE, ONE};
+
+    printf("Init done...\n");
 }
 
 void Game::loadModel(Model& model, eastl::string_view filename)
@@ -226,7 +230,7 @@ void Game::loadModel(Model& model, eastl::string_view filename)
     }
 }
 
-void Game::loadFastModel(MegaFastModel& model, eastl::string_view filename)
+void Game::loadFastModel(FastModel& model, eastl::string_view filename)
 {
     const auto data = util::readFile(filename);
     const auto* bytes = (u_char*)data.data();
@@ -237,36 +241,48 @@ void Game::loadFastModel(MegaFastModel& model, eastl::string_view filename)
     };
 
     // get num vertices
-    const auto numVertices = fr.GetUInt16();
+    model.numVertices = fr.GetUInt16();
 
     // load vertices
-    const auto vertDataSize = numVertices * 3 * sizeof(std::int16_t);
+    const auto vertDataSize = model.numVertices * 3 * sizeof(std::int16_t);
     model.vertexData = eastl::unique_ptr<FastVertex>((FastVertex*)psyqo_malloc(vertDataSize));
-    model.vertices = eastl::span{model.vertexData.get(), model.vertexData.get() + numVertices};
-
     fr.GetBytes(model.vertexData.get(), vertDataSize);
 
     // get num of tris and quads
-    const auto numTris = fr.GetUInt16();
-    const auto numQuads = fr.GetUInt16();
+    model.numTris = fr.GetUInt16();
+    model.numQuads = fr.GetUInt16();
 
     // read prim data
-    const auto primDataSize = numTris * sizeof(POLY_GT3) + numQuads * sizeof(POLY_GT4);
+    const auto primDataSize = model.numTris * sizeof(POLY_GT3) + model.numQuads * sizeof(POLY_GT4);
 
-    model.primData = eastl::unique_ptr<std::uint8_t>((std::uint8_t*)psyqo_malloc(2 * primDataSize));
+    model.primData = eastl::unique_ptr<std::uint8_t>((std::uint8_t*)psyqo_malloc(primDataSize));
     fr.GetBytes(model.primData.get(), primDataSize);
-    // copy again for double buffering
-    fr.cursor -= primDataSize;
-    fr.GetBytes(model.primData.get() + primDataSize, primDataSize);
+}
+
+FastModelInstance Game::makeFastModelInstance(FastModel& model)
+{
+    FastModelInstance instance{
+        .vertices = eastl::span{model.vertexData.get(), model.vertexData.get() + model.numVertices},
+    };
+    const auto primDataSize = model.numTris * sizeof(POLY_GT3) + model.numQuads * sizeof(POLY_GT4);
+
+    instance.primData =
+        eastl::unique_ptr<std::uint8_t>((std::uint8_t*)psyqo_malloc(2 * primDataSize));
+
+    memcpy((void*)instance.primData.get(), model.primData.get(), primDataSize);
+    // copy again
+    memcpy((void*)(instance.primData.get() + primDataSize), model.primData.get(), primDataSize);
 
     for (int i = 0; i < 2; ++i) {
-        auto* trisStart = model.primData.get() + i * primDataSize;
-        auto* trisEnd = trisStart + numTris * sizeof(POLY_GT3);
+        auto* trisStart = instance.primData.get() + i * primDataSize;
+        auto* trisEnd = trisStart + model.numTris * sizeof(POLY_GT3);
 
-        model.trianglePrims[i] = eastl::span<POLY_GT3>((POLY_GT3*)trisStart, (POLY_GT3*)trisEnd);
-        model.quadPrims[i] = eastl::span<
-            POLY_GT4>((POLY_GT4*)trisEnd, (POLY_GT4*)(trisEnd + numQuads * sizeof(POLY_GT4)));
+        instance.trianglePrims[i] = eastl::span<POLY_GT3>((POLY_GT3*)trisStart, (POLY_GT3*)trisEnd);
+        instance.quadPrims[i] = eastl::span<
+            POLY_GT4>((POLY_GT4*)trisEnd, (POLY_GT4*)(trisEnd + model.numQuads * sizeof(POLY_GT4)));
     }
+
+    return instance;
 }
 
 void Game::run()
@@ -342,7 +358,7 @@ void Game::drawModel(Object& object, const Model& model, std::uint16_t textureId
     }
 }
 
-void Game::drawModelFast(Object& object, const MegaFastModel& fm)
+void Game::drawModelFast(Object& object, const FastModelInstance& fm)
 {
     RotMatrix(&object.rotation, &worldmat);
     TransMatrix(&worldmat, &object.position);
@@ -833,7 +849,7 @@ void Game::draw()
 #ifdef METHOD_SLOW
     drawModel(roll, rollModel, rollTextureIdx);
 #else
-    drawModelFast(roll, megaFastRollModel);
+    drawModelFast(roll, rollModelInstances[0]);
 #endif
 
     drawModel(level, levelModel, bricksTextureIdx, false);
@@ -844,7 +860,7 @@ void Game::draw()
 #ifdef METHOD_SLOW
         drawModel(roll, rollModel, rollTextureIdx);
 #else
-        drawModelFast(roll, megaFastRollModel);
+        drawModelFast(roll, rollModelInstances[i]);
 #endif
     }
 #endif
