@@ -42,7 +42,7 @@ foreach (MODEL_PATH ${models})
   set(CONVERTED_MODEL_PATH "${MODELS_BUILD_DIR_TEMP}/${MODEL_FILENAME}.json")
   set(FINAL_MODEL_PATH "${ASSETS_DIR}/${MODEL_FILENAME}.bin")
   add_custom_command(
-    COMMENT "Converting ${MODEL_PATH} to ${FINAL_MODEL_PATH}"
+    COMMENT "Converting ${MODEL_PATH} to ${CONVERTED_MODEL_PATH}, ${FINAL_MODEL_PATH}"
     DEPENDS "${MODEL_PATH}"
     OUTPUT "${FINAL_MODEL_PATH}"
     # Convert from .blend to .json

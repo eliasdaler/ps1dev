@@ -17,5 +17,7 @@ layout horizontal-asm
 # b Game.cpp:438
 # b allocate_memory
 # b Game.cpp:233
-b drawModelFast
+# b drawModelFast
+# b loadFastModel
+b Game.cpp:336
 c

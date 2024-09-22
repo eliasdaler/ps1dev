@@ -1,23 +1,24 @@
 #pragma once
 
+#include <cstdint>
+#include <string.h>
+
 #include <EASTL/vector.h>
 #include <EASTL/string_view.h>
 #include <EASTL/span.h>
-
-#include <string.h>
 
 namespace util
 {
 eastl::vector<uint8_t> readFile(eastl::string_view filename);
 
 struct FileReader {
-    const uint8_t* bytes;
+    const std::uint8_t* bytes;
     int cursor{0};
 
-    uint8_t GetUInt8() { return static_cast<uint8_t>(bytes[cursor++]); }
-    int8_t GetInt8() { return static_cast<int8_t>(bytes[cursor++]); }
+    std::uint8_t GetUInt8() { return static_cast<uint8_t>(bytes[cursor++]); }
+    std::int8_t GetInt8() { return static_cast<int8_t>(bytes[cursor++]); }
 
-    int16_t GetInt16()
+    std::int16_t GetInt16()
     {
         uint16_t value = 0;
         value |= bytes[cursor++];
@@ -25,7 +26,7 @@ struct FileReader {
         return static_cast<int16_t>(value);
     }
 
-    uint16_t GetUInt16()
+    std::uint16_t GetUInt16()
     {
         uint16_t value = 0;
         value |= bytes[cursor++];
@@ -33,7 +34,7 @@ struct FileReader {
         return static_cast<uint16_t>(value);
     }
 
-    int16_t GetInt16BE()
+    std::int16_t GetInt16BE()
     {
         uint16_t value = 0;
         value |= bytes[cursor++] << 8;
@@ -41,7 +42,7 @@ struct FileReader {
         return static_cast<int16_t>(value);
     }
 
-    int32_t GetInt32()
+    std::int32_t GetInt32()
     {
         uint32_t value = 0;
         value |= bytes[cursor++];
@@ -51,7 +52,7 @@ struct FileReader {
         return static_cast<int32_t>(value);
     }
 
-    int32_t GetInt32BE()
+    std::int32_t GetInt32BE()
     {
         uint32_t value = 0;
         value |= bytes[cursor++] << 24;
@@ -68,6 +69,13 @@ struct FileReader {
         memcpy((void*)&obj, &bytes[cursor], sizeof(T));
         cursor += sizeof(T);
         return obj;
+    }
+
+    void GetBytes(void* dest, std::size_t size)
+    {
+        memcpy((void*)dest, &bytes[cursor], size);
+        cursor += size;
+        // eastl::copy(&bytes[cursor], &bytes[cursor + size], (std::uint8_t*)dest);
     }
 };
 

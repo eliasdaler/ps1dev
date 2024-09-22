@@ -7,6 +7,7 @@
 #include <libcd.h>
 #include <inline_n.h>
 #include <gtemac.h>
+#include <algorithm>
 
 #include <utility> //std::move
 
@@ -140,6 +141,8 @@ void Game::init()
 
     loadModel(rollModel, "\\ROLL.BIN;1");
 
+    loadFastModel(megaFastRollModel, "\\ROLL.FM;1");
+
     loadModel(levelModel, "\\LEVEL.BIN;1");
     level.position = {0, 0, 0};
     level.rotation = {};
@@ -223,100 +226,47 @@ void Game::loadModel(Model& model, eastl::string_view filename)
     }
 }
 
-FastModel Game::makeFastModel(Model& model)
+void Game::loadFastModel(MegaFastModel& model, eastl::string_view filename)
 {
-    FastModel fm;
-    int totalVertices = 0;
-    int totalTris = 0;
-    int totalQuads = 0;
-    for (const auto& idx : model.meshesIndices) {
-        const auto& mesh = meshes[idx];
-        totalVertices += mesh.vertices.size();
-        totalTris += mesh.numTris;
-        totalQuads += mesh.numQuads;
-    }
+    const auto data = util::readFile(filename);
+    const auto* bytes = (u_char*)data.data();
 
-    fm.vertices.resize(totalVertices);
+    // vertices
+    util::FileReader fr{
+        .bytes = data.data(),
+    };
 
-    const auto primDataSize = (totalTris * sizeof(POLY_GT3) + totalQuads * sizeof(POLY_GT4));
-    fm.primData = eastl::unique_ptr<std::uint8_t>((std::uint8_t*)psyqo_malloc(2 * primDataSize));
+    // get num vertices
+    const auto numVertices = fr.GetUInt16();
 
-    for (int i = 0; i < 2; ++i) {
-        auto* trisStart = fm.primData.get() + i * primDataSize;
-        auto* trisEnd = trisStart + totalTris * sizeof(POLY_GT3);
+    // load vertices
+    const auto vertDataSize = numVertices * 3 * sizeof(std::int16_t);
+    model.vertexData = eastl::unique_ptr<FastVertex>((FastVertex*)psyqo_malloc(vertDataSize));
+    model.vertices = eastl::span{model.vertexData.get(), model.vertexData.get() + numVertices};
 
-        fm.trianglePrims[i] = eastl::span<POLY_GT3>((POLY_GT3*)trisStart, (POLY_GT3*)trisEnd);
-        fm.quadPrims[i] = eastl::span<
-            POLY_GT4>((POLY_GT4*)trisEnd, (POLY_GT4*)(trisEnd + totalQuads * sizeof(POLY_GT4)));
-    }
+    fr.GetBytes(model.vertexData.get(), vertDataSize);
 
-    std::size_t currentIndex{0};
-    // tris
-    for (const auto& idx : model.meshesIndices) {
-        const auto& mesh = meshes[idx];
-        for (std::uint16_t vi = 0; vi < mesh.numTris * 3; ++vi) {
-            fm.vertices[currentIndex] = mesh.vertices[vi];
-            ++currentIndex;
-        }
-    }
+    // get num of tris and quads
+    const auto numTris = fr.GetUInt16();
+    const auto numQuads = fr.GetUInt16();
 
-    // quads
-    for (const auto& idx : model.meshesIndices) {
-        const auto& mesh = meshes[idx];
-        std::uint16_t vi;
-        for (vi = 0; vi < mesh.numQuads * 4; ++vi) {
-            fm.vertices[currentIndex] = mesh.vertices[mesh.numTris * 3 + vi];
-            ++currentIndex;
-        }
-    }
+    // read prim data
+    const auto primDataSize = numTris * sizeof(POLY_GT3) + numQuads * sizeof(POLY_GT4);
 
-    // TODO: pass textureIdx?
-    const auto& texture = textures[rollTextureIdx];
-    const auto tpage = getTPage(texture.mode & 0x3, 0, texture.prect->x, texture.prect->y);
-    const auto clut = getClut(texture.crect->x, texture.crect->y);
+    model.primData = eastl::unique_ptr<std::uint8_t>((std::uint8_t*)psyqo_malloc(2 * primDataSize));
+    fr.GetBytes(model.primData.get(), primDataSize);
+    // copy again for double buffering
+    fr.cursor -= primDataSize;
+    fr.GetBytes(model.primData.get() + primDataSize, primDataSize);
 
     for (int i = 0; i < 2; ++i) {
-        auto& trianglePrims = fm.trianglePrims[i];
-        for (std::uint16_t triIndex = 0; triIndex < trianglePrims.size(); ++triIndex) {
-            auto* polygt3 = &trianglePrims[triIndex];
-            setPolyGT3(polygt3);
+        auto* trisStart = model.primData.get() + i * primDataSize;
+        auto* trisEnd = trisStart + numTris * sizeof(POLY_GT3);
 
-            const auto& v0 = fm.vertices[triIndex * 3 + 0];
-            const auto& v1 = fm.vertices[triIndex * 3 + 1];
-            const auto& v2 = fm.vertices[triIndex * 3 + 2];
-
-            setUV3(polygt3, v0.u, v0.v, v1.u, v1.v, v2.u, v2.v);
-            setRGB0(polygt3, v0.r, v0.g, v0.b);
-            setRGB1(polygt3, v1.r, v1.g, v1.b);
-            setRGB2(polygt3, v2.r, v2.g, v2.b);
-
-            polygt3->tpage = tpage;
-            polygt3->clut = clut;
-        }
-
-        std::uint16_t startIndex = trianglePrims.size() * 3;
-        auto& quadPrims = fm.quadPrims[i];
-        for (std::uint16_t quadIndex = 0; quadIndex < quadPrims.size(); ++quadIndex) {
-            auto* polygt4 = &quadPrims[quadIndex];
-            setPolyGT4(polygt4);
-
-            const auto& v0 = fm.vertices[startIndex + quadIndex * 4 + 0];
-            const auto& v1 = fm.vertices[startIndex + quadIndex * 4 + 1];
-            const auto& v2 = fm.vertices[startIndex + quadIndex * 4 + 2];
-            const auto& v3 = fm.vertices[startIndex + quadIndex * 4 + 3];
-
-            setUV4(polygt4, v0.u, v0.v, v1.u, v1.v, v2.u, v2.v, v3.u, v3.v);
-            setRGB0(polygt4, v0.r, v0.g, v0.b);
-            setRGB1(polygt4, v1.r, v1.g, v1.b);
-            setRGB2(polygt4, v2.r, v2.g, v2.b);
-            setRGB3(polygt4, v3.r, v3.g, v3.b);
-
-            polygt4->tpage = tpage;
-            polygt4->clut = clut;
-        }
+        model.trianglePrims[i] = eastl::span<POLY_GT3>((POLY_GT3*)trisStart, (POLY_GT3*)trisEnd);
+        model.quadPrims[i] = eastl::span<
+            POLY_GT4>((POLY_GT4*)trisEnd, (POLY_GT4*)(trisEnd + numQuads * sizeof(POLY_GT4)));
     }
-
-    return fm;
 }
 
 void Game::run()
@@ -392,7 +342,7 @@ void Game::drawModel(Object& object, const Model& model, std::uint16_t textureId
     }
 }
 
-void Game::drawModelFast(Object& object, const FastModel& fm)
+void Game::drawModelFast(Object& object, const MegaFastModel& fm)
 {
     RotMatrix(&object.rotation, &worldmat);
     TransMatrix(&worldmat, &object.position);
@@ -875,7 +825,7 @@ void Game::draw()
         TransMatrix(&camera.view, &tpos);
     }
 
-#if 1
+#if 0
 #define METHOD_SLOW
 #endif
 
@@ -883,7 +833,7 @@ void Game::draw()
 #ifdef METHOD_SLOW
     drawModel(roll, rollModel, rollTextureIdx);
 #else
-    drawModelFast(roll, rollModelFast[0]);
+    drawModelFast(roll, megaFastRollModel);
 #endif
 
     drawModel(level, levelModel, bricksTextureIdx, false);
@@ -894,7 +844,7 @@ void Game::draw()
 #ifdef METHOD_SLOW
         drawModel(roll, rollModel, rollTextureIdx);
 #else
-        drawModelFast(roll, rollModelFast[i]);
+        drawModelFast(roll, megaFastRollModel);
 #endif
     }
 #endif

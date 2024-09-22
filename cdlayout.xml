@@ -20,6 +20,7 @@
                 <file name="SYSTEM.CNF"	type="data" source="system.cnf"/>
                 <file name="GAME.EXE" type="data" source="build/game.ps-exe"/>
                 <file name="ROLL.BIN" type="data" source="assets/roll.bin"/>
+                <file name="ROLL.FM" type="data" source="assets/roll.fm"/>
                 <file name="ROLL.TIM" type="data" source="assets/roll.tim"/>
                 <file name="BRICKS.TIM" type="data" source="assets/bricks.tim"/>
                 <file name="LEVEL.BIN" type="data" source="assets/level.bin"/>
