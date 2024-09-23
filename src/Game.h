@@ -51,13 +51,6 @@ private:
         bool subdivide = false);
     void drawModelFast(Object& object, const FastModelInstance& mesh);
     void drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, bool subdivide);
-    void drawQuadRecursive(
-        Object& object,
-        const Quad& quad,
-        const TexRegion& uvs,
-        const TIM_IMAGE& texture,
-        int depth);
-
     std::uint16_t addTexture(TIM_IMAGE texture);
 
     DISPENV dispEnv[2];
