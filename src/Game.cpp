@@ -151,7 +151,7 @@ void Game::init()
 
     printf("Make models...\n");
     for (int i = 0; i < numRolls; ++i) {
-        rollModelInstances[i] = makeFastModelInstance(rollModel);
+        rollModelInstances[i] = makeFastModelInstance(rollModel, textures[rollTextureIdx]);
     }
 
     roll.position = {-64, 0, 0};
@@ -208,20 +208,6 @@ void Game::loadModel(Model& model, eastl::string_view filename)
                 vertex.g = fr.GetUInt8();
                 vertex.b = fr.GetUInt8();
 
-                /* if (vertex.u == 63) {
-                    vertex.u = 64;
-                }
-                if (vertex.v == 63) {
-                    vertex.v = 64;
-                } */
-                /* printf(
-                    "(%d, %d, %d), (%d %d %d)\n",
-                    vertex.x,
-                    vertex.y,
-                    vertex.z,
-                    vertex.r,
-                    vertex.g,
-                    vertex.b); */
                 mesh.vertices.push_back(vertex);
             }
         }
@@ -259,7 +245,7 @@ void Game::loadFastModel(FastModel& model, eastl::string_view filename)
     fr.GetBytes(model.primData.get(), primDataSize);
 }
 
-FastModelInstance Game::makeFastModelInstance(FastModel& model)
+FastModelInstance Game::makeFastModelInstance(FastModel& model, const TIM_IMAGE& texture)
 {
     FastModelInstance instance{
         .vertices = eastl::span{model.vertexData.get(), model.vertexData.get() + model.numVertices},
@@ -280,6 +266,21 @@ FastModelInstance Game::makeFastModelInstance(FastModel& model)
         instance.trianglePrims[i] = eastl::span<POLY_GT3>((POLY_GT3*)trisStart, (POLY_GT3*)trisEnd);
         instance.quadPrims[i] = eastl::span<
             POLY_GT4>((POLY_GT4*)trisEnd, (POLY_GT4*)(trisEnd + model.numQuads * sizeof(POLY_GT4)));
+    }
+
+    // set texture
+    // FIXME: potentially do this in loadModel? (requires to make spans for prims, though)
+    const auto tpage = getTPage(texture.mode & 0x3, 0, texture.prect->x, texture.prect->y);
+    const auto clut = getClut(texture.crect->x, texture.crect->y);
+    for (int i = 0; i < 2; ++i) {
+        for (auto& prim : instance.trianglePrims[i]) {
+            prim.tpage = tpage;
+            prim.clut = clut;
+        }
+        for (auto& prim : instance.quadPrims[i]) {
+            prim.tpage = tpage;
+            prim.clut = clut;
+        }
     }
 
     return instance;

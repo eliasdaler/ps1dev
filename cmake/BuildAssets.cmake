@@ -34,20 +34,26 @@ find_program (
 )
 
 set(MODEL_BLENDER_SCRIPT "${PSXTOOLS_DIR}/blender/json_export.py")
-set(MODELS_BUILD_DIR_TEMP "${CMAKE_CURRENT_BINARY_DIR}/models_tmp")
-file(MAKE_DIRECTORY "${MODELS_BUILD_DIR_TEMP}")
+set(MODELS_BUILD_DIR_JSON "${ASSETS_DIR}/models_json")
+file(MAKE_DIRECTORY "${MODELS_BUILD_DIR_JSON}")
 
 foreach (MODEL_PATH ${models})
   get_filename_component(MODEL_FILENAME "${MODEL_PATH}" NAME_WLE)
-  set(CONVERTED_MODEL_PATH "${MODELS_BUILD_DIR_TEMP}/${MODEL_FILENAME}.json")
+  set(CONVERTED_MODEL_PATH "${MODELS_BUILD_DIR_JSON}/${MODEL_FILENAME}.json")
   set(FINAL_MODEL_PATH "${ASSETS_DIR}/${MODEL_FILENAME}.bin")
+  # Convert from .blend to .json
   add_custom_command(
-    COMMENT "Converting ${MODEL_PATH} to ${CONVERTED_MODEL_PATH}, ${FINAL_MODEL_PATH}"
+    COMMENT "Converting ${MODEL_PATH} to ${CONVERTED_MODEL_PATH}"
     DEPENDS "${MODEL_PATH}"
-    OUTPUT "${FINAL_MODEL_PATH}"
-    # Convert from .blend to .json
+    OUTPUT "${CONVERTED_MODEL_PATH}"
     # TODO: (When Blender 4.3.0 releases) add --quiet option
     COMMAND "${BLENDER_EXECUTABLE}" "${MODEL_PATH}" --python-exit-code 1 --background --python ${MODEL_BLENDER_SCRIPT} -- "${CONVERTED_MODEL_PATH}"
+  )
+  # Convert from .json to .bin
+  add_custom_command(
+    COMMENT "Converting ${CONVERTED_MODEL_PATH} to ${FINAL_MODEL_PATH}"
+    DEPENDS "${CONVERTED_MODEL_PATH}"
+    OUTPUT "${FINAL_MODEL_PATH}"
     # Convert from .json to .bin
     COMMAND "${MODEL_CONVERTER_EXECUTABLE}" "${CONVERTED_MODEL_PATH}" "${FINAL_MODEL_PATH}" "${ASSETS_DIR_RAW}"
   )

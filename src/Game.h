@@ -80,7 +80,7 @@ private:
     void loadModel(Model& model, eastl::string_view filename);
     void loadFastModel(FastModel& model, eastl::string_view filename);
 
-    FastModelInstance makeFastModelInstance(FastModel& model);
+    FastModelInstance makeFastModelInstance(FastModel& model, const TIM_IMAGE& texture);
 
     void drawModel(
         Object& object,
@@ -131,8 +131,8 @@ private:
     MATRIX worldmat{};
     MATRIX viewmat{};
 
-    VECTOR tpos; // Translation value for matrix calculations
-    SVECTOR trot; // Rotation value for matrix calculations
+    VECTOR tpos{}; // Translation value for matrix calculations
+    SVECTOR trot{}; // Rotation value for matrix calculations
 
     Camera camera;
 };
