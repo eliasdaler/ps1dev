@@ -116,14 +116,12 @@ private:
     std::uint16_t rollTextureIdx;
 
     Object roll;
-    // Model rollModel;
-
-    Object level;
-    Model levelModel;
-
     static constexpr int numRolls{5};
     FastModel rollModel;
     FastModelInstance rollModelInstances[numRolls];
+
+    Object level;
+    Model levelModel;
 
     eastl::vector<Mesh> meshes;
     eastl::vector<TIM_IMAGE> textures;
