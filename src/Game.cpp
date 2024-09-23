@@ -128,6 +128,7 @@ void Game::init()
     FntOpen(16, 16, 196, 64, 0, 256);
 
     setVector(&camera.position, 0, -ONE * (tileSize + tileSize / 5), -ONE * 2500);
+    camera.position.vz = ONE * -376;
 
     // testing
     /* camera.position.vx = ONE * -379;
@@ -146,6 +147,7 @@ void Game::init()
 
     printf("Load models...\n");
     rollModel = loadFastModel("\\ROLL.FM;1");
+    printf("sizeof Vertex: %d", (int)sizeof(FastVertex));
     levelModel = loadModel("\\LEVEL.BIN;1");
 
     level.position = {0, 0, 0};
@@ -254,6 +256,9 @@ void Game::drawModelFast(Object& object, const FastModelInstance& fm)
         const auto& v1 = fm.vertices[triIndex * 3 + 1];
         const auto& v2 = fm.vertices[triIndex * 3 + 2];
 
+        gte_ldv0(&v0.x);
+        gte_ldv1(&v1.x);
+        gte_ldv2(&v2.x);
         gte_ldv0(&v0.x);
         gte_ldv1(&v1.x);
         gte_ldv2(&v2.x);
@@ -400,161 +405,133 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
         }
     }
 
-    if (subdivide) {
-        struct Work {
-            SVECTOR vo[4];
-            SVECTOR v[4];
-            CVECTOR ouv[4];
-            CVECTOR uv[4];
-            CVECTOR ocol[4];
-            CVECTOR col[4];
-            CVECTOR intCol;
-        };
-        auto& wrk = *(Work*)(SCRATCH_PAD + 0xC0);
-        static_assert(sizeof(Work) < 200);
-        static_assert(sizeof(Work) < 1024);
+    if (!subdivide) {
+        drawQuads(mesh, tpage, clut);
+        return;
+    }
 
-        const auto& texture = textures[textureIdx];
-        for (int i = 0; i < mesh.numQuads; ++i, vertexIdx += 4) {
-            auto* polygt4 = (POLY_GT4*)nextpri;
-            setPolyGT4(polygt4);
+    auto& wrk1 = *(Work*)(SCRATCH_PAD + 0xC0);
+    static_assert(sizeof(Work) < 200);
+    static_assert(sizeof(Work) < 1024);
 
+    for (int i = 0; i < mesh.numQuads; ++i, vertexIdx += 4) {
+        auto* polygt4 = (POLY_GT4*)nextpri;
+        setPolyGT4(polygt4);
+
+        {
             const auto& v0 = mesh.vertices[vertexIdx + 0];
             const auto& v1 = mesh.vertices[vertexIdx + 1];
             const auto& v2 = mesh.vertices[vertexIdx + 2];
             const auto& v3 = mesh.vertices[vertexIdx + 3];
 
-            gte_ldv0(&v0);
-            gte_ldv1(&v1);
-            gte_ldv2(&v2);
+            wrk1.ov[0] = SVECTOR{
+                (short)(v0.x),
+                (short)(v0.y),
+                (short)(v0.z),
+            };
+            wrk1.ov[1] = SVECTOR{
+                (short)(v1.x),
+                (short)(v1.y),
+                (short)(v1.z),
+            };
+            wrk1.ov[2] = SVECTOR{
+                (short)(v2.x),
+                (short)(v2.y),
+                (short)(v2.z),
+            };
+            wrk1.ov[3] = SVECTOR{
+                (short)(v3.x),
+                (short)(v3.y),
+                (short)(v3.z),
+            };
 
-            gte_rtpt();
+            wrk1.ouv[0] = CVECTOR{v0.u, v0.v};
+            wrk1.ouv[1] = CVECTOR{v1.u, v1.v};
+            wrk1.ouv[2] = CVECTOR{v2.u, v2.v};
+            wrk1.ouv[3] = CVECTOR{v3.u, v3.v};
 
-            gte_nclip();
+            wrk1.ocol[0] = CVECTOR{v0.r, v0.g, v0.b};
+            wrk1.ocol[1] = CVECTOR{v1.r, v1.g, v1.b};
+            wrk1.ocol[2] = CVECTOR{v2.r, v2.g, v2.b};
+            wrk1.ocol[3] = CVECTOR{v3.r, v3.g, v3.b};
+        }
 
-            long nclip;
-            gte_stopz(&nclip);
+        gte_ldv0(&wrk1.ov[0]);
+        gte_ldv1(&wrk1.ov[1]);
+        gte_ldv2(&wrk1.ov[2]);
 
-            if (nclip < 0) {
-                continue;
-            }
+        gte_rtpt();
 
-            gte_stsxy0(&polygt4->x0);
+        gte_nclip();
 
-            gte_ldv0(&v3);
-            gte_rtps();
+        long nclip;
+        gte_stopz(&nclip);
 
-            gte_stsxy3(&polygt4->x1, &polygt4->x2, &polygt4->x3);
+        if (nclip < 0) {
+            continue;
+        }
 
-            if (quad_clip(
-                    &screenClip,
-                    (DVECTOR*)&polygt4->x0,
-                    (DVECTOR*)&polygt4->x1,
-                    (DVECTOR*)&polygt4->x2,
-                    (DVECTOR*)&polygt4->x3)) {
-                continue;
-            }
+        gte_stsxy0(&polygt4->x0);
 
-            long otz;
-            gte_avsz4();
-            gte_stotz(&otz);
+        gte_ldv0(&wrk1.ov[3]);
+        gte_rtps();
 
-            if (otz < 700) {
-                wrk.vo[0] = SVECTOR{
-                    (short)(v0.x),
-                    (short)(v0.y),
-                    (short)(v0.z),
-                };
-                wrk.vo[1] = SVECTOR{
-                    (short)(v1.x),
-                    (short)(v1.y),
-                    (short)(v1.z),
-                };
-                wrk.vo[2] = SVECTOR{
-                    (short)(v2.x),
-                    (short)(v2.y),
-                    (short)(v2.z),
-                };
-                wrk.vo[3] = SVECTOR{
-                    (short)(v3.x),
-                    (short)(v3.y),
-                    (short)(v3.z),
-                };
+        gte_stsxy3(&polygt4->x1, &polygt4->x2, &polygt4->x3);
 
-                wrk.ouv[0] = CVECTOR{v0.u, v0.v};
-                wrk.ouv[1] = CVECTOR{v1.u, v1.v};
-                wrk.ouv[2] = CVECTOR{v2.u, v2.v};
-                wrk.ouv[3] = CVECTOR{v3.u, v3.v};
+        if (quad_clip(
+                &screenClip,
+                (DVECTOR*)&polygt4->x0,
+                (DVECTOR*)&polygt4->x1,
+                (DVECTOR*)&polygt4->x2,
+                (DVECTOR*)&polygt4->x3)) {
+            continue;
+        }
 
-                wrk.ocol[0] = CVECTOR{v0.r, v0.g, v0.b};
-                wrk.ocol[1] = CVECTOR{v1.r, v1.g, v1.b};
-                wrk.ocol[2] = CVECTOR{v2.r, v2.g, v2.b};
-                wrk.ocol[3] = CVECTOR{v3.r, v3.g, v3.b};
-
-                // subdiv level 1
-                long otz, p, nclip;
-
-#define INTERP_COORD(i, a, b)                              \
-    wrk.v[(i)].vx = (wrk.vo[(a)].vx + wrk.vo[(b)].vx) / 2; \
-    wrk.v[(i)].vy = (wrk.vo[(a)].vy + wrk.vo[(b)].vy) / 2; \
-    wrk.v[(i)].vz = (wrk.vo[(a)].vz + wrk.vo[(b)].vz) / 2;
-
-#define INTERP_ATTR(d, i, j)                                  \
-    wrk.v[(d)].vx = (wrk.vo[(i)].vx + wrk.vo[(j)].vx) / 2;    \
-    wrk.v[(d)].vy = (wrk.vo[(i)].vy + wrk.vo[(j)].vy) / 2;    \
-    wrk.v[(d)].vz = (wrk.vo[(i)].vz + wrk.vo[(j)].vz) / 2;    \
+#define INTERP_ATTR(wrk, d, i, j)                             \
+    wrk.v[(d)].vx = (wrk.ov[(i)].vx + wrk.ov[(j)].vx) / 2;    \
+    wrk.v[(d)].vy = (wrk.ov[(i)].vy + wrk.ov[(j)].vy) / 2;    \
+    wrk.v[(d)].vz = (wrk.ov[(i)].vz + wrk.ov[(j)].vz) / 2;    \
     wrk.uv[(d)].r = (wrk.ouv[(i)].r + wrk.ouv[(j)].r) / 2;    \
     wrk.uv[(d)].g = (wrk.ouv[(i)].g + wrk.ouv[(j)].g) / 2;    \
     wrk.col[(d)].r = (wrk.ocol[(i)].r + wrk.ocol[(j)].r) / 2; \
     wrk.col[(d)].g = (wrk.ocol[(i)].g + wrk.ocol[(j)].g) / 2; \
     wrk.col[(d)].b = (wrk.ocol[(i)].b + wrk.ocol[(j)].b) / 2;
 
-#define COPY_ATTR(d, i)         \
-    wrk.v[(d)] = wrk.vo[(i)];   \
+#define COPY_ATTR(wrk, d, i)    \
+    wrk.v[(d)] = wrk.ov[(i)];   \
     wrk.uv[(d)] = wrk.ouv[(i)]; \
     wrk.col[(d)] = wrk.ocol[(i)];
 
-#define COPY_CALC_ATTR(d, i)   \
-    wrk.v[(d)] = wrk.v[(i)];   \
-    wrk.uv[(d)] = wrk.uv[(i)]; \
+#define COPY_CALC_ATTR(wrk, d, i) \
+    wrk.v[(d)] = wrk.v[(i)];      \
+    wrk.uv[(d)] = wrk.uv[(i)];    \
     wrk.col[(d)] = wrk.col[(i)];
 
-#define INTERP_COLOR_GTE(i)                    \
+#define INTERP_ATTR2(wrk, d, i, j)                               \
+    wrk.ov[(d)].vx = (wrk.oov[(i)].vx + wrk.oov[(j)].vx) / 2;    \
+    wrk.ov[(d)].vy = (wrk.oov[(i)].vy + wrk.oov[(j)].vy) / 2;    \
+    wrk.ov[(d)].vz = (wrk.oov[(i)].vz + wrk.oov[(j)].vz) / 2;    \
+    wrk.ouv[(d)].r = (wrk.oouv[(i)].r + wrk.oouv[(j)].r) / 2;    \
+    wrk.ouv[(d)].g = (wrk.oouv[(i)].g + wrk.oouv[(j)].g) / 2;    \
+    wrk.ocol[(d)].r = (wrk.oocol[(i)].r + wrk.oocol[(j)].r) / 2; \
+    wrk.ocol[(d)].g = (wrk.oocol[(i)].g + wrk.oocol[(j)].g) / 2; \
+    wrk.ocol[(d)].b = (wrk.oocol[(i)].b + wrk.oocol[(j)].b) / 2;
+
+#define COPY_ATTR2(wrk, d, i)     \
+    wrk.ov[(d)] = wrk.oov[(i)];   \
+    wrk.ouv[(d)] = wrk.oouv[(i)]; \
+    wrk.ocol[(d)] = wrk.oocol[(i)];
+
+#define COPY_CALC_ATTR2(wrk, d, i) \
+    wrk.ov[(d)] = wrk.ov[(i)];     \
+    wrk.ouv[(d)] = wrk.ouv[(i)];   \
+    wrk.ocol[(d)] = wrk.ocol[(i)];
+
+#define INTERP_COLOR_GTE(wrk, i)               \
     gte_DpqColor(&wrk.col[i], p, &wrk.intCol); \
     setRGB##i(polygt4, wrk.intCol.r, wrk.intCol.g, wrk.intCol.b);
 
-                switch (i) {
-                case 0:
-                    COPY_ATTR(0, 0);
-                    INTERP_ATTR(1, 0, 1);
-                    INTERP_ATTR(2, 0, 2);
-                    INTERP_ATTR(3, 0, 3);
-                    break;
-                case 1:
-                    COPY_CALC_ATTR(0, 1);
-                    COPY_CALC_ATTR(2, 3);
-                    COPY_ATTR(1, 1);
-                    INTERP_ATTR(3, 1, 3);
-                    break;
-                case 2:
-                    COPY_CALC_ATTR(0, 2);
-                    COPY_CALC_ATTR(1, 3);
-                    INTERP_ATTR(2, 2, 3);
-                    COPY_ATTR(3, 3);
-                    break;
-                case 3:
-                    COPY_CALC_ATTR(1, 0);
-                    COPY_CALC_ATTR(3, 2);
-                    INTERP_ATTR(0, 0, 2);
-                    COPY_ATTR(2, 2);
-                    break;
-
-                default:
-                    __builtin_unreachable();
-                    break;
-                }
-
-#define DRAW_QUAD(LABEL)                                  \
+#define DRAW_QUAD(wrk, LABEL)                             \
     polygt4 = (POLY_GT4*)nextpri;                         \
     setPolyGT4(polygt4);                                  \
     polygt4->tpage = tpage;                               \
@@ -604,10 +581,10 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
                                                           \
     gte_stdp(&p);                                         \
                                                           \
-    INTERP_COLOR_GTE(0);                                  \
-    INTERP_COLOR_GTE(1);                                  \
-    INTERP_COLOR_GTE(2);                                  \
-    INTERP_COLOR_GTE(3);                                  \
+    INTERP_COLOR_GTE(wrk, 0);                             \
+    INTERP_COLOR_GTE(wrk, 1);                             \
+    INTERP_COLOR_GTE(wrk, 2);                             \
+    INTERP_COLOR_GTE(wrk, 3);                             \
                                                           \
     if (otz > 0 && otz < OTLEN) {                         \
         CVECTOR col;                                      \
@@ -616,66 +593,235 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
         nextpri += sizeof(POLY_GT4);                      \
     }
 
-                COPY_ATTR(0, 0);
-                INTERP_ATTR(1, 0, 1);
-                INTERP_ATTR(2, 0, 2);
-                INTERP_ATTR(3, 0, 3);
-                DRAW_QUAD(quad1);
+        long otz;
+        gte_avsz4();
+        gte_stotz(&otz);
 
-            quad1:
-                COPY_CALC_ATTR(0, 1);
-                COPY_CALC_ATTR(2, 3);
-                COPY_ATTR(1, 1);
-                INTERP_ATTR(3, 1, 3);
-                DRAW_QUAD(quad2);
+#if 1
+        if (otz < 200) {
+            // subdiv level 2
+            long otz, p, nclip;
 
-            quad2:
-                COPY_CALC_ATTR(0, 2);
-                COPY_CALC_ATTR(1, 3);
-                INTERP_ATTR(2, 2, 3);
-                COPY_ATTR(3, 3);
-                DRAW_QUAD(quad3);
+            auto& wrk2 = *reinterpret_cast<Work2*>(&wrk1);
 
-            quad3:
-                COPY_CALC_ATTR(1, 0);
-                COPY_CALC_ATTR(3, 2);
-                INTERP_ATTR(0, 0, 2);
-                COPY_ATTR(2, 2);
-                DRAW_QUAD(end);
-            end:
-                continue;
+            for (int i = 0; i < 4; ++i) {
+                wrk2.oov[i] = wrk2.ov[i];
+                wrk2.oouv[i] = wrk2.ouv[i];
+                wrk2.oocol[i] = wrk2.ocol[i];
             }
 
-            long p;
-            gte_stdp(&p);
+            // QUAD 0
+            COPY_ATTR2(wrk2, 0, 0);
+            INTERP_ATTR2(wrk2, 1, 0, 1);
+            INTERP_ATTR2(wrk2, 2, 0, 2);
+            INTERP_ATTR2(wrk2, 3, 0, 3);
 
-#undef INTERP_COLOR_GTE
-#define INTERP_COLOR_GTE(i)              \
-    near = {v##i.r, v##i.g, v##i.b, 44}; \
-    gte_DpqColor(&near, p, &col);        \
+            // quad00:
+            COPY_ATTR(wrk2, 0, 0);
+            INTERP_ATTR(wrk2, 1, 0, 1);
+            INTERP_ATTR(wrk2, 2, 0, 2);
+            INTERP_ATTR(wrk2, 3, 0, 3);
+            DRAW_QUAD(wrk2, quad01);
+
+        quad01:
+            COPY_CALC_ATTR(wrk2, 0, 1);
+            COPY_CALC_ATTR(wrk2, 2, 3);
+            COPY_ATTR(wrk2, 1, 1);
+            INTERP_ATTR(wrk2, 3, 1, 3);
+            DRAW_QUAD(wrk2, quad02);
+
+        quad02:
+            COPY_CALC_ATTR(wrk2, 0, 2);
+            COPY_CALC_ATTR(wrk2, 1, 3);
+            INTERP_ATTR(wrk2, 2, 2, 3);
+            COPY_ATTR(wrk2, 3, 3);
+            DRAW_QUAD(wrk2, quad03);
+
+        quad03:
+            COPY_CALC_ATTR(wrk2, 1, 0);
+            COPY_CALC_ATTR(wrk2, 3, 2);
+            INTERP_ATTR(wrk2, 0, 0, 2);
+            COPY_ATTR(wrk2, 2, 2);
+            DRAW_QUAD(wrk2, end0);
+        end0:
+
+            // QUAD 1
+            COPY_CALC_ATTR2(wrk2, 0, 1);
+            COPY_ATTR2(wrk2, 1, 1);
+            COPY_CALC_ATTR2(wrk2, 2, 3);
+            INTERP_ATTR2(wrk2, 3, 1, 3);
+
+            // quad10:
+            COPY_ATTR(wrk2, 0, 0);
+            INTERP_ATTR(wrk2, 1, 0, 1);
+            INTERP_ATTR(wrk2, 2, 0, 2);
+            INTERP_ATTR(wrk2, 3, 0, 3);
+            DRAW_QUAD(wrk2, quad11);
+
+        quad11:
+            COPY_CALC_ATTR(wrk2, 0, 1);
+            COPY_CALC_ATTR(wrk2, 2, 3);
+            COPY_ATTR(wrk2, 1, 1);
+            INTERP_ATTR(wrk2, 3, 1, 3);
+            DRAW_QUAD(wrk2, quad12);
+
+        quad12:
+            COPY_CALC_ATTR(wrk2, 0, 2);
+            COPY_CALC_ATTR(wrk2, 1, 3);
+            INTERP_ATTR(wrk2, 2, 2, 3);
+            COPY_ATTR(wrk2, 3, 3);
+            DRAW_QUAD(wrk2, quad13);
+
+        quad13:
+            COPY_CALC_ATTR(wrk2, 1, 0);
+            COPY_CALC_ATTR(wrk2, 3, 2);
+            INTERP_ATTR(wrk2, 0, 0, 2);
+            COPY_ATTR(wrk2, 2, 2);
+            DRAW_QUAD(wrk2, end1);
+        end1:
+
+            // QUAD 2
+            COPY_CALC_ATTR2(wrk2, 0, 2);
+            COPY_CALC_ATTR2(wrk2, 1, 3);
+            INTERP_ATTR2(wrk2, 2, 2, 3);
+            COPY_ATTR2(wrk2, 3, 3);
+
+            // quad20:
+            COPY_ATTR(wrk2, 0, 0);
+            INTERP_ATTR(wrk2, 1, 0, 1);
+            INTERP_ATTR(wrk2, 2, 0, 2);
+            INTERP_ATTR(wrk2, 3, 0, 3);
+            DRAW_QUAD(wrk2, quad21);
+
+        quad21:
+            COPY_CALC_ATTR(wrk2, 0, 1);
+            COPY_CALC_ATTR(wrk2, 2, 3);
+            COPY_ATTR(wrk2, 1, 1);
+            INTERP_ATTR(wrk2, 3, 1, 3);
+            DRAW_QUAD(wrk2, quad22);
+
+        quad22:
+            COPY_CALC_ATTR(wrk2, 0, 2);
+            COPY_CALC_ATTR(wrk2, 1, 3);
+            INTERP_ATTR(wrk2, 2, 2, 3);
+            COPY_ATTR(wrk2, 3, 3);
+            DRAW_QUAD(wrk2, quad23);
+
+        quad23:
+            COPY_CALC_ATTR(wrk2, 1, 0);
+            COPY_CALC_ATTR(wrk2, 3, 2);
+            INTERP_ATTR(wrk2, 0, 0, 2);
+            COPY_ATTR(wrk2, 2, 2);
+            DRAW_QUAD(wrk2, end2);
+        end2:
+
+            // QUAD 3
+            COPY_CALC_ATTR2(wrk2, 1, 0);
+            COPY_CALC_ATTR2(wrk2, 3, 2);
+            COPY_ATTR2(wrk2, 2, 2);
+            INTERP_ATTR2(wrk2, 0, 0, 2);
+
+            // quad30:
+            COPY_ATTR(wrk2, 0, 0);
+            INTERP_ATTR(wrk2, 1, 0, 1);
+            INTERP_ATTR(wrk2, 2, 0, 2);
+            INTERP_ATTR(wrk2, 3, 0, 3);
+            DRAW_QUAD(wrk2, quad31);
+
+        quad31:
+            COPY_CALC_ATTR(wrk2, 0, 1);
+            COPY_CALC_ATTR(wrk2, 2, 3);
+            COPY_ATTR(wrk2, 1, 1);
+            INTERP_ATTR(wrk2, 3, 1, 3);
+            DRAW_QUAD(wrk2, quad32);
+
+        quad32:
+            COPY_CALC_ATTR(wrk2, 0, 2);
+            COPY_CALC_ATTR(wrk2, 1, 3);
+            INTERP_ATTR(wrk2, 2, 2, 3);
+            COPY_ATTR(wrk2, 3, 3);
+            DRAW_QUAD(wrk2, quad33);
+
+        quad33:
+            COPY_CALC_ATTR(wrk2, 1, 0);
+            COPY_CALC_ATTR(wrk2, 3, 2);
+            INTERP_ATTR(wrk2, 0, 0, 2);
+            COPY_ATTR(wrk2, 2, 2);
+            DRAW_QUAD(wrk2, end3);
+        end3:
+
+            continue;
+        }
+#endif
+
+        if (otz < 700) {
+            // subdiv level 1
+            long otz, p, nclip;
+
+            COPY_ATTR(wrk1, 0, 0);
+            INTERP_ATTR(wrk1, 1, 0, 1);
+            INTERP_ATTR(wrk1, 2, 0, 2);
+            INTERP_ATTR(wrk1, 3, 0, 3);
+            DRAW_QUAD(wrk1, quad1);
+
+        quad1:
+            COPY_CALC_ATTR(wrk1, 0, 1);
+            COPY_CALC_ATTR(wrk1, 2, 3);
+            COPY_ATTR(wrk1, 1, 1);
+            INTERP_ATTR(wrk1, 3, 1, 3);
+            DRAW_QUAD(wrk1, quad2);
+
+        quad2:
+            COPY_CALC_ATTR(wrk1, 0, 2);
+            COPY_CALC_ATTR(wrk1, 1, 3);
+            INTERP_ATTR(wrk1, 2, 2, 3);
+            COPY_ATTR(wrk1, 3, 3);
+            DRAW_QUAD(wrk1, quad3);
+
+        quad3:
+            COPY_CALC_ATTR(wrk1, 1, 0);
+            COPY_CALC_ATTR(wrk1, 3, 2);
+            INTERP_ATTR(wrk1, 0, 0, 2);
+            COPY_ATTR(wrk1, 2, 2);
+            DRAW_QUAD(wrk1, end);
+        end:
+            continue;
+        }
+
+        long p;
+        gte_stdp(&p);
+
+#define INTERP_COLOR_GTE2(wrk, i)          \
+    gte_DpqColor(&wrk.ocol[(i)], p, &col); \
     setRGB##i(polygt4, col.r, col.g, col.b);
 
-            CVECTOR near, col;
-            INTERP_COLOR_GTE(0);
-            INTERP_COLOR_GTE(1);
-            INTERP_COLOR_GTE(2);
-            INTERP_COLOR_GTE(3);
+        CVECTOR near, col;
+        INTERP_COLOR_GTE2(wrk1, 0);
+        INTERP_COLOR_GTE2(wrk1, 1);
+        INTERP_COLOR_GTE2(wrk1, 2);
+        INTERP_COLOR_GTE2(wrk1, 3);
 
-            otz -= 64; // depth bias for not overlapping with tiles
+        otz -= 64; // depth bias for not overlapping with tiles
 
-            if (otz > 0 && otz < OTLEN) {
-                polygt4->tpage = tpage;
-                polygt4->clut = clut;
-                setUV4(polygt4, v0.u, v0.v, v1.u, v1.v, v2.u, v2.v, v3.u, v3.v);
+        if (otz > 0 && otz < OTLEN) {
+            polygt4->tpage = tpage;
+            polygt4->clut = clut;
+            setUV4(
+                polygt4,
+                wrk1.ouv[0].r,
+                wrk1.ouv[0].g,
+                wrk1.ouv[1].r,
+                wrk1.ouv[1].g,
+                wrk1.ouv[2].r,
+                wrk1.ouv[2].g,
+                wrk1.ouv[3].r,
+                wrk1.ouv[3].g);
 
-                CVECTOR col;
+            CVECTOR col;
 
-                addPrim(&ot[currBuffer][otz], polygt4);
-                nextpri += sizeof(POLY_GT4);
-            }
+            addPrim(&ot[currBuffer][otz], polygt4);
+            nextpri += sizeof(POLY_GT4);
         }
-    } else {
-        drawQuads(mesh, tpage, clut);
     }
 }
 
@@ -745,16 +891,16 @@ void Game::drawQuads(const Mesh& mesh, u_long tpage, int clut)
         long p;
         gte_stdp(&p);
 
-#define INTERP_COLOR_GTE(i)              \
+#define INTERP_COLOR_GTE3(i)             \
     near = {v##i.r, v##i.g, v##i.b, 44}; \
     gte_DpqColor(&near, p, &col);        \
     setRGB##i(polygt4, col.r, col.g, col.b);
 
         CVECTOR col, near;
-        INTERP_COLOR_GTE(0);
-        INTERP_COLOR_GTE(1);
-        INTERP_COLOR_GTE(2);
-        INTERP_COLOR_GTE(3);
+        INTERP_COLOR_GTE3(0);
+        INTERP_COLOR_GTE3(1);
+        INTERP_COLOR_GTE3(2);
+        INTERP_COLOR_GTE3(3);
 
         otz -= 64; // depth bias for not overlapping with tiles
 

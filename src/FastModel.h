@@ -9,7 +9,7 @@
 #include <libgpu.h>
 
 struct FastVertex {
-    std::int16_t x, y, z;
+    std::int16_t x, y, z, w;
 };
 
 struct FastModel {

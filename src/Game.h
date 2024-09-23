@@ -33,6 +33,34 @@ struct Quad {
     SVECTOR vs[4];
 };
 
+struct Work {
+    SVECTOR ov[4];
+    CVECTOR ouv[4];
+    CVECTOR ocol[4];
+
+    SVECTOR v[4];
+    CVECTOR uv[4];
+    CVECTOR col[4];
+
+    CVECTOR intCol;
+};
+
+struct Work2 {
+    SVECTOR ov[4];
+    CVECTOR ouv[4];
+    CVECTOR ocol[4];
+
+    SVECTOR v[4];
+    CVECTOR uv[4];
+    CVECTOR col[4];
+
+    CVECTOR intCol;
+
+    SVECTOR oov[4];
+    CVECTOR oouv[4];
+    CVECTOR oocol[4];
+};
+
 class Game {
 public:
     void init();
