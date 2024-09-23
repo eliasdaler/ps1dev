@@ -101,7 +101,7 @@ private:
     std::uint16_t rollTextureIdx;
 
     Object roll;
-    static constexpr int numRolls{8};
+    static constexpr int numRolls{15};
     FastModel rollModel;
     FastModelInstance rollModelInstances[numRolls];
 

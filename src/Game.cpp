@@ -335,6 +335,7 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
     const auto& texture = textures[textureIdx];
     const auto tpage = getTPage(texture.mode & 0x3, 0, texture.prect->x, texture.prect->y);
     const auto clut = getClut(texture.crect->x, texture.crect->y);
+    auto& ot = this->ot[currBuffer];
 
     std::size_t vertexIdx = 0;
 
@@ -387,7 +388,7 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
         if (otz > 0 && otz < OTLEN) {
             CVECTOR col;
 
-            addPrim(&ot[currBuffer][otz], polyft3);
+            addPrim(&ot[otz], polyft3);
             nextpri += sizeof(POLY_FT3);
         }
     }
@@ -499,49 +500,44 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
     gte_DpqColor(&wrk.col[i], p, &wrk.intCol); \
     setRGB##i(polygt4, wrk.intCol.r, wrk.intCol.g, wrk.intCol.b);
 
-#define DRAW_QUAD(wrk)                                        \
-    polygt4 = (POLY_GT4*)nextpri;                             \
-    setPolyGT4(polygt4);                                      \
-    polygt4->tpage = tpage;                                   \
-    polygt4->clut = clut;                                     \
-                                                              \
-    setUV4(                                                   \
-        polygt4,                                              \
-        wrk.uv[0].r,                                          \
-        wrk.uv[0].g,                                          \
-        wrk.uv[1].r,                                          \
-        wrk.uv[1].g,                                          \
-        wrk.uv[2].r,                                          \
-        wrk.uv[2].g,                                          \
-        wrk.uv[3].r,                                          \
-        wrk.uv[3].g);                                         \
-                                                              \
-    gte_ldv0(&wrk.v[0]);                                      \
-    gte_ldv1(&wrk.v[1]);                                      \
-    gte_ldv2(&wrk.v[2]);                                      \
-                                                              \
-    gte_rtpt();                                               \
-                                                              \
-    gte_stsxy0(&polygt4->x0);                                 \
-                                                              \
-    gte_ldv0(&wrk.v[3]);                                      \
-    gte_rtps();                                               \
-                                                              \
-    gte_avsz4();                                              \
-    gte_stotz(&otz);                                          \
-                                                              \
-    if (otz > 0 && otz < OTLEN) {                             \
-        gte_stsxy3(&polygt4->x1, &polygt4->x2, &polygt4->x3); \
-        gte_stdp(&p);                                         \
-                                                              \
-        INTERP_COLOR_GTE(wrk, 0);                             \
-        INTERP_COLOR_GTE(wrk, 1);                             \
-        INTERP_COLOR_GTE(wrk, 2);                             \
-        INTERP_COLOR_GTE(wrk, 3);                             \
-                                                              \
-        addPrim(&ot[currBuffer][otz], polygt4);               \
-        nextpri += sizeof(POLY_GT4);                          \
-    }
+#define DRAW_QUAD(wrk)                                    \
+    polygt4 = (POLY_GT4*)nextpri;                         \
+    setPolyGT4(polygt4);                                  \
+    polygt4->tpage = tpage;                               \
+    polygt4->clut = clut;                                 \
+                                                          \
+    setUV4(                                               \
+        polygt4,                                          \
+        wrk.uv[0].r,                                      \
+        wrk.uv[0].g,                                      \
+        wrk.uv[1].r,                                      \
+        wrk.uv[1].g,                                      \
+        wrk.uv[2].r,                                      \
+        wrk.uv[2].g,                                      \
+        wrk.uv[3].r,                                      \
+        wrk.uv[3].g);                                     \
+                                                          \
+    gte_ldv0(&wrk.v[0]);                                  \
+    gte_ldv1(&wrk.v[1]);                                  \
+    gte_ldv2(&wrk.v[2]);                                  \
+                                                          \
+    gte_rtpt();                                           \
+                                                          \
+    gte_stsxy0(&polygt4->x0);                             \
+                                                          \
+    gte_ldv0(&wrk.v[3]);                                  \
+    gte_rtps();                                           \
+                                                          \
+    gte_stsxy3(&polygt4->x1, &polygt4->x2, &polygt4->x3); \
+    gte_stdp(&p);                                         \
+                                                          \
+    INTERP_COLOR_GTE(wrk, 0);                             \
+    INTERP_COLOR_GTE(wrk, 1);                             \
+    INTERP_COLOR_GTE(wrk, 2);                             \
+    INTERP_COLOR_GTE(wrk, 3);                             \
+                                                          \
+    addPrim(&ot[otz], polygt4);                           \
+    nextpri += sizeof(POLY_GT4);
 
 #define DRAW_SUB_QUAD(wrk)     \
     COPY_ATTR(wrk, 0, 0);      \
@@ -574,7 +570,7 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
 
         if (otz < 200) {
             // subdiv level 2
-            long otz, p, nclip;
+            long p;
 
             auto& wrk2 = *reinterpret_cast<Work2*>(&wrk1);
 
@@ -621,7 +617,7 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
 
         if (otz < 700) {
             // subdiv level 1
-            long otz, p, nclip;
+            long p;
             DRAW_SUB_QUAD(wrk1);
             continue;
         }
@@ -655,9 +651,7 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
                 wrk1.ouv[3].r,
                 wrk1.ouv[3].g);
 
-            CVECTOR col;
-
-            addPrim(&ot[currBuffer][otz], polygt4);
+            addPrim(&ot[otz], polygt4);
             nextpri += sizeof(POLY_GT4);
         }
     }

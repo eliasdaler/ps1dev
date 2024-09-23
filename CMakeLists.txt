@@ -62,7 +62,7 @@ target_compile_options(game PRIVATE
 
 # TODO: try LTO and see how good it works
 # But it can make code much easier to debug, so only enable in Release build
-set_target_properties(game PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
+# set_target_properties(game PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 # target_link_libraries(game PRIVATE
 #  -fanalyzer
