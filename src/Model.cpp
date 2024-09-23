@@ -6,7 +6,6 @@
 
 Model loadModel(eastl::string_view filename)
 {
-    Model model;
     const auto data = util::readFile(filename);
 
     // vertices
@@ -14,10 +13,10 @@ Model loadModel(eastl::string_view filename)
         .bytes = data.data(),
     };
 
+    Model model;
+
     const auto numSubmeshes = fr.GetUInt16();
     model.meshes.reserve(numSubmeshes);
-
-    Vertex vertex;
 
     for (int i = 0; i < numSubmeshes; ++i) {
         Mesh mesh;
@@ -25,21 +24,10 @@ Model loadModel(eastl::string_view filename)
         mesh.numTris = fr.GetUInt16();
         mesh.numQuads = fr.GetUInt16();
 
-        mesh.vertices.reserve(mesh.numTris * 3 + mesh.numQuads * 4);
+        mesh.vertices.resize(mesh.numTris * 3 + mesh.numQuads * 4);
 
-        for (int j = 0; j < mesh.numTris; ++j) {
-            for (int k = 0; k < 3; ++k) {
-                fr.ReadObj(vertex);
-                mesh.vertices.push_back(vertex);
-            }
-        }
-
-        for (int j = 0; j < mesh.numQuads; ++j) {
-            for (int k = 0; k < 4; ++k) {
-                fr.ReadObj(vertex);
-                mesh.vertices.push_back(vertex);
-            }
-        }
+        fr.ReadArr(mesh.vertices.data(), mesh.numTris * 3);
+        fr.ReadArr(&mesh.vertices[mesh.numTris], mesh.numQuads * 4);
 
         model.meshes.push_back(std::move(mesh));
     }

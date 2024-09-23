@@ -420,7 +420,7 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
                 }
                 if (dist < 350) {
                     depth = 2;
-                } else if (dist < 600) {
+                } else if (dist < 2000) {
                     depth = 1;
                 }
             }
@@ -718,7 +718,7 @@ void Game::draw()
     auto pos = roll.position;
     drawModelFast(roll, rollModelInstances[0]);
 
-    drawModel(level, levelModel, bricksTextureIdx, false);
+    drawModel(level, levelModel, bricksTextureIdx, true);
 
     for (int i = 1; i < numRolls; ++i) {
         roll.position.vx += 128;

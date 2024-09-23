@@ -37,6 +37,12 @@ struct FileReader {
         cursor += sizeof(T);
     }
 
+    template<typename T>
+    void ReadArr(T* arr, std::size_t numElements)
+    {
+        GetBytes(arr, numElements * sizeof(T));
+    }
+
     void GetBytes(void* dest, std::size_t size)
     {
         memcpy((void*)dest, &bytes[cursor], size);

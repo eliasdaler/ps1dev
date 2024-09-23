@@ -15,14 +15,14 @@ struct FastVertex {
 struct FastModel {
     eastl::unique_ptr<FastVertex> vertexData{nullptr};
     std::uint16_t numVertices{0};
-    eastl::unique_ptr<std::uint8_t> primData{nullptr};
+    eastl::unique_ptr<std::byte> primData{nullptr};
     std::uint16_t numTris{0};
     std::uint16_t numQuads{0};
 };
 
 struct FastModelInstance {
     eastl::span<FastVertex> vertices;
-    eastl::unique_ptr<std::uint8_t> primData{nullptr};
+    eastl::unique_ptr<std::byte> primData{nullptr};
     eastl::span<POLY_GT3> trianglePrims[2];
     eastl::span<POLY_GT4> quadPrims[2];
 };

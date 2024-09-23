@@ -5,8 +5,6 @@
 
 FastModel loadFastModel(eastl::string_view filename)
 {
-    FastModel model;
-
     const auto data = util::readFile(filename);
     const auto* bytes = (u_char*)data.data();
 
@@ -15,11 +13,13 @@ FastModel loadFastModel(eastl::string_view filename)
         .bytes = data.data(),
     };
 
+    FastModel model;
+
     // get num vertices
     model.numVertices = fr.GetUInt16();
 
     // load vertices
-    const auto vertDataSize = model.numVertices * 3 * sizeof(std::int16_t);
+    const auto vertDataSize = model.numVertices * sizeof(FastVertex);
     model.vertexData = eastl::unique_ptr<FastVertex>((FastVertex*)psyqo_malloc(vertDataSize));
     fr.GetBytes(model.vertexData.get(), vertDataSize);
 
@@ -30,7 +30,7 @@ FastModel loadFastModel(eastl::string_view filename)
     // read prim data
     const auto primDataSize = model.numTris * sizeof(POLY_GT3) + model.numQuads * sizeof(POLY_GT4);
 
-    model.primData = eastl::unique_ptr<std::uint8_t>((std::uint8_t*)psyqo_malloc(primDataSize));
+    model.primData = eastl::unique_ptr<std::byte>((std::byte*)psyqo_malloc(primDataSize));
     fr.GetBytes(model.primData.get(), primDataSize);
 
     return model;
@@ -43,8 +43,7 @@ FastModelInstance makeFastModelInstance(FastModel& model, const TIM_IMAGE& textu
     };
     const auto primDataSize = model.numTris * sizeof(POLY_GT3) + model.numQuads * sizeof(POLY_GT4);
 
-    instance.primData =
-        eastl::unique_ptr<std::uint8_t>((std::uint8_t*)psyqo_malloc(2 * primDataSize));
+    instance.primData = eastl::unique_ptr<std::byte>((std::byte*)psyqo_malloc(2 * primDataSize));
 
     memcpy((void*)instance.primData.get(), model.primData.get(), primDataSize);
     // copy again
