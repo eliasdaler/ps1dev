@@ -17,50 +17,9 @@ struct FileReader {
 
     std::uint8_t GetUInt8() { return static_cast<uint8_t>(bytes[cursor++]); }
     std::int8_t GetInt8() { return static_cast<int8_t>(bytes[cursor++]); }
-
-    std::int16_t GetInt16()
-    {
-        uint16_t value = 0;
-        value |= bytes[cursor++];
-        value |= bytes[cursor++] << 8;
-        return static_cast<int16_t>(value);
-    }
-
-    std::uint16_t GetUInt16()
-    {
-        uint16_t value = 0;
-        value |= bytes[cursor++];
-        value |= bytes[cursor++] << 8;
-        return static_cast<uint16_t>(value);
-    }
-
-    std::int16_t GetInt16BE()
-    {
-        uint16_t value = 0;
-        value |= bytes[cursor++] << 8;
-        value |= bytes[cursor++];
-        return static_cast<int16_t>(value);
-    }
-
-    std::int32_t GetInt32()
-    {
-        uint32_t value = 0;
-        value |= bytes[cursor++];
-        value |= bytes[cursor++] << 8;
-        value |= bytes[cursor++] << 16;
-        value |= bytes[cursor++] << 24;
-        return static_cast<int32_t>(value);
-    }
-
-    std::int32_t GetInt32BE()
-    {
-        uint32_t value = 0;
-        value |= bytes[cursor++] << 24;
-        value |= bytes[cursor++] << 16;
-        value |= bytes[cursor++] << 8;
-        value |= bytes[cursor++];
-        return static_cast<int32_t>(value);
-    }
+    std::int16_t GetInt16() { return GetObj<std::int16_t>(); }
+    std::uint16_t GetUInt16() { return GetObj<std::uint16_t>(); }
+    std::int32_t GetInt32() { return GetObj<std::int32_t>(); }
 
     template<typename T>
     T GetObj()
@@ -71,11 +30,17 @@ struct FileReader {
         return obj;
     }
 
+    template<typename T>
+    void ReadObj(T& obj)
+    {
+        memcpy((void*)&obj, &bytes[cursor], sizeof(T));
+        cursor += sizeof(T);
+    }
+
     void GetBytes(void* dest, std::size_t size)
     {
         memcpy((void*)dest, &bytes[cursor], size);
         cursor += size;
-        // eastl::copy(&bytes[cursor], &bytes[cursor + size], (std::uint8_t*)dest);
     }
 };
 

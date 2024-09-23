@@ -12,6 +12,8 @@
 #include <EASTL/unique_ptr.h>
 
 #include "Camera.h"
+#include "FastModel.h"
+#include "Model.h"
 
 inline constexpr int SCREENXRES = 320;
 inline constexpr int SCREENYRES = 240;
@@ -20,41 +22,6 @@ struct Object {
     SVECTOR rotation{};
     VECTOR position{};
     VECTOR scale{ONE, ONE, ONE};
-};
-
-struct Vertex {
-    std::int16_t x, y, z;
-    std::uint8_t u, v;
-    std::uint8_t r, g, b;
-};
-
-struct Mesh {
-    eastl::vector<Vertex> vertices;
-    int numTris{0};
-    int numQuads{0};
-};
-
-struct Model {
-    eastl::vector<std::uint16_t> meshesIndices;
-};
-
-struct FastVertex {
-    std::int16_t x, y, z;
-};
-
-struct FastModel {
-    eastl::unique_ptr<FastVertex> vertexData{nullptr};
-    std::uint16_t numVertices{0};
-    eastl::unique_ptr<std::uint8_t> primData{nullptr};
-    std::uint16_t numTris{0};
-    std::uint16_t numQuads{0};
-};
-
-struct FastModelInstance {
-    eastl::span<FastVertex> vertices;
-    eastl::unique_ptr<std::uint8_t> primData{nullptr};
-    eastl::span<POLY_GT3> trianglePrims[2];
-    eastl::span<POLY_GT4> quadPrims[2];
 };
 
 struct TexRegion {
@@ -77,11 +44,6 @@ public:
     void display();
 
 private:
-    void loadModel(Model& model, eastl::string_view filename);
-    void loadFastModel(FastModel& model, eastl::string_view filename);
-
-    FastModelInstance makeFastModelInstance(FastModel& model, const TIM_IMAGE& texture);
-
     void drawModel(
         Object& object,
         const Model& model,
@@ -96,7 +58,6 @@ private:
         const TIM_IMAGE& texture,
         int depth);
 
-    std::uint16_t addMesh(Mesh mesh);
     std::uint16_t addTexture(TIM_IMAGE texture);
 
     DISPENV dispEnv[2];
@@ -123,7 +84,6 @@ private:
     Object level;
     Model levelModel;
 
-    eastl::vector<Mesh> meshes;
     eastl::vector<TIM_IMAGE> textures;
 
     MATRIX worldmat{};

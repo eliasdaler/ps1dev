@@ -1,0 +1,31 @@
+#pragma once
+
+#include <cstdint>
+
+#include <EASTL/unique_ptr.h>
+#include <EASTL/span.h>
+#include <EASTL/string_view.h>
+
+#include <libgpu.h>
+
+struct FastVertex {
+    std::int16_t x, y, z;
+};
+
+struct FastModel {
+    eastl::unique_ptr<FastVertex> vertexData{nullptr};
+    std::uint16_t numVertices{0};
+    eastl::unique_ptr<std::uint8_t> primData{nullptr};
+    std::uint16_t numTris{0};
+    std::uint16_t numQuads{0};
+};
+
+struct FastModelInstance {
+    eastl::span<FastVertex> vertices;
+    eastl::unique_ptr<std::uint8_t> primData{nullptr};
+    eastl::span<POLY_GT3> trianglePrims[2];
+    eastl::span<POLY_GT4> quadPrims[2];
+};
+
+FastModel loadFastModel(eastl::string_view filename);
+FastModelInstance makeFastModelInstance(FastModel& model, const TIM_IMAGE& texture);
