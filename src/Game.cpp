@@ -414,14 +414,6 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
         static_assert(sizeof(Work) < 200);
         static_assert(sizeof(Work) < 1024);
 
-        auto interpolateCol = [](std::uint8_t r, std::uint8_t g, std::uint8_t b, long p) {
-            CVECTOR near = {r, g, b, 44};
-            // return near;
-            CVECTOR col;
-            gte_DpqColor(&near, p, &col);
-            return col;
-        };
-
         const auto& texture = textures[textureIdx];
         for (int i = 0; i < mesh.numQuads; ++i, vertexIdx += 4) {
             auto* polygt4 = (POLY_GT4*)nextpri;
@@ -431,42 +423,6 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
             const auto& v1 = mesh.vertices[vertexIdx + 1];
             const auto& v2 = mesh.vertices[vertexIdx + 2];
             const auto& v3 = mesh.vertices[vertexIdx + 3];
-
-            wrk.vo[0] = SVECTOR{
-                (short)(v0.x),
-                (short)(v0.y),
-                (short)(v0.z),
-            };
-            wrk.vo[1] = SVECTOR{
-                (short)(v1.x),
-                (short)(v1.y),
-                (short)(v1.z),
-            };
-            wrk.vo[2] = SVECTOR{
-                (short)(v2.x),
-                (short)(v2.y),
-                (short)(v2.z),
-            };
-            wrk.vo[3] = SVECTOR{
-                (short)(v3.x),
-                (short)(v3.y),
-                (short)(v3.z),
-            };
-
-            wrk.ouv[0] = CVECTOR{v0.u, v0.v};
-            wrk.ouv[1] = CVECTOR{v1.u, v1.v};
-            wrk.ouv[2] = CVECTOR{v2.u, v2.v};
-            wrk.ouv[3] = CVECTOR{v3.u, v3.v};
-
-            wrk.ocol[0] = CVECTOR{v0.r, v0.g, v0.b};
-            wrk.ocol[1] = CVECTOR{v1.r, v1.g, v1.b};
-            wrk.ocol[2] = CVECTOR{v2.r, v2.g, v2.b};
-            wrk.ocol[3] = CVECTOR{v3.r, v3.g, v3.b};
-
-            setUV4(polygt4, v0.u, v0.v, v1.u, v1.v, v2.u, v2.v, v3.u, v3.v);
-
-            polygt4->tpage = tpage;
-            polygt4->clut = clut;
 
             gte_ldv0(&v0);
             gte_ldv1(&v1);
@@ -504,9 +460,40 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
             gte_stotz(&otz);
 
             if (otz < 700) {
-                // subdiv level 1
+                wrk.vo[0] = SVECTOR{
+                    (short)(v0.x),
+                    (short)(v0.y),
+                    (short)(v0.z),
+                };
+                wrk.vo[1] = SVECTOR{
+                    (short)(v1.x),
+                    (short)(v1.y),
+                    (short)(v1.z),
+                };
+                wrk.vo[2] = SVECTOR{
+                    (short)(v2.x),
+                    (short)(v2.y),
+                    (short)(v2.z),
+                };
+                wrk.vo[3] = SVECTOR{
+                    (short)(v3.x),
+                    (short)(v3.y),
+                    (short)(v3.z),
+                };
 
-                for (int i = 0; i < 4; ++i) {
+                wrk.ouv[0] = CVECTOR{v0.u, v0.v};
+                wrk.ouv[1] = CVECTOR{v1.u, v1.v};
+                wrk.ouv[2] = CVECTOR{v2.u, v2.v};
+                wrk.ouv[3] = CVECTOR{v3.u, v3.v};
+
+                wrk.ocol[0] = CVECTOR{v0.r, v0.g, v0.b};
+                wrk.ocol[1] = CVECTOR{v1.r, v1.g, v1.b};
+                wrk.ocol[2] = CVECTOR{v2.r, v2.g, v2.b};
+                wrk.ocol[3] = CVECTOR{v3.r, v3.g, v3.b};
+
+                // subdiv level 1
+                long otz, p, nclip;
+
 #define INTERP_COORD(i, a, b)                              \
     wrk.v[(i)].vx = (wrk.vo[(a)].vx + wrk.vo[(b)].vx) / 2; \
     wrk.v[(i)].vy = (wrk.vo[(a)].vy + wrk.vo[(b)].vy) / 2; \
@@ -536,125 +523,151 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
     gte_DpqColor(&wrk.col[i], p, &wrk.intCol); \
     setRGB##i(polygt4, wrk.intCol.r, wrk.intCol.g, wrk.intCol.b);
 
-                    switch (i) {
-                    case 0:
-                        COPY_ATTR(0, 0);
-                        INTERP_ATTR(1, 0, 1);
-                        INTERP_ATTR(2, 0, 2);
-                        INTERP_ATTR(3, 0, 3);
-                        break;
-                    case 1:
-                        COPY_CALC_ATTR(0, 1);
-                        COPY_CALC_ATTR(2, 3);
-                        COPY_ATTR(1, 1);
-                        INTERP_ATTR(3, 1, 3);
-                        break;
-                    case 2:
-                        COPY_CALC_ATTR(0, 2);
-                        COPY_CALC_ATTR(1, 3);
-                        INTERP_ATTR(2, 2, 3);
-                        COPY_ATTR(3, 3);
-                        break;
-                    case 3:
-                        COPY_CALC_ATTR(1, 0);
-                        COPY_CALC_ATTR(3, 2);
-                        INTERP_ATTR(0, 0, 2);
-                        COPY_ATTR(2, 2);
-                        break;
+                switch (i) {
+                case 0:
+                    COPY_ATTR(0, 0);
+                    INTERP_ATTR(1, 0, 1);
+                    INTERP_ATTR(2, 0, 2);
+                    INTERP_ATTR(3, 0, 3);
+                    break;
+                case 1:
+                    COPY_CALC_ATTR(0, 1);
+                    COPY_CALC_ATTR(2, 3);
+                    COPY_ATTR(1, 1);
+                    INTERP_ATTR(3, 1, 3);
+                    break;
+                case 2:
+                    COPY_CALC_ATTR(0, 2);
+                    COPY_CALC_ATTR(1, 3);
+                    INTERP_ATTR(2, 2, 3);
+                    COPY_ATTR(3, 3);
+                    break;
+                case 3:
+                    COPY_CALC_ATTR(1, 0);
+                    COPY_CALC_ATTR(3, 2);
+                    INTERP_ATTR(0, 0, 2);
+                    COPY_ATTR(2, 2);
+                    break;
 
-                    default:
-                        __builtin_unreachable();
-                        break;
-                    }
-
-                    polygt4 = (POLY_GT4*)nextpri;
-                    setPolyGT4(polygt4);
-                    polygt4->tpage = tpage;
-                    polygt4->clut = clut;
-
-                    setUV4(
-                        polygt4,
-                        wrk.uv[0].r,
-                        wrk.uv[0].g,
-                        wrk.uv[1].r,
-                        wrk.uv[1].g,
-                        wrk.uv[2].r,
-                        wrk.uv[2].g,
-                        wrk.uv[3].r,
-                        wrk.uv[3].g);
-
-                    gte_ldv0(&wrk.v[0]);
-                    gte_ldv1(&wrk.v[1]);
-                    gte_ldv2(&wrk.v[2]);
-
-                    gte_rtpt();
-
-                    gte_nclip();
-
-                    long nclip;
-                    gte_stopz(&nclip);
-
-                    if (nclip < 0) {
-                        continue;
-                    }
-
-                    gte_stsxy0(&polygt4->x0);
-
-                    gte_ldv0(&wrk.v[3]);
-                    gte_rtps();
-
-                    gte_stsxy3(&polygt4->x1, &polygt4->x2, &polygt4->x3);
-
-                    if (quad_clip(
-                            &screenClip,
-                            (DVECTOR*)&polygt4->x0,
-                            (DVECTOR*)&polygt4->x1,
-                            (DVECTOR*)&polygt4->x2,
-                            (DVECTOR*)&polygt4->x3)) {
-                        continue;
-                    }
-
-                    long otz;
-                    gte_avsz4();
-                    gte_stotz(&otz);
-
-                    long p;
-                    gte_stdp(&p);
-
-                    INTERP_COLOR_GTE(0);
-                    INTERP_COLOR_GTE(1);
-                    INTERP_COLOR_GTE(2);
-                    INTERP_COLOR_GTE(3);
-
-                    if (otz > 0 && otz < OTLEN) {
-                        CVECTOR col;
-
-                        addPrim(&ot[currBuffer][otz], polygt4);
-                        nextpri += sizeof(POLY_GT4);
-                    }
+                default:
+                    __builtin_unreachable();
+                    break;
                 }
 
+#define DRAW_QUAD(LABEL)                                  \
+    polygt4 = (POLY_GT4*)nextpri;                         \
+    setPolyGT4(polygt4);                                  \
+    polygt4->tpage = tpage;                               \
+    polygt4->clut = clut;                                 \
+                                                          \
+    setUV4(                                               \
+        polygt4,                                          \
+        wrk.uv[0].r,                                      \
+        wrk.uv[0].g,                                      \
+        wrk.uv[1].r,                                      \
+        wrk.uv[1].g,                                      \
+        wrk.uv[2].r,                                      \
+        wrk.uv[2].g,                                      \
+        wrk.uv[3].r,                                      \
+        wrk.uv[3].g);                                     \
+                                                          \
+    gte_ldv0(&wrk.v[0]);                                  \
+    gte_ldv1(&wrk.v[1]);                                  \
+    gte_ldv2(&wrk.v[2]);                                  \
+                                                          \
+    gte_rtpt();                                           \
+    gte_nclip();                                          \
+    gte_stopz(&nclip);                                    \
+                                                          \
+    if (nclip < 0) {                                      \
+        goto LABEL;                                       \
+    }                                                     \
+                                                          \
+    gte_stsxy0(&polygt4->x0);                             \
+                                                          \
+    gte_ldv0(&wrk.v[3]);                                  \
+    gte_rtps();                                           \
+                                                          \
+    gte_stsxy3(&polygt4->x1, &polygt4->x2, &polygt4->x3); \
+                                                          \
+    if (quad_clip(                                        \
+            &screenClip,                                  \
+            (DVECTOR*)&polygt4->x0,                       \
+            (DVECTOR*)&polygt4->x1,                       \
+            (DVECTOR*)&polygt4->x2,                       \
+            (DVECTOR*)&polygt4->x3)) {                    \
+        goto LABEL;                                       \
+    }                                                     \
+                                                          \
+    gte_avsz4();                                          \
+    gte_stotz(&otz);                                      \
+                                                          \
+    gte_stdp(&p);                                         \
+                                                          \
+    INTERP_COLOR_GTE(0);                                  \
+    INTERP_COLOR_GTE(1);                                  \
+    INTERP_COLOR_GTE(2);                                  \
+    INTERP_COLOR_GTE(3);                                  \
+                                                          \
+    if (otz > 0 && otz < OTLEN) {                         \
+        CVECTOR col;                                      \
+                                                          \
+        addPrim(&ot[currBuffer][otz], polygt4);           \
+        nextpri += sizeof(POLY_GT4);                      \
+    }
+
+                COPY_ATTR(0, 0);
+                INTERP_ATTR(1, 0, 1);
+                INTERP_ATTR(2, 0, 2);
+                INTERP_ATTR(3, 0, 3);
+                DRAW_QUAD(quad1);
+
+            quad1:
+                COPY_CALC_ATTR(0, 1);
+                COPY_CALC_ATTR(2, 3);
+                COPY_ATTR(1, 1);
+                INTERP_ATTR(3, 1, 3);
+                DRAW_QUAD(quad2);
+
+            quad2:
+                COPY_CALC_ATTR(0, 2);
+                COPY_CALC_ATTR(1, 3);
+                INTERP_ATTR(2, 2, 3);
+                COPY_ATTR(3, 3);
+                DRAW_QUAD(quad3);
+
+            quad3:
+                COPY_CALC_ATTR(1, 0);
+                COPY_CALC_ATTR(3, 2);
+                INTERP_ATTR(0, 0, 2);
+                COPY_ATTR(2, 2);
+                DRAW_QUAD(end);
+            end:
                 continue;
             }
 
             long p;
             gte_stdp(&p);
 
-            auto col = interpolateCol(v0.r, v0.g, v0.b, p);
-            setRGB0(polygt4, col.r, col.g, col.b);
+#undef INTERP_COLOR_GTE
+#define INTERP_COLOR_GTE(i)              \
+    near = {v##i.r, v##i.g, v##i.b, 44}; \
+    gte_DpqColor(&near, p, &col);        \
+    setRGB##i(polygt4, col.r, col.g, col.b);
 
-            col = interpolateCol(v1.r, v1.g, v1.b, p);
-            setRGB1(polygt4, col.r, col.g, col.b);
-
-            col = interpolateCol(v2.r, v2.g, v2.b, p);
-            setRGB2(polygt4, col.r, col.g, col.b);
-
-            col = interpolateCol(v3.r, v3.g, v3.b, p);
-            setRGB3(polygt4, col.r, col.g, col.b);
+            CVECTOR near, col;
+            INTERP_COLOR_GTE(0);
+            INTERP_COLOR_GTE(1);
+            INTERP_COLOR_GTE(2);
+            INTERP_COLOR_GTE(3);
 
             otz -= 64; // depth bias for not overlapping with tiles
 
             if (otz > 0 && otz < OTLEN) {
+                polygt4->tpage = tpage;
+                polygt4->clut = clut;
+                setUV4(polygt4, v0.u, v0.v, v1.u, v1.v, v2.u, v2.v, v3.u, v3.v);
+
                 CVECTOR col;
 
                 addPrim(&ot[currBuffer][otz], polygt4);
@@ -662,50 +675,57 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
             }
         }
     } else {
-        for (int i = 0; i < mesh.numQuads; ++i, vertexIdx += 4) {
-            auto* polygt4 = (POLY_GT4*)nextpri;
-            setPolyGT4(polygt4);
+        drawQuads(mesh, tpage, clut);
+    }
+}
 
-            const auto& v0 = mesh.vertices[vertexIdx + 0];
-            const auto& v1 = mesh.vertices[vertexIdx + 1];
-            const auto& v2 = mesh.vertices[vertexIdx + 2];
-            const auto& v3 = mesh.vertices[vertexIdx + 3];
+void Game::drawQuads(const Mesh& mesh, u_long tpage, int clut)
+{
+    auto vertexIdx = mesh.numTris * 3;
+    for (int i = 0; i < mesh.numQuads; ++i, vertexIdx += 4) {
+        auto* polygt4 = (POLY_GT4*)nextpri;
+        setPolyGT4(polygt4);
 
-            setUV4(polygt4, v0.u, v0.v, v1.u, v1.v, v2.u, v2.v, v3.u, v3.v);
+        const auto& v0 = mesh.vertices[vertexIdx + 0];
+        const auto& v1 = mesh.vertices[vertexIdx + 1];
+        const auto& v2 = mesh.vertices[vertexIdx + 2];
+        const auto& v3 = mesh.vertices[vertexIdx + 3];
 
-            polygt4->tpage = tpage;
-            polygt4->clut = clut;
+        setUV4(polygt4, v0.u, v0.v, v1.u, v1.v, v2.u, v2.v, v3.u, v3.v);
 
-            gte_ldv0(&v0);
-            gte_ldv1(&v1);
-            gte_ldv2(&v2);
+        polygt4->tpage = tpage;
+        polygt4->clut = clut;
 
-            gte_rtpt();
+        gte_ldv0(&v0);
+        gte_ldv1(&v1);
+        gte_ldv2(&v2);
 
-            gte_nclip();
+        gte_rtpt();
 
-            long nclip;
-            gte_stopz(&nclip);
+        gte_nclip();
 
-            if (nclip < 0) {
-                continue;
-            }
+        long nclip;
+        gte_stopz(&nclip);
 
-            gte_stsxy0(&polygt4->x0);
+        if (nclip < 0) {
+            continue;
+        }
 
-            gte_ldv0(&v3);
-            gte_rtps();
+        gte_stsxy0(&polygt4->x0);
 
-            gte_stsxy3(&polygt4->x1, &polygt4->x2, &polygt4->x3);
+        gte_ldv0(&v3);
+        gte_rtps();
 
-            /* if (quad_clip(
-                    &screenClip,
-                    (DVECTOR*)&polyft4->x0,
-                    (DVECTOR*)&polyft4->x1,
-                    (DVECTOR*)&polyft4->x2,
-                    (DVECTOR*)&polyft4->x3)) {
-                return;
-            } */
+        gte_stsxy3(&polygt4->x1, &polygt4->x2, &polygt4->x3);
+
+        /* if (quad_clip(
+                &screenClip,
+                (DVECTOR*)&polyft4->x0,
+                (DVECTOR*)&polyft4->x1,
+                (DVECTOR*)&polyft4->x2,
+                (DVECTOR*)&polyft4->x3)) {
+            return;
+        } */
 
 #if 0
             int sz0, sz1, sz2, sz3;
@@ -717,47 +737,32 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
 
             long otz = maxVar(sz0, sz1, sz2, sz3) / 4;
 #else
-            long otz;
-            gte_avsz4();
-            gte_stotz(&otz);
+        long otz;
+        gte_avsz4();
+        gte_stotz(&otz);
 #endif
 
-            long p;
-            gte_stdp(&p);
+        long p;
+        gte_stdp(&p);
 
-            // CVECTOR near = {128, 128, 128, 44};
-            // CVECTOR col;
-            // gte_DpqColor(&near, p, &col);
-            // setRGB0(polygt4, col.r, col.g, col.b);
+#define INTERP_COLOR_GTE(i)              \
+    near = {v##i.r, v##i.g, v##i.b, 44}; \
+    gte_DpqColor(&near, p, &col);        \
+    setRGB##i(polygt4, col.r, col.g, col.b);
 
-            auto interpolateCol = [](std::uint8_t r, std::uint8_t g, std::uint8_t b, long p) {
-                CVECTOR near = {r, g, b, 44};
-                // return near;
-                CVECTOR col;
-                gte_DpqColor(&near, p, &col);
-                return col;
-            };
+        CVECTOR col, near;
+        INTERP_COLOR_GTE(0);
+        INTERP_COLOR_GTE(1);
+        INTERP_COLOR_GTE(2);
+        INTERP_COLOR_GTE(3);
 
-            auto col = interpolateCol(v0.r, v0.g, v0.b, p);
-            setRGB0(polygt4, col.r, col.g, col.b);
+        otz -= 64; // depth bias for not overlapping with tiles
 
-            col = interpolateCol(v1.r, v1.g, v1.b, p);
-            setRGB1(polygt4, col.r, col.g, col.b);
+        if (otz > 0 && otz < OTLEN) {
+            CVECTOR col;
 
-            col = interpolateCol(v2.r, v2.g, v2.b, p);
-            setRGB2(polygt4, col.r, col.g, col.b);
-
-            col = interpolateCol(v3.r, v3.g, v3.b, p);
-            setRGB3(polygt4, col.r, col.g, col.b);
-
-            otz -= 64; // depth bias for not overlapping with tiles
-
-            if (otz > 0 && otz < OTLEN) {
-                CVECTOR col;
-
-                addPrim(&ot[currBuffer][otz], polygt4);
-                nextpri += sizeof(POLY_GT4);
-            }
+            addPrim(&ot[currBuffer][otz], polygt4);
+            nextpri += sizeof(POLY_GT4);
         }
     }
 }

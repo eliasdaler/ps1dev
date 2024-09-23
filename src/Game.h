@@ -51,6 +51,7 @@ private:
         bool subdivide = false);
     void drawModelFast(Object& object, const FastModelInstance& mesh);
     void drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, bool subdivide);
+    void drawQuads(const Mesh& mesh, u_long tpage, int clut);
     std::uint16_t addTexture(TIM_IMAGE texture);
 
     DISPENV dispEnv[2];
