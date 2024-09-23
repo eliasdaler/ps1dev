@@ -159,7 +159,7 @@ void Game::init()
         rollModelInstances[i] = makeFastModelInstance(rollModel, textures[rollTextureIdx]);
     }
 
-    roll.position = {-64, 0, 0};
+    roll.position = {-1024, 0, 0};
     roll.rotation = {};
     roll.scale = {ONE, ONE, ONE};
 
@@ -250,18 +250,17 @@ void Game::drawModelFast(Object& object, const FastModelInstance& fm)
     gte_SetRotMatrix(&viewmat);
     gte_SetTransMatrix(&viewmat);
 
+    auto& ot = this->ot[currBuffer];
     auto& trianglePrims = fm.trianglePrims[currBuffer];
-    for (std::uint16_t triIndex = 0; triIndex < trianglePrims.size(); ++triIndex) {
+    const auto numTris = trianglePrims.size();
+    for (std::uint16_t triIndex = 0; triIndex < numTris; ++triIndex) {
         const auto& v0 = fm.vertices[triIndex * 3 + 0];
         const auto& v1 = fm.vertices[triIndex * 3 + 1];
         const auto& v2 = fm.vertices[triIndex * 3 + 2];
 
-        gte_ldv0(&v0.x);
-        gte_ldv1(&v1.x);
-        gte_ldv2(&v2.x);
-        gte_ldv0(&v0.x);
-        gte_ldv1(&v1.x);
-        gte_ldv2(&v2.x);
+        gte_ldv0(&v0);
+        gte_ldv1(&v1);
+        gte_ldv2(&v2);
 
         gte_rtpt();
 
@@ -283,15 +282,15 @@ void Game::drawModelFast(Object& object, const FastModelInstance& fm)
 
         otz -= 64; // depth bias for not overlapping with tiles
         if (otz > 0 && otz < OTLEN) {
-            addPrim(&ot[currBuffer][otz], polygt3);
+            addPrim(&ot[otz], polygt3);
         }
     }
 
-    std::uint16_t startIndex = trianglePrims.size() * 3;
+    const auto startIndex = trianglePrims.size() * 3;
     auto& quadPrims = fm.quadPrims[currBuffer];
-    for (std::uint16_t quadIndex = 0; quadIndex < quadPrims.size(); ++quadIndex) {
+    const auto numQuads = quadPrims.size();
+    for (std::uint16_t quadIndex = 0; quadIndex < numQuads; ++quadIndex) {
         const auto& v0 = fm.vertices[startIndex + quadIndex * 4 + 0];
-
         const auto& v1 = fm.vertices[startIndex + quadIndex * 4 + 1];
         const auto& v2 = fm.vertices[startIndex + quadIndex * 4 + 2];
 
@@ -310,11 +309,10 @@ void Game::drawModelFast(Object& object, const FastModelInstance& fm)
             continue;
         }
 
-        const auto& v3 = fm.vertices[startIndex + quadIndex * 4 + 3];
-
         auto* polygt4 = &quadPrims[quadIndex];
         gte_stsxy0(&polygt4->x0);
 
+        const auto& v3 = fm.vertices[startIndex + quadIndex * 4 + 3];
         gte_ldv0(&v3);
         gte_rtps();
 
@@ -327,7 +325,7 @@ void Game::drawModelFast(Object& object, const FastModelInstance& fm)
         otz -= 64; // depth bias for not overlapping with tiles
 
         if (otz > 0 && otz < OTLEN) {
-            addPrim(&ot[currBuffer][otz], polygt4);
+            addPrim(&ot[otz], polygt4);
         }
     }
 }
@@ -349,14 +347,14 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
         const auto& v1 = mesh.vertices[vertexIdx + 1];
         const auto& v2 = mesh.vertices[vertexIdx + 2];
 
-        setUV3(polyft3, v0.u, v0.v, v1.u, v1.v, v2.u, v2.v);
+        setUV3(polyft3, v0.uv.r, v0.uv.g, v1.uv.r, v1.uv.g, v2.uv.r, v2.uv.g);
 
         polyft3->tpage = tpage;
         polyft3->clut = clut;
 
-        gte_ldv0(&v0.x);
-        gte_ldv1(&v1.x);
-        gte_ldv2(&v2.x);
+        gte_ldv0(&v0.pos);
+        gte_ldv1(&v1.pos);
+        gte_ldv2(&v2.pos);
 
         gte_rtpt();
 
@@ -371,21 +369,10 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
 
         gte_stsxy3(&polyft3->x0, &polyft3->x1, &polyft3->x2);
 
-#if 0
-        int sz1, sz2, sz3;
-        __asm__ volatile("mfc2 %0, $17\n"
-                         "mfc2 %1, $18\n"
-                         "mfc2 %2, $19\n"
-                         : "=r"(sz1), "=r"(sz2), "=r"(sz3));
-
-        long otz = maxVar(sz1, sz2, sz3) / 4;
-
-#else
         gte_avsz3();
 
         long otz;
         gte_stotz(&otz);
-#endif
 
         long p;
         gte_stdp(&p);
@@ -411,54 +398,18 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
     }
 
     auto& wrk1 = *(Work*)(SCRATCH_PAD + 0xC0);
-    static_assert(sizeof(Work) < 200);
-    static_assert(sizeof(Work) < 1024);
 
     for (int i = 0; i < mesh.numQuads; ++i, vertexIdx += 4) {
         auto* polygt4 = (POLY_GT4*)nextpri;
         setPolyGT4(polygt4);
 
-        {
-            const auto& v0 = mesh.vertices[vertexIdx + 0];
-            const auto& v1 = mesh.vertices[vertexIdx + 1];
-            const auto& v2 = mesh.vertices[vertexIdx + 2];
-            const auto& v3 = mesh.vertices[vertexIdx + 3];
+        const auto& v0 = mesh.vertices[vertexIdx + 0];
+        const auto& v1 = mesh.vertices[vertexIdx + 1];
+        const auto& v2 = mesh.vertices[vertexIdx + 2];
 
-            wrk1.ov[0] = SVECTOR{
-                (short)(v0.x),
-                (short)(v0.y),
-                (short)(v0.z),
-            };
-            wrk1.ov[1] = SVECTOR{
-                (short)(v1.x),
-                (short)(v1.y),
-                (short)(v1.z),
-            };
-            wrk1.ov[2] = SVECTOR{
-                (short)(v2.x),
-                (short)(v2.y),
-                (short)(v2.z),
-            };
-            wrk1.ov[3] = SVECTOR{
-                (short)(v3.x),
-                (short)(v3.y),
-                (short)(v3.z),
-            };
-
-            wrk1.ouv[0] = CVECTOR{v0.u, v0.v};
-            wrk1.ouv[1] = CVECTOR{v1.u, v1.v};
-            wrk1.ouv[2] = CVECTOR{v2.u, v2.v};
-            wrk1.ouv[3] = CVECTOR{v3.u, v3.v};
-
-            wrk1.ocol[0] = CVECTOR{v0.r, v0.g, v0.b};
-            wrk1.ocol[1] = CVECTOR{v1.r, v1.g, v1.b};
-            wrk1.ocol[2] = CVECTOR{v2.r, v2.g, v2.b};
-            wrk1.ocol[3] = CVECTOR{v3.r, v3.g, v3.b};
-        }
-
-        gte_ldv0(&wrk1.ov[0]);
-        gte_ldv1(&wrk1.ov[1]);
-        gte_ldv2(&wrk1.ov[2]);
+        gte_ldv0(&v0.pos);
+        gte_ldv1(&v1.pos);
+        gte_ldv2(&v2.pos);
 
         gte_rtpt();
 
@@ -473,7 +424,9 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
 
         gte_stsxy0(&polygt4->x0);
 
-        gte_ldv0(&wrk1.ov[3]);
+        const auto& v3 = mesh.vertices[vertexIdx + 3];
+
+        gte_ldv0(&v3.pos);
         gte_rtps();
 
         gte_stsxy3(&polygt4->x1, &polygt4->x2, &polygt4->x3);
@@ -486,6 +439,21 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
                 (DVECTOR*)&polygt4->x3)) {
             continue;
         }
+
+        wrk1.ov[0] = v0.pos;
+        wrk1.ov[1] = v1.pos;
+        wrk1.ov[2] = v2.pos;
+        wrk1.ov[3] = v3.pos;
+
+        wrk1.ouv[0] = v0.uv;
+        wrk1.ouv[1] = v1.uv;
+        wrk1.ouv[2] = v2.uv;
+        wrk1.ouv[3] = v3.uv;
+
+        wrk1.ocol[0] = v0.col;
+        wrk1.ocol[1] = v1.col;
+        wrk1.ocol[2] = v2.col;
+        wrk1.ocol[3] = v3.col;
 
 #define INTERP_ATTR(wrk, d, i, j)                             \
     wrk.v[(d)].vx = (wrk.ov[(i)].vx + wrk.ov[(j)].vx) / 2;    \
@@ -531,73 +499,79 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
     gte_DpqColor(&wrk.col[i], p, &wrk.intCol); \
     setRGB##i(polygt4, wrk.intCol.r, wrk.intCol.g, wrk.intCol.b);
 
-#define DRAW_QUAD(wrk, LABEL)                             \
-    polygt4 = (POLY_GT4*)nextpri;                         \
-    setPolyGT4(polygt4);                                  \
-    polygt4->tpage = tpage;                               \
-    polygt4->clut = clut;                                 \
-                                                          \
-    setUV4(                                               \
-        polygt4,                                          \
-        wrk.uv[0].r,                                      \
-        wrk.uv[0].g,                                      \
-        wrk.uv[1].r,                                      \
-        wrk.uv[1].g,                                      \
-        wrk.uv[2].r,                                      \
-        wrk.uv[2].g,                                      \
-        wrk.uv[3].r,                                      \
-        wrk.uv[3].g);                                     \
-                                                          \
-    gte_ldv0(&wrk.v[0]);                                  \
-    gte_ldv1(&wrk.v[1]);                                  \
-    gte_ldv2(&wrk.v[2]);                                  \
-                                                          \
-    gte_rtpt();                                           \
-    gte_nclip();                                          \
-    gte_stopz(&nclip);                                    \
-                                                          \
-    if (nclip < 0) {                                      \
-        goto LABEL;                                       \
-    }                                                     \
-                                                          \
-    gte_stsxy0(&polygt4->x0);                             \
-                                                          \
-    gte_ldv0(&wrk.v[3]);                                  \
-    gte_rtps();                                           \
-                                                          \
-    gte_stsxy3(&polygt4->x1, &polygt4->x2, &polygt4->x3); \
-                                                          \
-    if (quad_clip(                                        \
-            &screenClip,                                  \
-            (DVECTOR*)&polygt4->x0,                       \
-            (DVECTOR*)&polygt4->x1,                       \
-            (DVECTOR*)&polygt4->x2,                       \
-            (DVECTOR*)&polygt4->x3)) {                    \
-        goto LABEL;                                       \
-    }                                                     \
-                                                          \
-    gte_avsz4();                                          \
-    gte_stotz(&otz);                                      \
-                                                          \
-    gte_stdp(&p);                                         \
-                                                          \
-    INTERP_COLOR_GTE(wrk, 0);                             \
-    INTERP_COLOR_GTE(wrk, 1);                             \
-    INTERP_COLOR_GTE(wrk, 2);                             \
-    INTERP_COLOR_GTE(wrk, 3);                             \
-                                                          \
-    if (otz > 0 && otz < OTLEN) {                         \
-        CVECTOR col;                                      \
-                                                          \
-        addPrim(&ot[currBuffer][otz], polygt4);           \
-        nextpri += sizeof(POLY_GT4);                      \
+#define DRAW_QUAD(wrk)                                        \
+    polygt4 = (POLY_GT4*)nextpri;                             \
+    setPolyGT4(polygt4);                                      \
+    polygt4->tpage = tpage;                                   \
+    polygt4->clut = clut;                                     \
+                                                              \
+    setUV4(                                                   \
+        polygt4,                                              \
+        wrk.uv[0].r,                                          \
+        wrk.uv[0].g,                                          \
+        wrk.uv[1].r,                                          \
+        wrk.uv[1].g,                                          \
+        wrk.uv[2].r,                                          \
+        wrk.uv[2].g,                                          \
+        wrk.uv[3].r,                                          \
+        wrk.uv[3].g);                                         \
+                                                              \
+    gte_ldv0(&wrk.v[0]);                                      \
+    gte_ldv1(&wrk.v[1]);                                      \
+    gte_ldv2(&wrk.v[2]);                                      \
+                                                              \
+    gte_rtpt();                                               \
+                                                              \
+    gte_stsxy0(&polygt4->x0);                                 \
+                                                              \
+    gte_ldv0(&wrk.v[3]);                                      \
+    gte_rtps();                                               \
+                                                              \
+    gte_avsz4();                                              \
+    gte_stotz(&otz);                                          \
+                                                              \
+    if (otz > 0 && otz < OTLEN) {                             \
+        gte_stsxy3(&polygt4->x1, &polygt4->x2, &polygt4->x3); \
+        gte_stdp(&p);                                         \
+                                                              \
+        INTERP_COLOR_GTE(wrk, 0);                             \
+        INTERP_COLOR_GTE(wrk, 1);                             \
+        INTERP_COLOR_GTE(wrk, 2);                             \
+        INTERP_COLOR_GTE(wrk, 3);                             \
+                                                              \
+        addPrim(&ot[currBuffer][otz], polygt4);               \
+        nextpri += sizeof(POLY_GT4);                          \
     }
+
+#define DRAW_SUB_QUAD(wrk)     \
+    COPY_ATTR(wrk, 0, 0);      \
+    INTERP_ATTR(wrk, 1, 0, 1); \
+    INTERP_ATTR(wrk, 2, 0, 2); \
+    INTERP_ATTR(wrk, 3, 0, 3); \
+    DRAW_QUAD(wrk);            \
+                               \
+    COPY_CALC_ATTR(wrk, 0, 1); \
+    COPY_CALC_ATTR(wrk, 2, 3); \
+    COPY_ATTR(wrk, 1, 1);      \
+    INTERP_ATTR(wrk, 3, 1, 3); \
+    DRAW_QUAD(wrk);            \
+                               \
+    COPY_CALC_ATTR(wrk, 0, 2); \
+    COPY_CALC_ATTR(wrk, 1, 3); \
+    INTERP_ATTR(wrk, 2, 2, 3); \
+    COPY_ATTR(wrk, 3, 3);      \
+    DRAW_QUAD(wrk);            \
+                               \
+    COPY_CALC_ATTR(wrk, 1, 0); \
+    COPY_CALC_ATTR(wrk, 3, 2); \
+    INTERP_ATTR(wrk, 0, 0, 2); \
+    COPY_ATTR(wrk, 2, 2);      \
+    DRAW_QUAD(wrk);
 
         long otz;
         gte_avsz4();
         gte_stotz(&otz);
 
-#if 1
         if (otz < 200) {
             // subdiv level 2
             long otz, p, nclip;
@@ -616,34 +590,7 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
             INTERP_ATTR2(wrk2, 2, 0, 2);
             INTERP_ATTR2(wrk2, 3, 0, 3);
 
-            // quad00:
-            COPY_ATTR(wrk2, 0, 0);
-            INTERP_ATTR(wrk2, 1, 0, 1);
-            INTERP_ATTR(wrk2, 2, 0, 2);
-            INTERP_ATTR(wrk2, 3, 0, 3);
-            DRAW_QUAD(wrk2, quad01);
-
-        quad01:
-            COPY_CALC_ATTR(wrk2, 0, 1);
-            COPY_CALC_ATTR(wrk2, 2, 3);
-            COPY_ATTR(wrk2, 1, 1);
-            INTERP_ATTR(wrk2, 3, 1, 3);
-            DRAW_QUAD(wrk2, quad02);
-
-        quad02:
-            COPY_CALC_ATTR(wrk2, 0, 2);
-            COPY_CALC_ATTR(wrk2, 1, 3);
-            INTERP_ATTR(wrk2, 2, 2, 3);
-            COPY_ATTR(wrk2, 3, 3);
-            DRAW_QUAD(wrk2, quad03);
-
-        quad03:
-            COPY_CALC_ATTR(wrk2, 1, 0);
-            COPY_CALC_ATTR(wrk2, 3, 2);
-            INTERP_ATTR(wrk2, 0, 0, 2);
-            COPY_ATTR(wrk2, 2, 2);
-            DRAW_QUAD(wrk2, end0);
-        end0:
+            DRAW_SUB_QUAD(wrk2);
 
             // QUAD 1
             COPY_CALC_ATTR2(wrk2, 0, 1);
@@ -651,34 +598,7 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
             COPY_CALC_ATTR2(wrk2, 2, 3);
             INTERP_ATTR2(wrk2, 3, 1, 3);
 
-            // quad10:
-            COPY_ATTR(wrk2, 0, 0);
-            INTERP_ATTR(wrk2, 1, 0, 1);
-            INTERP_ATTR(wrk2, 2, 0, 2);
-            INTERP_ATTR(wrk2, 3, 0, 3);
-            DRAW_QUAD(wrk2, quad11);
-
-        quad11:
-            COPY_CALC_ATTR(wrk2, 0, 1);
-            COPY_CALC_ATTR(wrk2, 2, 3);
-            COPY_ATTR(wrk2, 1, 1);
-            INTERP_ATTR(wrk2, 3, 1, 3);
-            DRAW_QUAD(wrk2, quad12);
-
-        quad12:
-            COPY_CALC_ATTR(wrk2, 0, 2);
-            COPY_CALC_ATTR(wrk2, 1, 3);
-            INTERP_ATTR(wrk2, 2, 2, 3);
-            COPY_ATTR(wrk2, 3, 3);
-            DRAW_QUAD(wrk2, quad13);
-
-        quad13:
-            COPY_CALC_ATTR(wrk2, 1, 0);
-            COPY_CALC_ATTR(wrk2, 3, 2);
-            INTERP_ATTR(wrk2, 0, 0, 2);
-            COPY_ATTR(wrk2, 2, 2);
-            DRAW_QUAD(wrk2, end1);
-        end1:
+            DRAW_SUB_QUAD(wrk2);
 
             // QUAD 2
             COPY_CALC_ATTR2(wrk2, 0, 2);
@@ -686,34 +606,7 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
             INTERP_ATTR2(wrk2, 2, 2, 3);
             COPY_ATTR2(wrk2, 3, 3);
 
-            // quad20:
-            COPY_ATTR(wrk2, 0, 0);
-            INTERP_ATTR(wrk2, 1, 0, 1);
-            INTERP_ATTR(wrk2, 2, 0, 2);
-            INTERP_ATTR(wrk2, 3, 0, 3);
-            DRAW_QUAD(wrk2, quad21);
-
-        quad21:
-            COPY_CALC_ATTR(wrk2, 0, 1);
-            COPY_CALC_ATTR(wrk2, 2, 3);
-            COPY_ATTR(wrk2, 1, 1);
-            INTERP_ATTR(wrk2, 3, 1, 3);
-            DRAW_QUAD(wrk2, quad22);
-
-        quad22:
-            COPY_CALC_ATTR(wrk2, 0, 2);
-            COPY_CALC_ATTR(wrk2, 1, 3);
-            INTERP_ATTR(wrk2, 2, 2, 3);
-            COPY_ATTR(wrk2, 3, 3);
-            DRAW_QUAD(wrk2, quad23);
-
-        quad23:
-            COPY_CALC_ATTR(wrk2, 1, 0);
-            COPY_CALC_ATTR(wrk2, 3, 2);
-            INTERP_ATTR(wrk2, 0, 0, 2);
-            COPY_ATTR(wrk2, 2, 2);
-            DRAW_QUAD(wrk2, end2);
-        end2:
+            DRAW_SUB_QUAD(wrk2);
 
             // QUAD 3
             COPY_CALC_ATTR2(wrk2, 1, 0);
@@ -721,70 +614,15 @@ void Game::drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, 
             COPY_ATTR2(wrk2, 2, 2);
             INTERP_ATTR2(wrk2, 0, 0, 2);
 
-            // quad30:
-            COPY_ATTR(wrk2, 0, 0);
-            INTERP_ATTR(wrk2, 1, 0, 1);
-            INTERP_ATTR(wrk2, 2, 0, 2);
-            INTERP_ATTR(wrk2, 3, 0, 3);
-            DRAW_QUAD(wrk2, quad31);
-
-        quad31:
-            COPY_CALC_ATTR(wrk2, 0, 1);
-            COPY_CALC_ATTR(wrk2, 2, 3);
-            COPY_ATTR(wrk2, 1, 1);
-            INTERP_ATTR(wrk2, 3, 1, 3);
-            DRAW_QUAD(wrk2, quad32);
-
-        quad32:
-            COPY_CALC_ATTR(wrk2, 0, 2);
-            COPY_CALC_ATTR(wrk2, 1, 3);
-            INTERP_ATTR(wrk2, 2, 2, 3);
-            COPY_ATTR(wrk2, 3, 3);
-            DRAW_QUAD(wrk2, quad33);
-
-        quad33:
-            COPY_CALC_ATTR(wrk2, 1, 0);
-            COPY_CALC_ATTR(wrk2, 3, 2);
-            INTERP_ATTR(wrk2, 0, 0, 2);
-            COPY_ATTR(wrk2, 2, 2);
-            DRAW_QUAD(wrk2, end3);
-        end3:
+            DRAW_SUB_QUAD(wrk2);
 
             continue;
         }
-#endif
 
         if (otz < 700) {
             // subdiv level 1
             long otz, p, nclip;
-
-            COPY_ATTR(wrk1, 0, 0);
-            INTERP_ATTR(wrk1, 1, 0, 1);
-            INTERP_ATTR(wrk1, 2, 0, 2);
-            INTERP_ATTR(wrk1, 3, 0, 3);
-            DRAW_QUAD(wrk1, quad1);
-
-        quad1:
-            COPY_CALC_ATTR(wrk1, 0, 1);
-            COPY_CALC_ATTR(wrk1, 2, 3);
-            COPY_ATTR(wrk1, 1, 1);
-            INTERP_ATTR(wrk1, 3, 1, 3);
-            DRAW_QUAD(wrk1, quad2);
-
-        quad2:
-            COPY_CALC_ATTR(wrk1, 0, 2);
-            COPY_CALC_ATTR(wrk1, 1, 3);
-            INTERP_ATTR(wrk1, 2, 2, 3);
-            COPY_ATTR(wrk1, 3, 3);
-            DRAW_QUAD(wrk1, quad3);
-
-        quad3:
-            COPY_CALC_ATTR(wrk1, 1, 0);
-            COPY_CALC_ATTR(wrk1, 3, 2);
-            INTERP_ATTR(wrk1, 0, 0, 2);
-            COPY_ATTR(wrk1, 2, 2);
-            DRAW_QUAD(wrk1, end);
-        end:
+            DRAW_SUB_QUAD(wrk1);
             continue;
         }
 
@@ -837,7 +675,7 @@ void Game::drawQuads(const Mesh& mesh, u_long tpage, int clut)
         const auto& v2 = mesh.vertices[vertexIdx + 2];
         const auto& v3 = mesh.vertices[vertexIdx + 3];
 
-        setUV4(polygt4, v0.u, v0.v, v1.u, v1.v, v2.u, v2.v, v3.u, v3.v);
+        setUV4(polygt4, v0.uv.r, v0.uv.g, v1.uv.r, v1.uv.g, v2.uv.r, v2.uv.g, v3.uv.r, v3.uv.g);
 
         polygt4->tpage = tpage;
         polygt4->clut = clut;
@@ -873,27 +711,16 @@ void Game::drawQuads(const Mesh& mesh, u_long tpage, int clut)
             return;
         } */
 
-#if 0
-            int sz0, sz1, sz2, sz3;
-            __asm__ volatile("mfc2 %0, $16\n"
-                             "mfc2 %1, $17\n"
-                             "mfc2 %2, $18\n"
-                             "mfc2 %3, $29\n"
-                             : "=r"(sz0), "=r"(sz1), "=r"(sz2), "=r"(sz3));
-
-            long otz = maxVar(sz0, sz1, sz2, sz3) / 4;
-#else
         long otz;
         gte_avsz4();
         gte_stotz(&otz);
-#endif
 
         long p;
         gte_stdp(&p);
 
-#define INTERP_COLOR_GTE3(i)             \
-    near = {v##i.r, v##i.g, v##i.b, 44}; \
-    gte_DpqColor(&near, p, &col);        \
+#define INTERP_COLOR_GTE3(i)                         \
+    near = {v##i.col.r, v##i.col.g, v##i.col.b, 44}; \
+    gte_DpqColor(&near, p, &col);                    \
     setRGB##i(polygt4, col.r, col.g, col.b);
 
         CVECTOR col, near;

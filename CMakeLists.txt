@@ -48,6 +48,7 @@ target_compile_options(game PRIVATE
   -Wno-pointer-arith # psyqo alloc.c
   -Wno-unused-parameter
   -Wno-unused-variable
+  -Wno-unused-label
   -Wno-missing-field-initializers
   -Wno-sign-compare # TODO: enable
   # sadly GCC static analyzer is not yet very helpful
@@ -61,7 +62,7 @@ target_compile_options(game PRIVATE
 
 # TODO: try LTO and see how good it works
 # But it can make code much easier to debug, so only enable in Release build
-# set_target_properties(game PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
+set_target_properties(game PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 # target_link_libraries(game PRIVATE
 #  -fanalyzer

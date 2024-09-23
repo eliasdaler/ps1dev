@@ -45,6 +45,8 @@ struct Work {
     CVECTOR intCol;
 };
 
+static_assert(sizeof(Work) < 200);
+
 struct Work2 {
     SVECTOR ov[4];
     CVECTOR ouv[4];
@@ -99,7 +101,7 @@ private:
     std::uint16_t rollTextureIdx;
 
     Object roll;
-    static constexpr int numRolls{5};
+    static constexpr int numRolls{8};
     FastModel rollModel;
     FastModelInstance rollModelInstances[numRolls];
 
