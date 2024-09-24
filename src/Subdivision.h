@@ -87,7 +87,7 @@ static_assert(sizeof(SubdivData2) < 1024);
     wrk.ouv[(d)] = wrk.ouv[(i)];   \
     wrk.ocol[(d)] = wrk.ocol[(i)];
 
-#define INTERP_COLOR_GTE(wrk, i)               \
+#define INTERP_COLOR_GTE_DIV(wrk, i)           \
     gte_DpqColor(&wrk.col[i], p, &wrk.intCol); \
     setRGB##i(polygt4, wrk.intCol.r, wrk.intCol.g, wrk.intCol.b);
 
@@ -128,10 +128,10 @@ static_assert(sizeof(SubdivData2) < 1024);
         gte_stsxy3(&polygt4->x1, &polygt4->x2, &polygt4->x3); \
         gte_stdp(&p);                                         \
                                                               \
-        INTERP_COLOR_GTE(wrk, 0);                             \
-        INTERP_COLOR_GTE(wrk, 1);                             \
-        INTERP_COLOR_GTE(wrk, 2);                             \
-        INTERP_COLOR_GTE(wrk, 3);                             \
+        INTERP_COLOR_GTE_DIV(wrk, 0);                         \
+        INTERP_COLOR_GTE_DIV(wrk, 1);                         \
+        INTERP_COLOR_GTE_DIV(wrk, 2);                         \
+        INTERP_COLOR_GTE_DIV(wrk, 3);                         \
                                                               \
         addPrim(&ot[otz], polygt4);                           \
         nextpri += sizeof(POLY_GT4);                          \

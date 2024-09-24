@@ -16,7 +16,7 @@ struct Renderer {
     DISPENV dispEnv[2];
     DRAWENV drawEnv[2];
 
-    static constexpr int OTLEN = 1 << 10;
+    static constexpr int OTLEN = 1 << 11;
     u_long ots[2][OTLEN];
     u_long* ot{nullptr}; // current frame OT
 

@@ -39,7 +39,7 @@ private:
     FastModel rollModel;
     Model levelModel;
 
-    static constexpr int numRolls{8};
+    static constexpr int numRolls{5};
     FastModelObject rolls[numRolls];
 
     ModelObject level;

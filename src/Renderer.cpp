@@ -19,6 +19,10 @@ inline constexpr int LEVEL_1_SUBDIV_DIST = 700;
 inline constexpr int LEVEL_2_SUBDIV_DIST = 300;
 }
 
+#define INTERP_COLOR_GTE(prim, i)     \
+    gte_DpqColor(&v##i.col, p, &col); \
+    setRGB##i((prim), col.r, col.g, col.b);
+
 void Renderer::init()
 {
     InitGeom();
@@ -258,16 +262,12 @@ void Renderer::drawMesh(Object& object, const Mesh& mesh, const TIM_IMAGE& textu
 
         // else: draw without subdiv
 
-#define INTERP_COLOR_GTE2(i)          \
-    gte_DpqColor(&v##i.col, p, &col); \
-    setRGB##i(polygt4, col.r, col.g, col.b);
-
         CVECTOR col;
         gte_stdp(&p);
-        INTERP_COLOR_GTE2(0);
-        INTERP_COLOR_GTE2(1);
-        INTERP_COLOR_GTE2(2);
-        INTERP_COLOR_GTE2(3);
+        INTERP_COLOR_GTE(polygt4, 0);
+        INTERP_COLOR_GTE(polygt4, 1);
+        INTERP_COLOR_GTE(polygt4, 2);
+        INTERP_COLOR_GTE(polygt4, 3);
 
         otz -= 64; // depth bias for not overlapping with tiles
         if (otz > 0 && otz < OTLEN) {
@@ -329,21 +329,15 @@ void Renderer::drawQuads(const Mesh& mesh, u_long tpage, int clut)
 
         gte_avsz4();
         gte_stotz(&otz);
-
         otz -= 64; // depth bias for not overlapping with tiles
-
         if (otz > 0 && otz < OTLEN) {
             gte_stdp(&p);
 
-#define INTERP_COLOR_GTE3(i)          \
-    gte_DpqColor(&v##i.col, p, &col); \
-    setRGB##i(polygt4, col.r, col.g, col.b);
-
             CVECTOR col;
-            INTERP_COLOR_GTE3(0);
-            INTERP_COLOR_GTE3(1);
-            INTERP_COLOR_GTE3(2);
-            INTERP_COLOR_GTE3(3);
+            INTERP_COLOR_GTE(polygt4, 0);
+            INTERP_COLOR_GTE(polygt4, 1);
+            INTERP_COLOR_GTE(polygt4, 2);
+            INTERP_COLOR_GTE(polygt4, 3);
 
             addPrim(&ot[otz], polygt4);
             nextpri += sizeof(POLY_GT4);
@@ -388,9 +382,15 @@ void Renderer::drawModelFast(Object& object, const FastModelInstance& fm)
 
         gte_avsz3();
         gte_stotz(&otz);
-
         otz -= 64; // depth bias for not overlapping with tiles
         if (otz > 0 && otz < OTLEN) {
+            gte_stdp(&p);
+
+            CVECTOR col;
+            INTERP_COLOR_GTE(polygt3, 0);
+            INTERP_COLOR_GTE(polygt3, 1);
+            INTERP_COLOR_GTE(polygt3, 2);
+
             addPrim(&ot[otz], polygt3);
         }
     }
@@ -426,9 +426,16 @@ void Renderer::drawModelFast(Object& object, const FastModelInstance& fm)
 
         gte_avsz4();
         gte_stotz(&otz);
-
         otz -= 64; // depth bias for not overlapping with tiles
         if (otz > 0 && otz < OTLEN) {
+            gte_stdp(&p);
+
+            CVECTOR col;
+            INTERP_COLOR_GTE(polygt4, 0);
+            INTERP_COLOR_GTE(polygt4, 1);
+            INTERP_COLOR_GTE(polygt4, 2);
+            INTERP_COLOR_GTE(polygt4, 3);
+
             addPrim(&ot[otz], polygt4);
         }
     }

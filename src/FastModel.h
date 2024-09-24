@@ -10,6 +10,7 @@
 
 struct FastVertex {
     std::int16_t x, y, z, w;
+    CVECTOR col;
 };
 
 struct FastModelInstance;
