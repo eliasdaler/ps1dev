@@ -1,6 +1,5 @@
 #include "Model.h"
 
-#include "Clip.h"
 #include "Utils.h"
 
 #include <utility>

@@ -65,11 +65,8 @@ private:
 
     eastl::vector<TIM_IMAGE> textures;
 
-    MATRIX worldmat{};
-    MATRIX viewmat{};
+    Renderer renderer;
 
     VECTOR tpos{}; // Translation value for matrix calculations
     SVECTOR trot{}; // Rotation value for matrix calculations
-
-    Camera camera;
 };

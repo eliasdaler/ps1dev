@@ -53,38 +53,23 @@ static_assert(sizeof(SubdivData2) < 1024);
 
 }
 
-namespace renderer
+void Renderer::drawModel(Object& object, const Model& model, TIM_IMAGE& texture, bool subdivide)
 {
+    RotMatrix(&object.rotation, &worldmat);
+    TransMatrix(&worldmat, &object.position);
+    ScaleMatrix(&worldmat, &object.scale);
 
-char* drawModel(
-    RenderCtx& ctx,
-    Object& object,
-    const Model& model,
-    TIM_IMAGE& texture,
-    bool subdivide)
-{
-    RotMatrix(&object.rotation, &ctx.worldmat);
-    TransMatrix(&ctx.worldmat, &object.position);
-    ScaleMatrix(&ctx.worldmat, &object.scale);
+    CompMatrixLV(&camera.view, &worldmat, &viewmat);
 
-    CompMatrixLV(&ctx.camera.view, &ctx.worldmat, &ctx.viewmat);
-
-    gte_SetRotMatrix(&ctx.viewmat);
-    gte_SetTransMatrix(&ctx.viewmat);
+    gte_SetRotMatrix(&viewmat);
+    gte_SetTransMatrix(&viewmat);
 
     for (const auto& mesh : model.meshes) {
-        ctx.nextpri = renderer::drawMesh(ctx, object, mesh, texture, subdivide);
+        drawMesh(object, mesh, texture, subdivide);
     }
-
-    return ctx.nextpri;
 }
 
-char* drawMesh(
-    RenderCtx& ctx,
-    Object& object,
-    const Mesh& mesh,
-    const TIM_IMAGE& texture,
-    bool subdivide)
+void Renderer::drawMesh(Object& object, const Mesh& mesh, const TIM_IMAGE& texture, bool subdivide)
 {
     const auto tpage = getTPage(texture.mode & 0x3, 0, texture.prect->x, texture.prect->y);
     const auto clut = getClut(texture.crect->x, texture.crect->y);
@@ -93,7 +78,7 @@ char* drawMesh(
 
     // TODO: subdiv for triangles
     for (std::size_t i = 0; i < mesh.numTris; ++i, vertexIdx += 3) {
-        auto* polyft3 = (POLY_FT3*)ctx.nextpri;
+        auto* polyft3 = (POLY_FT3*)nextpri;
         setPolyFT3(polyft3);
 
         const auto& v0 = mesh.vertices[vertexIdx + 0];
@@ -137,22 +122,23 @@ char* drawMesh(
 
         otz -= 64; // depth bias for not overlapping with tiles
 
-        if (otz > 0 && otz < ctx.OTLEN) {
+        if (otz > 0 && otz < OTLEN) {
             CVECTOR col;
 
-            addPrim(&ctx.ot[otz], polyft3);
-            ctx.nextpri += sizeof(POLY_FT3);
+            addPrim(&ot[otz], polyft3);
+            nextpri += sizeof(POLY_FT3);
         }
     }
 
     if (!subdivide) {
-        return drawQuads(ctx, mesh, tpage, clut);
+        drawQuads(mesh, tpage, clut);
+        return;
     }
 
     auto& wrk1 = *(SubdivData1*)(SCRATCH_PAD + 0xC0);
 
     for (int i = 0; i < mesh.numQuads; ++i, vertexIdx += 4) {
-        auto* polygt4 = (POLY_GT4*)ctx.nextpri;
+        auto* polygt4 = (POLY_GT4*)nextpri;
         setPolyGT4(polygt4);
 
         const auto& v0 = mesh.vertices[vertexIdx + 0];
@@ -184,7 +170,7 @@ char* drawMesh(
         gte_stsxy3(&polygt4->x1, &polygt4->x2, &polygt4->x3);
 
         if (quad_clip(
-                &ctx.screenClip,
+                &screenClip,
                 (DVECTOR*)&polygt4->x0,
                 (DVECTOR*)&polygt4->x1,
                 (DVECTOR*)&polygt4->x2,
@@ -252,7 +238,7 @@ char* drawMesh(
     setRGB##i(polygt4, wrk.intCol.r, wrk.intCol.g, wrk.intCol.b);
 
 #define DRAW_QUAD(wrk)                                    \
-    polygt4 = (POLY_GT4*)ctx.nextpri;                     \
+    polygt4 = (POLY_GT4*)nextpri;                         \
     setPolyGT4(polygt4);                                  \
     polygt4->tpage = tpage;                               \
     polygt4->clut = clut;                                 \
@@ -287,8 +273,8 @@ char* drawMesh(
     INTERP_COLOR_GTE(wrk, 2);                             \
     INTERP_COLOR_GTE(wrk, 3);                             \
                                                           \
-    addPrim(&ctx.ot[otz], polygt4);                       \
-    ctx.nextpri += sizeof(POLY_GT4);
+    addPrim(&ot[otz], polygt4);                           \
+    nextpri += sizeof(POLY_GT4);
 
 #define DRAW_SUB_QUAD(wrk)     \
     COPY_ATTR(wrk, 0, 0);      \
@@ -388,7 +374,7 @@ char* drawMesh(
 
         otz -= 64; // depth bias for not overlapping with tiles
 
-        if (otz > 0 && otz < ctx.OTLEN) {
+        if (otz > 0 && otz < OTLEN) {
             polygt4->tpage = tpage;
             polygt4->clut = clut;
             setUV4(
@@ -402,18 +388,17 @@ char* drawMesh(
                 wrk1.ouv[3].r,
                 wrk1.ouv[3].g);
 
-            addPrim(&ctx.ot[otz], polygt4);
-            ctx.nextpri += sizeof(POLY_GT4);
+            addPrim(&ot[otz], polygt4);
+            nextpri += sizeof(POLY_GT4);
         }
     }
-    return ctx.nextpri;
 }
 
-char* drawQuads(RenderCtx& ctx, const Mesh& mesh, u_long tpage, int clut)
+void Renderer::drawQuads(const Mesh& mesh, u_long tpage, int clut)
 {
     auto vertexIdx = mesh.numTris * 3;
     for (int i = 0; i < mesh.numQuads; ++i, vertexIdx += 4) {
-        auto* polygt4 = (POLY_GT4*)ctx.nextpri;
+        auto* polygt4 = (POLY_GT4*)nextpri;
         setPolyGT4(polygt4);
 
         const auto& v0 = mesh.vertices[vertexIdx + 0];
@@ -476,28 +461,27 @@ char* drawQuads(RenderCtx& ctx, const Mesh& mesh, u_long tpage, int clut)
 
         otz -= 64; // depth bias for not overlapping with tiles
 
-        if (otz > 0 && otz < ctx.OTLEN) {
+        if (otz > 0 && otz < OTLEN) {
             CVECTOR col;
 
-            addPrim(&ctx.ot[otz], polygt4);
-            ctx.nextpri += sizeof(POLY_GT4);
+            addPrim(&ot[otz], polygt4);
+            nextpri += sizeof(POLY_GT4);
         }
     }
-    return ctx.nextpri;
 }
 
-char* drawModelFast(RenderCtx& ctx, Object& object, const FastModelInstance& fm)
+void Renderer::drawModelFast(Object& object, const FastModelInstance& fm)
 {
-    RotMatrix(&object.rotation, &ctx.worldmat);
-    TransMatrix(&ctx.worldmat, &object.position);
-    ScaleMatrix(&ctx.worldmat, &object.scale);
+    RotMatrix(&object.rotation, &worldmat);
+    TransMatrix(&worldmat, &object.position);
+    ScaleMatrix(&worldmat, &object.scale);
 
-    CompMatrixLV(&ctx.camera.view, &ctx.worldmat, &ctx.viewmat);
+    CompMatrixLV(&camera.view, &worldmat, &viewmat);
 
-    gte_SetRotMatrix(&ctx.viewmat);
-    gte_SetTransMatrix(&ctx.viewmat);
+    gte_SetRotMatrix(&viewmat);
+    gte_SetTransMatrix(&viewmat);
 
-    auto& trianglePrims = fm.trianglePrims[ctx.currBuffer];
+    auto& trianglePrims = fm.trianglePrims[currBuffer];
     const auto numTris = trianglePrims.size();
     for (std::uint16_t triIndex = 0; triIndex < numTris; ++triIndex) {
         const auto& v0 = fm.vertices[triIndex * 3 + 0];
@@ -527,13 +511,13 @@ char* drawModelFast(RenderCtx& ctx, Object& object, const FastModelInstance& fm)
         gte_stotz(&otz);
 
         otz -= 64; // depth bias for not overlapping with tiles
-        if (otz > 0 && otz < ctx.OTLEN) {
-            addPrim(&ctx.ot[otz], polygt3);
+        if (otz > 0 && otz < OTLEN) {
+            addPrim(&ot[otz], polygt3);
         }
     }
 
     const auto startIndex = trianglePrims.size() * 3;
-    auto& quadPrims = fm.quadPrims[ctx.currBuffer];
+    auto& quadPrims = fm.quadPrims[currBuffer];
     const auto numQuads = quadPrims.size();
     for (std::uint16_t quadIndex = 0; quadIndex < numQuads; ++quadIndex) {
         const auto& v0 = fm.vertices[startIndex + quadIndex * 4 + 0];
@@ -570,12 +554,8 @@ char* drawModelFast(RenderCtx& ctx, Object& object, const FastModelInstance& fm)
 
         otz -= 64; // depth bias for not overlapping with tiles
 
-        if (otz > 0 && otz < ctx.OTLEN) {
-            addPrim(&ctx.ot[otz], polygt4);
+        if (otz > 0 && otz < OTLEN) {
+            addPrim(&ot[otz], polygt4);
         }
     }
-
-    return ctx.nextpri;
 }
-
-} // end of namespace renderer

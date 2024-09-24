@@ -119,7 +119,7 @@ void Game::init()
     FntLoad(960, 0);
     FntOpen(16, 16, 196, 64, 0, 256);
 
-    setVector(&camera.position, 0, -ONE * (tileSize + tileSize / 5), -ONE * 2500);
+    setVector(&renderer.camera.position, 0, -ONE * (tileSize + tileSize / 5), -ONE * 2500);
 
     // testing
     /* camera.position.vx = ONE * -379;
@@ -167,6 +167,8 @@ void Game::run()
 
 void Game::handleInput()
 {
+    auto& camera = renderer.camera;
+
     trot.vx = camera.rotation.vx >> 12;
     trot.vy = camera.rotation.vy >> 12;
     trot.vz = camera.rotation.vz >> 12;
@@ -218,16 +220,11 @@ void Game::draw()
     ClearOTagR(ot[currBuffer], OTLEN);
     nextpri = primbuff[currBuffer];
 
-    renderer::RenderCtx ctx{
-        .ot = ot[currBuffer],
-        .OTLEN = OTLEN,
-        .nextpri = nextpri,
-        .currBuffer = currBuffer,
-        .screenClip = screenClip,
-        .worldmat = worldmat,
-        .viewmat = viewmat,
-        .camera = camera,
-    };
+    renderer.ot = ot[currBuffer];
+    renderer.OTLEN = OTLEN;
+    renderer.nextpri = nextpri;
+    renderer.currBuffer = currBuffer;
+    renderer.screenClip = screenClip;
 
     // camera.position.vx = cube.position.vx;
     // camera.position.vz = cube.position.vz - 32;
@@ -235,6 +232,7 @@ void Game::draw()
     // VECTOR globalUp{0, -ONE, 0};
     // camera::lookAt(camera, camera.position, cube.position, globalUp);
 
+    auto& camera = renderer.camera;
     { // fps camera
         RotMatrix(&trot, &camera.view);
 
@@ -247,14 +245,14 @@ void Game::draw()
     }
 
     auto pos = roll.position;
-    ctx.nextpri = renderer::drawModelFast(ctx, roll, rollModelInstances[0]);
+    renderer.drawModelFast(roll, rollModelInstances[0]);
 
     auto& bricksTexture = textures[bricksTextureIdx];
-    ctx.nextpri = renderer::drawModel(ctx, level, levelModel, bricksTexture, true);
+    renderer.drawModel(level, levelModel, bricksTexture, true);
 
     for (int i = 1; i < numRolls; ++i) {
         roll.position.vx += 128;
-        ctx.nextpri = renderer::drawModelFast(ctx, roll, rollModelInstances[i]);
+        renderer.drawModelFast(roll, rollModelInstances[i]);
     }
 
     roll.position = pos;
