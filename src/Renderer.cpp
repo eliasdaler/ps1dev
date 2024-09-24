@@ -364,7 +364,7 @@ void Renderer::drawModelFast(Object& object, const FastModelInstance& fm)
 
     long otz, p, nclip;
 
-    auto& trianglePrims = fm.trianglePrims[currBuffer];
+    const auto& trianglePrims = fm.trianglePrims[currBuffer];
     const auto numTris = trianglePrims.size();
     for (std::uint16_t triIndex = 0; triIndex < numTris; ++triIndex) {
         const auto& v0 = fm.vertices[triIndex * 3 + 0];
@@ -396,7 +396,7 @@ void Renderer::drawModelFast(Object& object, const FastModelInstance& fm)
     }
 
     const auto startIndex = trianglePrims.size() * 3;
-    auto& quadPrims = fm.quadPrims[currBuffer];
+    const auto& quadPrims = fm.quadPrims[currBuffer];
     const auto numQuads = quadPrims.size();
     for (std::uint16_t quadIndex = 0; quadIndex < numQuads; ++quadIndex) {
         const auto& v0 = fm.vertices[startIndex + quadIndex * 4 + 0];

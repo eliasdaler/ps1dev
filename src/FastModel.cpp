@@ -3,7 +3,7 @@
 
 #include <psyqo/alloc.h>
 
-FastModel loadFastModel(eastl::string_view filename)
+void FastModel::load(eastl::string_view filename)
 {
     const auto data = util::readFile(filename);
     const auto* bytes = (u_char*)data.data();
@@ -13,49 +13,44 @@ FastModel loadFastModel(eastl::string_view filename)
         .bytes = data.data(),
     };
 
-    FastModel model;
-
     // get num vertices
-    model.numVertices = fr.GetUInt16();
+    numVertices = fr.GetUInt16();
 
     // load vertices
-    const auto vertDataSize = model.numVertices * sizeof(FastVertex);
-    model.vertexData = eastl::unique_ptr<FastVertex>((FastVertex*)psyqo_malloc(vertDataSize));
-    fr.GetBytes(model.vertexData.get(), vertDataSize);
+    const auto vertDataSize = numVertices * sizeof(FastVertex);
+    vertexData = eastl::unique_ptr<FastVertex>((FastVertex*)psyqo_malloc(vertDataSize));
+    fr.GetBytes(vertexData.get(), vertDataSize);
 
     // get num of tris and quads
-    model.numTris = fr.GetUInt16();
-    model.numQuads = fr.GetUInt16();
+    numTris = fr.GetUInt16();
+    numQuads = fr.GetUInt16();
 
     // read prim data
-    const auto primDataSize = model.numTris * sizeof(POLY_GT3) + model.numQuads * sizeof(POLY_GT4);
-
-    model.primData = eastl::unique_ptr<std::byte>((std::byte*)psyqo_malloc(primDataSize));
-    fr.GetBytes(model.primData.get(), primDataSize);
-
-    return model;
+    const auto primDataSize = numTris * sizeof(POLY_GT3) + numQuads * sizeof(POLY_GT4);
+    primData = eastl::unique_ptr<std::byte>((std::byte*)psyqo_malloc(primDataSize));
+    fr.GetBytes(primData.get(), primDataSize);
 }
 
-FastModelInstance makeFastModelInstance(FastModel& model, const TIM_IMAGE& texture)
+FastModelInstance FastModel::makeFastModelInstance(const TIM_IMAGE& texture)
 {
     FastModelInstance instance{
-        .vertices = eastl::span{model.vertexData.get(), model.vertexData.get() + model.numVertices},
+        .vertices = eastl::span{vertexData.get(), vertexData.get() + numVertices},
     };
-    const auto primDataSize = model.numTris * sizeof(POLY_GT3) + model.numQuads * sizeof(POLY_GT4);
+    const auto primDataSize = numTris * sizeof(POLY_GT3) + numQuads * sizeof(POLY_GT4);
 
     instance.primData = eastl::unique_ptr<std::byte>((std::byte*)psyqo_malloc(2 * primDataSize));
 
-    memcpy((void*)instance.primData.get(), model.primData.get(), primDataSize);
+    memcpy((void*)instance.primData.get(), primData.get(), primDataSize);
     // copy again
-    memcpy((void*)(instance.primData.get() + primDataSize), model.primData.get(), primDataSize);
+    memcpy((void*)(instance.primData.get() + primDataSize), primData.get(), primDataSize);
 
     for (int i = 0; i < 2; ++i) {
         auto* trisStart = instance.primData.get() + i * primDataSize;
-        auto* trisEnd = trisStart + model.numTris * sizeof(POLY_GT3);
+        auto* trisEnd = trisStart + numTris * sizeof(POLY_GT3);
 
         instance.trianglePrims[i] = eastl::span<POLY_GT3>((POLY_GT3*)trisStart, (POLY_GT3*)trisEnd);
         instance.quadPrims[i] = eastl::span<
-            POLY_GT4>((POLY_GT4*)trisEnd, (POLY_GT4*)(trisEnd + model.numQuads * sizeof(POLY_GT4)));
+            POLY_GT4>((POLY_GT4*)trisEnd, (POLY_GT4*)(trisEnd + numQuads * sizeof(POLY_GT4)));
     }
 
     // set texture

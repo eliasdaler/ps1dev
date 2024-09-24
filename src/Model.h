@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cstdint>
-
 #include <EASTL/vector.h>
 #include <EASTL/string_view.h>
 
@@ -23,6 +21,6 @@ struct Mesh {
 
 struct Model {
     eastl::vector<Mesh> meshes;
-};
 
-Model loadModel(eastl::string_view filename);
+    void load(eastl::string_view filename);
+};

@@ -4,7 +4,7 @@
 
 #include <utility>
 
-Model loadModel(eastl::string_view filename)
+void Model::load(eastl::string_view filename)
 {
     const auto data = util::readFile(filename);
 
@@ -13,10 +13,8 @@ Model loadModel(eastl::string_view filename)
         .bytes = data.data(),
     };
 
-    Model model;
-
     const auto numSubmeshes = fr.GetUInt16();
-    model.meshes.reserve(numSubmeshes);
+    meshes.reserve(numSubmeshes);
 
     for (int i = 0; i < numSubmeshes; ++i) {
         Mesh mesh;
@@ -29,8 +27,6 @@ Model loadModel(eastl::string_view filename)
         fr.ReadArr(mesh.vertices.data(), mesh.numTris * 3);
         fr.ReadArr(&mesh.vertices[mesh.numTris], mesh.numQuads * 4);
 
-        model.meshes.push_back(std::move(mesh));
+        meshes.push_back(std::move(mesh));
     }
-
-    return model;
 }

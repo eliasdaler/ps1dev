@@ -36,18 +36,17 @@ public:
 private:
     std::uint16_t addTexture(TIM_IMAGE texture);
 
-    std::uint16_t bricksTextureIdx;
-    std::uint16_t rollTextureIdx;
-
-    Object roll;
-    static constexpr int numRolls{8};
     FastModel rollModel;
-    FastModelInstance rollModelInstances[numRolls];
-
-    Object level;
     Model levelModel;
 
+    static constexpr int numRolls{8};
+    FastModelObject rolls[numRolls];
+
+    ModelObject level;
+
     eastl::vector<TIM_IMAGE> textures;
+    std::uint16_t bricksTextureIdx;
+    std::uint16_t rollTextureIdx;
 
     Renderer renderer;
 };

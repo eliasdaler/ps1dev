@@ -2,18 +2,33 @@
 
 #include <cstdint>
 #include <string.h>
+#include <utility>
 
 #include <EASTL/vector.h>
 #include <EASTL/string_view.h>
 #include <EASTL/span.h>
 
+#include <psyqo/gte-registers.hh>
+
 namespace util
 {
+
+template<unsigned... regs>
+inline void clearAllGTERegistersInternal(std::integer_sequence<unsigned, regs...> regSeq)
+{
+    ((psyqo::GTE::clear<psyqo::GTE::Register{regs}, psyqo::GTE::Safety::Safe>()), ...);
+}
+
+inline void clearAllGTERegisters()
+{
+    clearAllGTERegistersInternal(std::make_integer_sequence<unsigned, 64>{});
+}
+
 eastl::vector<uint8_t> readFile(eastl::string_view filename);
 
 struct FileReader {
     const std::uint8_t* bytes;
-    int cursor{0};
+    std::size_t cursor{0};
 
     std::uint8_t GetUInt8() { return static_cast<uint8_t>(bytes[cursor++]); }
     std::int8_t GetInt8() { return static_cast<int8_t>(bytes[cursor++]); }
