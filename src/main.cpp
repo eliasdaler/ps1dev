@@ -1,8 +1,12 @@
 #include "Game.h"
 
+namespace
+{
+Game game;
+}
+
 int main()
 {
-    Game game;
     game.init();
     game.run();
 

@@ -11,7 +11,6 @@
 #include <EASTL/span.h>
 #include <EASTL/unique_ptr.h>
 
-#include "Camera.h"
 #include "FastModel.h"
 #include "Model.h"
 #include "Object.h"
@@ -34,23 +33,8 @@ public:
     void update();
     void draw();
 
-    void display();
-
 private:
     std::uint16_t addTexture(TIM_IMAGE texture);
-
-    DISPENV dispEnv[2];
-    DRAWENV drawEnv[2];
-
-    static constexpr int OTLEN = 1 << 12;
-    static constexpr int PRIMBUFFLEN = 32768 * 4;
-    u_long ot[2][OTLEN];
-    char primbuff[2][PRIMBUFFLEN];
-
-    char* nextpri{nullptr};
-    short currBuffer{0};
-
-    RECT screenClip;
 
     std::uint16_t bricksTextureIdx;
     std::uint16_t rollTextureIdx;
@@ -66,7 +50,4 @@ private:
     eastl::vector<TIM_IMAGE> textures;
 
     Renderer renderer;
-
-    VECTOR tpos{}; // Translation value for matrix calculations
-    SVECTOR trot{}; // Rotation value for matrix calculations
 };

@@ -79,45 +79,7 @@ void Game::init()
     PadInit(0);
     ResetGraph(0);
 
-    InitGeom();
-    SetGeomOffset(SCREENXRES / 2, SCREENYRES / 2);
-    SetGeomScreen(420); // fov
-
-    SetBackColor(0, 0, 0);
-    SetFarColor(0, 0, 0);
-    SetFogNearFar(500, 12800, SCREENXRES / 2);
-
-    SetDefDispEnv(&dispEnv[0], 0, 0, SCREENXRES, SCREENYRES);
-    SetDefDrawEnv(&drawEnv[0], 0, SCREENYRES, SCREENXRES, SCREENYRES);
-
-    SetDefDispEnv(&dispEnv[1], 0, SCREENYRES, SCREENXRES, SCREENYRES);
-    SetDefDrawEnv(&drawEnv[1], 0, 0, SCREENXRES, SCREENYRES);
-
-    setRECT(&screenClip, 0, 0, SCREENXRES, SCREENYRES);
-
-    bool palMode = false;
-    if (palMode) {
-        SetVideoMode(MODE_PAL);
-        dispEnv[0].screen.y += 8;
-        dispEnv[1].screen.y += 8;
-    }
-
-    SetDispMask(1); // Display on screen
-
-    // setRGB0(&drawEnv[0], 100, 149, 237);
-    // setRGB0(&drawEnv[1], 100, 149, 237);
-
-    setRGB0(&drawEnv[0], 0, 0, 0);
-    setRGB0(&drawEnv[1], 0, 0, 0);
-
-    drawEnv[0].isbg = 1;
-    drawEnv[1].isbg = 1;
-
-    PutDispEnv(&dispEnv[currBuffer]);
-    PutDrawEnv(&drawEnv[currBuffer]);
-
-    FntLoad(960, 0);
-    FntOpen(16, 16, 196, 64, 0, 256);
+    renderer.init();
 
     setVector(&renderer.camera.position, 0, -ONE * (tileSize + tileSize / 5), -ONE * 2500);
 
@@ -169,9 +131,9 @@ void Game::handleInput()
 {
     auto& camera = renderer.camera;
 
-    trot.vx = camera.rotation.vx >> 12;
-    trot.vy = camera.rotation.vy >> 12;
-    trot.vz = camera.rotation.vz >> 12;
+    camera.trot.vx = camera.rotation.vx >> 12;
+    camera.trot.vy = camera.rotation.vy >> 12;
+    camera.trot.vz = camera.rotation.vz >> 12;
 
     const auto PadStatus = PadRead(0);
 
@@ -185,12 +147,12 @@ void Game::handleInput()
 
     // strafing
     if (PadStatus & PADL1) {
-        camera.position.vx -= math::icos(trot.vy) << 4;
-        camera.position.vz -= math::isin(trot.vy) << 4;
+        camera.position.vx -= math::icos(camera.trot.vy) << 4;
+        camera.position.vz -= math::isin(camera.trot.vy) << 4;
     }
     if (PadStatus & PADR1) {
-        camera.position.vx += math::icos(trot.vy) << 4;
-        camera.position.vz += math::isin(trot.vy) << 4;
+        camera.position.vx += math::icos(camera.trot.vy) << 4;
+        camera.position.vz += math::isin(camera.trot.vy) << 4;
     }
 
     // looking up/down
@@ -203,53 +165,34 @@ void Game::handleInput()
 
     // Moving forwards/backwards
     if (PadStatus & PADLup) {
-        camera.position.vx -= math::isin(trot.vy) << 5;
-        camera.position.vz += math::icos(trot.vy) << 5;
+        camera.position.vx -= math::isin(camera.trot.vy) << 5;
+        camera.position.vz += math::icos(camera.trot.vy) << 5;
     }
     if (PadStatus & PADLdown) {
-        camera.position.vx += math::isin(trot.vy) << 5;
-        camera.position.vz -= math::icos(trot.vy) << 5;
+        camera.position.vx += math::isin(camera.trot.vy) << 5;
+        camera.position.vz -= math::icos(camera.trot.vy) << 5;
     }
 }
 
 void Game::update()
 {}
 
+std::uint16_t Game::addTexture(TIM_IMAGE texture)
+{
+    auto id = textures.size();
+    textures.push_back(std::move(texture));
+    return static_cast<std::uint16_t>(id);
+}
+
 void Game::draw()
 {
-    ClearOTagR(ot[currBuffer], OTLEN);
-    nextpri = primbuff[currBuffer];
-
-    renderer.ot = ot[currBuffer];
-    renderer.OTLEN = OTLEN;
-    renderer.nextpri = nextpri;
-    renderer.currBuffer = currBuffer;
-    renderer.screenClip = screenClip;
-
-    // camera.position.vx = cube.position.vx;
-    // camera.position.vz = cube.position.vz - 32;
-
-    // VECTOR globalUp{0, -ONE, 0};
-    // camera::lookAt(camera, camera.position, cube.position, globalUp);
-
-    auto& camera = renderer.camera;
-    { // fps camera
-        RotMatrix(&trot, &camera.view);
-
-        tpos.vx = -camera.position.vx >> 12;
-        tpos.vy = -camera.position.vy >> 12;
-        tpos.vz = -camera.position.vz >> 12;
-
-        ApplyMatrixLV(&camera.view, &tpos, &tpos);
-        TransMatrix(&camera.view, &tpos);
-    }
-
-    auto pos = roll.position;
-    renderer.drawModelFast(roll, rollModelInstances[0]);
+    renderer.beginDraw();
 
     auto& bricksTexture = textures[bricksTextureIdx];
     renderer.drawModel(level, levelModel, bricksTexture, true);
 
+    auto pos = roll.position;
+    renderer.drawModelFast(roll, rollModelInstances[0]);
     for (int i = 1; i < numRolls; ++i) {
         roll.position.vx += 128;
         renderer.drawModelFast(roll, rollModelInstances[i]);
@@ -259,29 +202,12 @@ void Game::draw()
 
     FntPrint(
         "X=%d Y=%d Z=%d\n",
-        camera.position.vx >> 12,
-        camera.position.vy >> 12,
-        camera.position.vz >> 12);
-    FntPrint("RX=%d, RY=%d\n", trot.vx, trot.vy);
+        renderer.camera.position.vx >> 12,
+        renderer.camera.position.vy >> 12,
+        renderer.camera.position.vz >> 12);
+    FntPrint("RX=%d, RY=%d\n", renderer.camera.trot.vx, renderer.camera.trot.vy);
 
     FntFlush(-1);
 
-    display();
-}
-
-void Game::display()
-{
-    DrawSync(0);
-    VSync(0);
-    PutDispEnv(&dispEnv[currBuffer]);
-    PutDrawEnv(&drawEnv[currBuffer]);
-    DrawOTag(&ot[currBuffer][OTLEN - 1]);
-    currBuffer = !currBuffer;
-}
-
-std::uint16_t Game::addTexture(TIM_IMAGE texture)
-{
-    auto id = textures.size();
-    textures.push_back(std::move(texture));
-    return static_cast<std::uint16_t>(id);
+    renderer.display();
 }

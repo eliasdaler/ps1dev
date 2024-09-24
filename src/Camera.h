@@ -6,6 +6,9 @@ struct Camera {
     VECTOR position{};
     VECTOR rotation{};
     MATRIX view{};
+
+    VECTOR tpos{};
+    SVECTOR trot{};
 };
 
 namespace camera
