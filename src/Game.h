@@ -14,15 +14,10 @@
 #include "Camera.h"
 #include "FastModel.h"
 #include "Model.h"
+#include "Object.h"
 
 inline constexpr int SCREENXRES = 320;
 inline constexpr int SCREENYRES = 240;
-
-struct Object {
-    SVECTOR rotation{};
-    VECTOR position{};
-    VECTOR scale{ONE, ONE, ONE};
-};
 
 struct TexRegion {
     int u0, v0; // top left
@@ -31,36 +26,6 @@ struct TexRegion {
 
 struct Quad {
     SVECTOR vs[4];
-};
-
-struct Work {
-    SVECTOR ov[4];
-    CVECTOR ouv[4];
-    CVECTOR ocol[4];
-
-    SVECTOR v[4];
-    CVECTOR uv[4];
-    CVECTOR col[4];
-
-    CVECTOR intCol;
-};
-
-static_assert(sizeof(Work) < 200);
-
-struct Work2 {
-    SVECTOR ov[4];
-    CVECTOR ouv[4];
-    CVECTOR ocol[4];
-
-    SVECTOR v[4];
-    CVECTOR uv[4];
-    CVECTOR col[4];
-
-    CVECTOR intCol;
-
-    SVECTOR oov[4];
-    CVECTOR oouv[4];
-    CVECTOR oocol[4];
 };
 
 class Game {
@@ -75,13 +40,12 @@ public:
 
 private:
     void drawModel(
+        RenderCtx& ctx,
         Object& object,
         const Model& model,
         std::uint16_t textureIdx,
         bool subdivide = false);
     void drawModelFast(Object& object, const FastModelInstance& mesh);
-    void drawMesh(Object& object, const Mesh& mesh, std::uint16_t textureIdx, bool subdivide);
-    void drawQuads(const Mesh& mesh, u_long tpage, int clut);
     std::uint16_t addTexture(TIM_IMAGE texture);
 
     DISPENV dispEnv[2];
@@ -101,7 +65,7 @@ private:
     std::uint16_t rollTextureIdx;
 
     Object roll;
-    static constexpr int numRolls{15};
+    static constexpr int numRolls{8};
     FastModel rollModel;
     FastModelInstance rollModelInstances[numRolls];
 
