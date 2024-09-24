@@ -5,16 +5,13 @@
 #include <psyqo/gte-registers.hh>
 #include <libetc.h>
 #include <libcd.h>
-#include <inline_n.h>
-#include <gtemac.h>
-#include <string.h>
 
 #include <utility> //std::move
 
 #include "Utils.h"
+#include "Globals.h"
 
 #include "Trig.h"
-#include "Clip.h"
 
 namespace
 {
@@ -123,7 +120,6 @@ void Game::init()
     FntOpen(16, 16, 196, 64, 0, 256);
 
     setVector(&camera.position, 0, -ONE * (tileSize + tileSize / 5), -ONE * 2500);
-    camera.position.vz = ONE * -376;
 
     // testing
     /* camera.position.vx = ONE * -379;
@@ -142,7 +138,6 @@ void Game::init()
 
     printf("Load models...\n");
     rollModel = loadFastModel("\\ROLL.FM;1");
-    printf("sizeof Vertex: %d", (int)sizeof(FastVertex));
     levelModel = loadModel("\\LEVEL.BIN;1");
 
     level.position = {0, 0, 0};
@@ -218,129 +213,20 @@ void Game::handleInput()
 void Game::update()
 {}
 
-void Game::drawModel(
-    RenderCtx& ctx,
-    Object& object,
-    const Model& model,
-    std::uint16_t textureIdx,
-    bool subdivide)
-{
-    RotMatrix(&object.rotation, &worldmat);
-    TransMatrix(&worldmat, &object.position);
-    ScaleMatrix(&worldmat, &object.scale);
-
-    CompMatrixLV(&camera.view, &worldmat, &viewmat);
-
-    gte_SetRotMatrix(&viewmat);
-    gte_SetTransMatrix(&viewmat);
-
-    auto& texture = textures[textureIdx];
-    for (const auto& mesh : model.meshes) {
-        ctx.nextpri = drawMesh(ctx, object, mesh, texture, subdivide);
-    }
-}
-
-void Game::drawModelFast(Object& object, const FastModelInstance& fm)
-{
-    RotMatrix(&object.rotation, &worldmat);
-    TransMatrix(&worldmat, &object.position);
-    ScaleMatrix(&worldmat, &object.scale);
-
-    CompMatrixLV(&camera.view, &worldmat, &viewmat);
-
-    gte_SetRotMatrix(&viewmat);
-    gte_SetTransMatrix(&viewmat);
-
-    auto& ot = this->ot[currBuffer];
-    auto& trianglePrims = fm.trianglePrims[currBuffer];
-    const auto numTris = trianglePrims.size();
-    for (std::uint16_t triIndex = 0; triIndex < numTris; ++triIndex) {
-        const auto& v0 = fm.vertices[triIndex * 3 + 0];
-        const auto& v1 = fm.vertices[triIndex * 3 + 1];
-        const auto& v2 = fm.vertices[triIndex * 3 + 2];
-
-        gte_ldv0(&v0);
-        gte_ldv1(&v1);
-        gte_ldv2(&v2);
-
-        gte_rtpt();
-
-        gte_nclip();
-
-        long nclip;
-        gte_stopz(&nclip);
-
-        if (nclip < 0) {
-            continue;
-        }
-
-        auto* polygt3 = &trianglePrims[triIndex];
-        gte_stsxy3(&polygt3->x0, &polygt3->x1, &polygt3->x2);
-
-        gte_avsz3();
-        long otz;
-        gte_stotz(&otz);
-
-        otz -= 64; // depth bias for not overlapping with tiles
-        if (otz > 0 && otz < OTLEN) {
-            addPrim(&ot[otz], polygt3);
-        }
-    }
-
-    const auto startIndex = trianglePrims.size() * 3;
-    auto& quadPrims = fm.quadPrims[currBuffer];
-    const auto numQuads = quadPrims.size();
-    for (std::uint16_t quadIndex = 0; quadIndex < numQuads; ++quadIndex) {
-        const auto& v0 = fm.vertices[startIndex + quadIndex * 4 + 0];
-        const auto& v1 = fm.vertices[startIndex + quadIndex * 4 + 1];
-        const auto& v2 = fm.vertices[startIndex + quadIndex * 4 + 2];
-
-        gte_ldv0(&v0);
-        gte_ldv1(&v1);
-        gte_ldv2(&v2);
-
-        gte_rtpt();
-
-        gte_nclip();
-
-        long nclip;
-        gte_stopz(&nclip);
-
-        if (nclip < 0) {
-            continue;
-        }
-
-        auto* polygt4 = &quadPrims[quadIndex];
-        gte_stsxy0(&polygt4->x0);
-
-        const auto& v3 = fm.vertices[startIndex + quadIndex * 4 + 3];
-        gte_ldv0(&v3);
-        gte_rtps();
-
-        gte_stsxy3(&polygt4->x1, &polygt4->x2, &polygt4->x3);
-
-        long otz;
-        gte_avsz4();
-        gte_stotz(&otz);
-
-        otz -= 64; // depth bias for not overlapping with tiles
-
-        if (otz > 0 && otz < OTLEN) {
-            addPrim(&ot[otz], polygt4);
-        }
-    }
-}
-
 void Game::draw()
 {
     ClearOTagR(ot[currBuffer], OTLEN);
     nextpri = primbuff[currBuffer];
 
-    RenderCtx ctx{
+    renderer::RenderCtx ctx{
         .ot = ot[currBuffer],
         .OTLEN = OTLEN,
         .nextpri = nextpri,
+        .currBuffer = currBuffer,
         .screenClip = screenClip,
+        .worldmat = worldmat,
+        .viewmat = viewmat,
+        .camera = camera,
     };
 
     // camera.position.vx = cube.position.vx;
@@ -361,13 +247,14 @@ void Game::draw()
     }
 
     auto pos = roll.position;
-    drawModelFast(roll, rollModelInstances[0]);
+    ctx.nextpri = renderer::drawModelFast(ctx, roll, rollModelInstances[0]);
 
-    drawModel(ctx, level, levelModel, bricksTextureIdx, true);
+    auto& bricksTexture = textures[bricksTextureIdx];
+    ctx.nextpri = renderer::drawModel(ctx, level, levelModel, bricksTexture, true);
 
     for (int i = 1; i < numRolls; ++i) {
         roll.position.vx += 128;
-        drawModelFast(roll, rollModelInstances[i]);
+        ctx.nextpri = renderer::drawModelFast(ctx, roll, rollModelInstances[i]);
     }
 
     roll.position = pos;

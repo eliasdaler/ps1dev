@@ -15,9 +15,7 @@
 #include "FastModel.h"
 #include "Model.h"
 #include "Object.h"
-
-inline constexpr int SCREENXRES = 320;
-inline constexpr int SCREENYRES = 240;
+#include "Renderer.h"
 
 struct TexRegion {
     int u0, v0; // top left
@@ -39,13 +37,6 @@ public:
     void display();
 
 private:
-    void drawModel(
-        RenderCtx& ctx,
-        Object& object,
-        const Model& model,
-        std::uint16_t textureIdx,
-        bool subdivide = false);
-    void drawModelFast(Object& object, const FastModelInstance& mesh);
     std::uint16_t addTexture(TIM_IMAGE texture);
 
     DISPENV dispEnv[2];

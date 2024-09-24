@@ -36,6 +36,7 @@ add_executable(game
   src/Camera.cpp
   src/Model.cpp
   src/FastModel.cpp
+  src/Renderer.cpp
   src/Game.cpp
   src/main.cpp
 )

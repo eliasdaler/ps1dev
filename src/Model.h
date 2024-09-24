@@ -25,20 +25,4 @@ struct Model {
     eastl::vector<Mesh> meshes;
 };
 
-struct RenderCtx {
-    u_long* ot;
-    int OTLEN;
-    char* nextpri;
-    RECT screenClip;
-};
-
 Model loadModel(eastl::string_view filename);
-
-[[nodiscard]] char* drawMesh(
-    RenderCtx& ctx,
-    Object& object,
-    const Mesh& mesh,
-    const TIM_IMAGE& texture,
-    bool subdivide);
-
-[[nodiscard]] char* drawQuads(RenderCtx& ctx, const Mesh& mesh, u_long tpage, int clut);
