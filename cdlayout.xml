@@ -25,7 +25,7 @@
                 <file name="LEVEL.BIN" type="data" source="assets/house_psx.bin"/>
                 <file name="FTEX.TIM" type="data" source="assets/ftex.tim"/>
                 <file name="PS1.TIM" type="data" source="assets/ps1.tim"/>
-                <file name="STEP1.VAG" type="data" source="assets/step1.vag"/>
+                <file name="STEP1.VAG" type="data" source="assets/door_open.vag"/>
                 <dummy sectors="1024"/>
             </directory_tree>
         </track>

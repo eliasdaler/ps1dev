@@ -6,10 +6,14 @@
 
 #include <bit>
 
+#define PF_DATA_SIZE 18704
+unsigned char pf_wave[] = {
+#include "PF_WAVE.H"
+};
+
 void SoundPlayer::init()
 {
     SpuInit();
-
     SpuInitMalloc(SOUND_MALLOC_MAX, spumallocrec);
 
     // Set common attributes (master volume left/right, CD volume, etc.)
@@ -30,37 +34,33 @@ void SoundPlayer::init()
     SpuSetCommonAttr(&spucommonattr);
     SpuSetTransferMode(SpuTransByDMA);
 
+    transferVAGToSpu({.sampleFreq = 44100}, SPU_0CH);
+
     initReverb();
 }
 
 void SoundPlayer::initReverb()
 {
-    long mode = SPU_REV_MODE_ROOM | SPU_REV_MODE_STUDIO_A | SPU_REV_MODE_HALL;
-    long depth = 16384;
+    // long mode = SPU_REV_MODE_ROOM | SPU_REV_MODE_STUDIO_A | SPU_REV_MODE_HALL |
+    // SPU_REV_MODE_SPACE;
 
-    SpuReverbAttr r_attr;
+    // if (SpuReserveReverbWorkArea(1) == 1) {
+    reverbMode = SPU_REV_MODE_OFF;
 
-    if (SpuReserveReverbWorkArea(1) == 1) {
-        auto rev_mode = SPU_REV_MODE_OFF;
+    r_attr.mask = (SPU_REV_MODE | SPU_REV_DEPTHL | SPU_REV_DEPTHR);
+    r_attr.mode = (SPU_REV_MODE_CLEAR_WA | reverbMode);
+    r_attr.depth.left = 0x3fff;
+    r_attr.depth.right = 0x3fff;
 
-        r_attr.mask = (SPU_REV_MODE | SPU_REV_DEPTHL | SPU_REV_DEPTHR);
-        r_attr.mode = (SPU_REV_MODE_CLEAR_WA | rev_mode);
-        r_attr.depth.left = 0x1fff;
-        r_attr.depth.right = 0x1fff;
+    SpuSetReverbModeParam(&r_attr);
+    SpuSetReverbDepth(&r_attr);
+    SpuSetReverbVoice(SpuOn, SPU_0CH);
 
-        SpuSetReverbModeParam(&r_attr);
-        SpuSetReverbDepth(&r_attr);
-        SpuSetReverbVoice(SpuOn, SPU_0CH);
+    SpuSetReverb(SpuOn);
 
-        SpuSetReverb(SpuOn);
-
-        r_attr.mode = (SPU_REV_MODE_CLEAR_WA | SPU_REV_MODE_HALL);
-        SpuSetReverbModeParam(&r_attr);
-        SpuSetReverbDepth(&r_attr);
-
-    } else {
+    /* } else {
         printf("FAIL?\n");
-    }
+    } */
 }
 
 void Sound::load(eastl::string_view filename)
@@ -87,14 +87,23 @@ void Sound::load(eastl::string_view filename)
 
 void SoundPlayer::transferVAGToSpu(const Sound& sound, int voicechannel)
 {
+#define PIANO
+
+#ifdef PIANO
+    vagspuaddr = SpuMalloc(PF_DATA_SIZE);
+    SpuSetTransferStartAddr(vagspuaddr);
+    SpuWrite((unsigned char*)pf_wave, PF_DATA_SIZE);
+#else
     vagspuaddr = SpuMalloc(sound.bytes.size());
 
     SpuSetTransferStartAddr(vagspuaddr);
     SpuWrite((unsigned char*)(sound.bytes.data() + 48), sound.bytes.size() - 48);
+#endif
+
     SpuIsTransferCompleted(SPU_TRANSFER_WAIT);
 
     /* clang-format off */
-    spuvoiceattr.mask = (
+    spuVoiceAttr.mask = (
         SPU_VOICE_VOLL |
         SPU_VOICE_VOLR |
         SPU_VOICE_PITCH |
@@ -110,28 +119,37 @@ void SoundPlayer::transferVAGToSpu(const Sound& sound, int voicechannel)
     );
     /* clang-format on */
 
-    spuvoiceattr.voice = voicechannel;
+    spuVoiceAttr.voice = voicechannel;
 
-    spuvoiceattr.volume.left = 0x3FFF; // Left volume
-    spuvoiceattr.volume.right = 0x3FFF; // Right volume
+    spuVoiceAttr.volume.left = 0x1FFF; // Left volume
+    spuVoiceAttr.volume.right = 0x1FFF; // Right volume
 
-    spuvoiceattr.pitch = (sound.sampleFreq << 12) / 44100; // Pitch
-    spuvoiceattr.addr = vagspuaddr; // Waveform data start address
+    spuVoiceAttr.pitch = (sound.sampleFreq << 12) / 44100; // Pitch
+    spuVoiceAttr.addr = vagspuaddr; // Waveform data start address
 
-    spuvoiceattr.a_mode = SPU_VOICE_LINEARIncN; // Attack curve
-    spuvoiceattr.s_mode = SPU_VOICE_LINEARIncN; // Sustain curve
-    spuvoiceattr.r_mode = SPU_VOICE_LINEARIncN; // Release curve
+    spuVoiceAttr.a_mode = SPU_VOICE_LINEARIncN; // Attack curve
+    spuVoiceAttr.s_mode = SPU_VOICE_LINEARIncN; // Sustain curve
+    spuVoiceAttr.r_mode = SPU_VOICE_LINEARIncN; // Release curve
 
-    spuvoiceattr.ar = 0x00; // Attack rate
-    spuvoiceattr.dr = 0x00; // Decay rate
-    spuvoiceattr.sr = 0x00; // Sustain rate
-    spuvoiceattr.rr = 0x00; // Release rate
-    spuvoiceattr.sl = 0x00; // Sustain level
+    spuVoiceAttr.ar = 0x00; // Attack rate
+    spuVoiceAttr.dr = 0x00; // Decay rate
+    spuVoiceAttr.sr = 0x00; // Sustain rate
+    spuVoiceAttr.rr = 0x00; // Release rate
+    spuVoiceAttr.sl = 0x00; // Sustain level
 
-    SpuSetVoiceAttr(&spuvoiceattr);
+    // these attrs are from "reverb" sample
+    spuVoiceAttr.r_mode = SPU_VOICE_LINEARDecN; // Release curve
+    spuVoiceAttr.sl = 0xf; // Sustain level
+
+    SpuSetVoiceAttr(&spuVoiceAttr);
 }
 
 void SoundPlayer::playAudio(int voicechannel)
 {
     SpuSetKey(SpuOn, voicechannel);
+
+    reverbMode = SPU_REV_MODE_HALL;
+    r_attr.mode = (SPU_REV_MODE_CLEAR_WA | reverbMode);
+    SpuSetReverbModeParam(&r_attr);
+    SpuSetReverbDepth(&r_attr);
 }

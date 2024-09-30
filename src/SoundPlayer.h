@@ -21,7 +21,9 @@ struct Sound {
 
 struct SoundPlayer {
     SpuCommonAttr spucommonattr;
-    SpuVoiceAttr spuvoiceattr;
+    SpuVoiceAttr spuVoiceAttr;
+    SpuReverbAttr r_attr;
+    int reverbMode;
     char spumallocrec[SPU_MALLOC_RECSIZ * (SOUND_MALLOC_MAX + 1)];
     u_long vagspuaddr;
     CdlLOC loc[100];

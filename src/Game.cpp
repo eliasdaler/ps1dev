@@ -67,9 +67,9 @@ void Game::init()
     printf("Load models...\n");
 
     Sound sound;
-    sound.load("\\STEP1.VAG;1");
-    soundPlayer.transferVAGToSpu(sound, SPU_0CH);
-    soundPlayer.playAudio(SPU_0CH);
+    // sound.load("\\STEP1.VAG;1");
+    // soundPlayer.transferVAGToSpu(sound, SPU_0CH);
+    // soundPlayer.playAudio(SPU_0CH);
 
     rollModel.load("\\ROLL.FM;1");
     levelModel.load("\\LEVEL.BIN;1");
@@ -153,7 +153,7 @@ void Game::handleInput()
 void Game::update()
 {
     numTicks++;
-    if (numTicks % 40 == 0) {
+    if (numTicks % 100 == 0) {
         soundPlayer.playAudio(SPU_0CH);
     }
 }

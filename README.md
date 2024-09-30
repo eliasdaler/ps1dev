@@ -57,3 +57,9 @@ Run game and debug in gdb (you will need to add repo's path to your GDB's `safe-
 ```sh
 ./debug.sh
 ```
+
+Example of encoding audio:
+
+```sh
+./psxavenc -t vag -f 44100 ~/work/ps1dev/assets/raw/sounds/door_open.wav ~/work/ps1dev/assets/door_open.vag
+```
