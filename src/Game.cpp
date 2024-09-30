@@ -42,7 +42,6 @@ void Game::init()
 {
     util::clearAllGTERegisters();
 
-    soundPlayer.init();
     PadInit(0);
 
     renderer.init();
@@ -57,6 +56,7 @@ void Game::init()
     camera.rotation.vy = ONE * -236; */
 
     CdInit();
+    soundPlayer.init();
 
     const auto textureData2 = util::readFile("\\BRICKS.TIM;1");
     bricksTextureIdx = addTexture(loadTexture(textureData2));
@@ -67,8 +67,8 @@ void Game::init()
     printf("Load models...\n");
 
     Sound sound;
-    // sound.load("\\STEP1.VAG;1");
-    // soundPlayer.transferVAGToSpu(sound, SPU_0CH);
+    sound.load("\\STEP1.VAG;1");
+    soundPlayer.transferVAGToSpu(sound, SPU_0CH);
     // soundPlayer.playAudio(SPU_0CH);
 
     rollModel.load("\\ROLL.FM;1");

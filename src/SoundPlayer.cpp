@@ -6,11 +6,6 @@
 
 #include <bit>
 
-#define PF_DATA_SIZE 18704
-unsigned char pf_wave[] = {
-#include "PF_WAVE.H"
-};
-
 void SoundPlayer::init()
 {
     SpuInit();
@@ -33,8 +28,6 @@ void SoundPlayer::init()
 
     SpuSetCommonAttr(&spucommonattr);
     SpuSetTransferMode(SpuTransByDMA);
-
-    transferVAGToSpu({.sampleFreq = 44100}, SPU_0CH);
 
     initReverb();
 }
@@ -87,18 +80,10 @@ void Sound::load(eastl::string_view filename)
 
 void SoundPlayer::transferVAGToSpu(const Sound& sound, int voicechannel)
 {
-#define PIANO
-
-#ifdef PIANO
-    vagspuaddr = SpuMalloc(PF_DATA_SIZE);
-    SpuSetTransferStartAddr(vagspuaddr);
-    SpuWrite((unsigned char*)pf_wave, PF_DATA_SIZE);
-#else
     vagspuaddr = SpuMalloc(sound.bytes.size());
 
     SpuSetTransferStartAddr(vagspuaddr);
     SpuWrite((unsigned char*)(sound.bytes.data() + 48), sound.bytes.size() - 48);
-#endif
 
     SpuIsTransferCompleted(SPU_TRANSFER_WAIT);
 
@@ -121,8 +106,8 @@ void SoundPlayer::transferVAGToSpu(const Sound& sound, int voicechannel)
 
     spuVoiceAttr.voice = voicechannel;
 
-    spuVoiceAttr.volume.left = 0x1FFF; // Left volume
-    spuVoiceAttr.volume.right = 0x1FFF; // Right volume
+    spuVoiceAttr.volume.left = 0x3FFF; // Left volume
+    spuVoiceAttr.volume.right = 0x3FFF; // Right volume
 
     spuVoiceAttr.pitch = (sound.sampleFreq << 12) / 44100; // Pitch
     spuVoiceAttr.addr = vagspuaddr; // Waveform data start address
@@ -138,18 +123,17 @@ void SoundPlayer::transferVAGToSpu(const Sound& sound, int voicechannel)
     spuVoiceAttr.sl = 0x00; // Sustain level
 
     // these attrs are from "reverb" sample
-    spuVoiceAttr.r_mode = SPU_VOICE_LINEARDecN; // Release curve
-    spuVoiceAttr.sl = 0xf; // Sustain level
+    // spuVoiceAttr.r_mode = SPU_VOICE_LINEARDecN; // Release curve
 
     SpuSetVoiceAttr(&spuVoiceAttr);
 }
 
 void SoundPlayer::playAudio(int voicechannel)
 {
-    SpuSetKey(SpuOn, voicechannel);
-
     reverbMode = SPU_REV_MODE_HALL;
     r_attr.mode = (SPU_REV_MODE_CLEAR_WA | reverbMode);
     SpuSetReverbModeParam(&r_attr);
     SpuSetReverbDepth(&r_attr);
+
+    SpuSetKey(SpuOn, voicechannel);
 }

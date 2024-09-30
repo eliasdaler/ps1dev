@@ -15,6 +15,7 @@ tui new-layout horizontal-asm {-horizontal src 1 asm 1} 2 status 0 cmd 1
 layout horizontal-asm
 
 # b Game.cpp:621
-b Renderer.cpp:363
+# b Renderer.cpp:363
+b SoundPlayer.cpp:59
 # b drawModelFast
 c
