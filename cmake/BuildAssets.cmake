@@ -12,6 +12,7 @@ find_program (
 add_custom_target(tims
   WORKING_DIRECTORY "${ASSETS_DIR}"
   COMMENT "Building tims"
+  DEPENDS "${ASSETS_DIR}/tims.json"
   COMMAND ${TIMTOOL_EXECUTABLE} "${ASSETS_DIR}/tims.json"
 )
 

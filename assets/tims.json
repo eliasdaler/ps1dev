@@ -1,6 +1,6 @@
 [
   {
-    "input": "raw/bricks.png",
+    "input": "raw/atlas.png",
     "output": "bricks.tim",
     "clut": [0, 480],
     "pix": [320, 0]

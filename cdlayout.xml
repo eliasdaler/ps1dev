@@ -22,9 +22,10 @@
                 <file name="ROLL.FM" type="data" source="assets/roll.fm"/>
                 <file name="ROLL.TIM" type="data" source="assets/roll.tim"/>
                 <file name="BRICKS.TIM" type="data" source="assets/bricks.tim"/>
-                <file name="LEVEL.BIN" type="data" source="assets/level.bin"/>
+                <file name="LEVEL.BIN" type="data" source="assets/house_psx.bin"/>
                 <file name="FTEX.TIM" type="data" source="assets/ftex.tim"/>
                 <file name="PS1.TIM" type="data" source="assets/ps1.tim"/>
+                <file name="STEP1.VAG" type="data" source="assets/step1.vag"/>
                 <dummy sectors="1024"/>
             </directory_tree>
         </track>

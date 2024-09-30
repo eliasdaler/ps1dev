@@ -16,11 +16,11 @@ struct Renderer {
     DISPENV dispEnv[2];
     DRAWENV drawEnv[2];
 
-    static constexpr int OTLEN = 1 << 11;
+    static constexpr int OTLEN = 1 << 13;
     u_long ots[2][OTLEN];
     u_long* ot{nullptr}; // current frame OT
 
-    static constexpr int PRIMBUFFLEN = 32768 * 4;
+    static constexpr int PRIMBUFFLEN = 32768 * 8;
     std::byte primbuff[2][PRIMBUFFLEN];
     std::byte* nextpri{nullptr}; // pointer to primbuff
     short currBuffer{0};

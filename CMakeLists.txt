@@ -14,7 +14,7 @@ set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS ON) # nugget uses "asm" GCC extension
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -37,6 +37,7 @@ add_executable(game
   src/Model.cpp
   src/FastModel.cpp
   src/Renderer.cpp
+  src/SoundPlayer.cpp
   src/Game.cpp
   src/main.cpp
 )
@@ -106,6 +107,7 @@ set(ASSETS_DIR_RAW "${PROJECT_SOURCE_DIR}/assets/raw")
 
 set(models
   "${ASSETS_DIR}/raw/level.blend"
+  "${ASSETS_DIR}/raw/house_psx.blend"
 )
 
 set(fast_models

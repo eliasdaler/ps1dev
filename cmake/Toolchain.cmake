@@ -123,6 +123,8 @@ set(common_compiler_flags
   # TODO: maybe make it optional or config dependent?
   -g
   -Os
+  # link to libgcc (useful for some builtins)
+  -static-libgcc
 )
 
 # CMake makes "${LIST}" expand to "elem1;elem2;elem3", but we want "elem1 elem2 elem3"

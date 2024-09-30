@@ -15,8 +15,8 @@
 
 namespace
 {
-inline constexpr int LEVEL_1_SUBDIV_DIST = 700;
-inline constexpr int LEVEL_2_SUBDIV_DIST = 300;
+inline constexpr int LEVEL_1_SUBDIV_DIST = 400;
+inline constexpr int LEVEL_2_SUBDIV_DIST = 0;
 }
 
 #define INTERP_COLOR_GTE(prim, i)     \
@@ -25,13 +25,15 @@ inline constexpr int LEVEL_2_SUBDIV_DIST = 300;
 
 void Renderer::init()
 {
+    ResetGraph(0);
     InitGeom();
     SetGeomOffset(SCREENXRES / 2, SCREENYRES / 2);
     SetGeomScreen(420); // fov
+    SetGeomScreen(300); // fov
 
     SetBackColor(0, 0, 0);
     SetFarColor(0, 0, 0);
-    SetFogNearFar(500, 12800, SCREENXRES / 2);
+    SetFogNearFar(500, 200800, SCREENXRES / 2);
 
     SetDefDispEnv(&dispEnv[0], 0, 0, SCREENXRES, SCREENYRES);
     SetDefDrawEnv(&drawEnv[0], 0, SCREENYRES, SCREENXRES, SCREENYRES);
@@ -112,8 +114,14 @@ void Renderer::drawModel(Object& object, const Model& model, TIM_IMAGE& texture,
     gte_SetRotMatrix(&viewmat);
     gte_SetTransMatrix(&viewmat);
 
+    auto numModels = 0;
     for (const auto& mesh : model.meshes) {
-        drawMesh(object, mesh, texture, subdivide);
+        if (numModels == 27) {
+            drawMesh(object, mesh, texture, true);
+        } else {
+            drawMesh(object, mesh, texture, subdivide);
+        }
+        ++numModels;
     }
 }
 

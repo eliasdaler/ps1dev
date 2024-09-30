@@ -42,12 +42,12 @@ void Game::init()
 {
     util::clearAllGTERegisters();
 
+    soundPlayer.init();
     PadInit(0);
-    ResetGraph(0);
 
     renderer.init();
 
-    setVector(&renderer.camera.position, 0, -ONE * 307, -ONE * 2500);
+    setVector(&renderer.camera.position, 0, -ONE * 107, -ONE * 2500);
 
     // testing
     /* camera.position.vx = ONE * -379;
@@ -65,6 +65,11 @@ void Game::init()
     rollTextureIdx = addTexture(loadTexture(textureData3));
 
     printf("Load models...\n");
+
+    Sound sound;
+    sound.load("\\STEP1.VAG;1");
+    soundPlayer.transferVAGToSpu(sound, SPU_0CH);
+    soundPlayer.playAudio(SPU_0CH);
 
     rollModel.load("\\ROLL.FM;1");
     levelModel.load("\\LEVEL.BIN;1");
@@ -104,22 +109,26 @@ void Game::handleInput()
 
     const auto PadStatus = PadRead(0);
 
+    auto fac = 2;
+    auto strafeSpeed = 4;
+    auto walkSpeed = 5;
+
     // rotating the camera around Y
     if (PadStatus & PADLleft) {
-        camera.rotation.vy += ONE * 25;
+        camera.rotation.vy += ONE * 25 * fac;
     }
     if (PadStatus & PADLright) {
-        camera.rotation.vy -= ONE * 25;
+        camera.rotation.vy -= ONE * 25 * fac;
     }
 
     // strafing
     if (PadStatus & PADL1) {
-        camera.position.vx -= math::icos(camera.trot.vy) << 4;
-        camera.position.vz -= math::isin(camera.trot.vy) << 4;
+        camera.position.vx -= math::icos(camera.trot.vy) << strafeSpeed;
+        camera.position.vz -= math::isin(camera.trot.vy) << strafeSpeed;
     }
     if (PadStatus & PADR1) {
-        camera.position.vx += math::icos(camera.trot.vy) << 4;
-        camera.position.vz += math::isin(camera.trot.vy) << 4;
+        camera.position.vx += math::icos(camera.trot.vy) << strafeSpeed;
+        camera.position.vz += math::isin(camera.trot.vy) << strafeSpeed;
     }
 
     // looking up/down
@@ -132,17 +141,22 @@ void Game::handleInput()
 
     // Moving forwards/backwards
     if (PadStatus & PADLup) {
-        camera.position.vx -= math::isin(camera.trot.vy) << 5;
-        camera.position.vz += math::icos(camera.trot.vy) << 5;
+        camera.position.vx -= math::isin(camera.trot.vy) << walkSpeed;
+        camera.position.vz += math::icos(camera.trot.vy) << walkSpeed;
     }
     if (PadStatus & PADLdown) {
-        camera.position.vx += math::isin(camera.trot.vy) << 5;
-        camera.position.vz -= math::icos(camera.trot.vy) << 5;
+        camera.position.vx += math::isin(camera.trot.vy) << walkSpeed;
+        camera.position.vz -= math::icos(camera.trot.vy) << walkSpeed;
     }
 }
 
 void Game::update()
-{}
+{
+    numTicks++;
+    if (numTicks % 40 == 0) {
+        soundPlayer.playAudio(SPU_0CH);
+    }
+}
 
 std::uint16_t Game::addTexture(TIM_IMAGE texture)
 {
@@ -156,11 +170,11 @@ void Game::draw()
     renderer.beginDraw();
 
     auto& bricksTexture = textures[bricksTextureIdx];
-    renderer.drawModel(level, *level.model, bricksTexture, true);
+    renderer.drawModel(level, *level.model, bricksTexture, false);
 
-    for (auto& roll : rolls) {
+    /* for (auto& roll : rolls) {
         renderer.drawModelFast(roll, roll.model);
-    }
+    } */
 
     FntPrint(
         "X=%d Y=%d Z=%d\n",

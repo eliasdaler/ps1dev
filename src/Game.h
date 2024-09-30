@@ -15,6 +15,7 @@
 #include "Model.h"
 #include "Object.h"
 #include "Renderer.h"
+#include "SoundPlayer.h"
 
 struct TexRegion {
     int u0, v0; // top left
@@ -39,7 +40,7 @@ private:
     FastModel rollModel;
     Model levelModel;
 
-    static constexpr int numRolls{5};
+    static constexpr int numRolls{1};
     FastModelObject rolls[numRolls];
 
     ModelObject level;
@@ -49,4 +50,7 @@ private:
     std::uint16_t rollTextureIdx;
 
     Renderer renderer;
+    SoundPlayer soundPlayer;
+
+    int numTicks;
 };

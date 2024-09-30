@@ -35,6 +35,7 @@ struct FileReader {
     std::int16_t GetInt16() { return GetObj<std::int16_t>(); }
     std::uint16_t GetUInt16() { return GetObj<std::uint16_t>(); }
     std::int32_t GetInt32() { return GetObj<std::int32_t>(); }
+    std::uint16_t GetUInt32() { return GetObj<std::uint32_t>(); }
 
     template<typename T>
     T GetObj()
@@ -63,6 +64,8 @@ struct FileReader {
         memcpy((void*)dest, &bytes[cursor], size);
         cursor += size;
     }
+
+    void SkipBytes(std::size_t numBytes) { cursor += numBytes; }
 };
 
 };
