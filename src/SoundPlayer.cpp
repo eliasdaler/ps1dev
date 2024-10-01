@@ -75,7 +75,6 @@ void Sound::load(eastl::string_view filename)
     fr.SkipBytes(18);
 #endif
     sampleFreq = std::byteswap(fr.GetUInt16());
-    printf("%d is not a VAG file\n", sampleFreq);
 }
 
 void SoundPlayer::transferVAGToSpu(const Sound& sound, int voicechannel)

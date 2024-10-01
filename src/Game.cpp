@@ -153,7 +153,7 @@ void Game::handleInput()
 void Game::update()
 {
     numTicks++;
-    if (numTicks % 100 == 0) {
+    if (numTicks % 50 == 0) {
         soundPlayer.playAudio(SPU_0CH);
     }
 }
@@ -170,7 +170,7 @@ void Game::draw()
     renderer.beginDraw();
 
     auto& bricksTexture = textures[bricksTextureIdx];
-    renderer.drawModel(level, *level.model, bricksTexture, false);
+    renderer.drawModel(level, *level.model, bricksTexture);
 
     /* for (auto& roll : rolls) {
         renderer.drawModelFast(roll, roll.model);

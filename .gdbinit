@@ -16,6 +16,5 @@ layout horizontal-asm
 
 # b Game.cpp:621
 # b Renderer.cpp:363
-b SoundPlayer.cpp:59
-# b drawModelFast
+b Model.cpp:29
 c

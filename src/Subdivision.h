@@ -89,52 +89,59 @@ static_assert(sizeof(SubdivData2) < 1024);
 
 #define INTERP_COLOR_GTE_DIV(wrk, i)           \
     gte_DpqColor(&wrk.col[i], p, &wrk.intCol); \
-    setRGB##i(polygt4, wrk.intCol.r, wrk.intCol.g, wrk.intCol.b);
+    setRGB##i(polyg4, wrk.intCol.r, wrk.intCol.g, wrk.intCol.b);
 
 // Draw 2x2 quads
-#define DRAW_QUAD(wrk)                                        \
-    polygt4 = (POLY_GT4*)nextpri;                             \
-    setPolyGT4(polygt4);                                      \
-    polygt4->tpage = tpage;                                   \
-    polygt4->clut = clut;                                     \
-                                                              \
-    setUV4(                                                   \
-        polygt4,                                              \
-        wrk.uv[0].r,                                          \
-        wrk.uv[0].g,                                          \
-        wrk.uv[1].r,                                          \
-        wrk.uv[1].g,                                          \
-        wrk.uv[2].r,                                          \
-        wrk.uv[2].g,                                          \
-        wrk.uv[3].r,                                          \
-        wrk.uv[3].g);                                         \
-                                                              \
-    gte_ldv0(&wrk.v[0]);                                      \
-    gte_ldv1(&wrk.v[1]);                                      \
-    gte_ldv2(&wrk.v[2]);                                      \
-                                                              \
-    gte_rtpt();                                               \
-                                                              \
-    gte_stsxy0(&polygt4->x0);                                 \
-                                                              \
-    gte_ldv0(&wrk.v[3]);                                      \
-    gte_rtps();                                               \
-                                                              \
-    gte_avsz4();                                              \
-    gte_stotz(&otz);                                          \
-    /* unfortunately, this introduces some branching */       \
-    /* maybe we can avoid it somehow? */                      \
-    if (otz > 0 && otz < OTLEN) {                             \
-        gte_stsxy3(&polygt4->x1, &polygt4->x2, &polygt4->x3); \
-        gte_stdp(&p);                                         \
-                                                              \
-        INTERP_COLOR_GTE_DIV(wrk, 0);                         \
-        INTERP_COLOR_GTE_DIV(wrk, 1);                         \
-        INTERP_COLOR_GTE_DIV(wrk, 2);                         \
-        INTERP_COLOR_GTE_DIV(wrk, 3);                         \
-                                                              \
-        addPrim(&ot[otz], polygt4);                           \
-        nextpri += sizeof(POLY_GT4);                          \
+#define DRAW_QUAD(wrk)                                      \
+    polyg4 = (PrimType*)nextpri;                            \
+    if constexpr (eastl::is_same_v<PrimType, POLY_GT4>) {   \
+        setPolyGT4(polyg4);                                 \
+    } else {                                                \
+        static_assert(eastl::is_same_v<PrimType, POLY_G4>); \
+        setPolyG4(polyg4);                                  \
+    }                                                       \
+    if constexpr (eastl::is_same_v<PrimType, POLY_GT4>) {   \
+        polyg4->tpage = tpage;                              \
+        polyg4->clut = clut;                                \
+                                                            \
+        setUV4(                                             \
+            polyg4,                                         \
+            wrk.uv[0].r,                                    \
+            wrk.uv[0].g,                                    \
+            wrk.uv[1].r,                                    \
+            wrk.uv[1].g,                                    \
+            wrk.uv[2].r,                                    \
+            wrk.uv[2].g,                                    \
+            wrk.uv[3].r,                                    \
+            wrk.uv[3].g);                                   \
+    }                                                       \
+                                                            \
+    gte_ldv0(&wrk.v[0]);                                    \
+    gte_ldv1(&wrk.v[1]);                                    \
+    gte_ldv2(&wrk.v[2]);                                    \
+                                                            \
+    gte_rtpt();                                             \
+                                                            \
+    gte_stsxy0(&polyg4->x0);                                \
+                                                            \
+    gte_ldv0(&wrk.v[3]);                                    \
+    gte_rtps();                                             \
+                                                            \
+    gte_avsz4();                                            \
+    gte_stotz(&otz);                                        \
+    /* unfortunately, this introduces some branching */     \
+    /* maybe we can avoid it somehow? */                    \
+    if (otz > 0 && otz < OTLEN) {                           \
+        gte_stsxy3(&polyg4->x1, &polyg4->x2, &polyg4->x3);  \
+        gte_stdp(&p);                                       \
+                                                            \
+        INTERP_COLOR_GTE_DIV(wrk, 0);                       \
+        INTERP_COLOR_GTE_DIV(wrk, 1);                       \
+        INTERP_COLOR_GTE_DIV(wrk, 2);                       \
+        INTERP_COLOR_GTE_DIV(wrk, 3);                       \
+                                                            \
+        addPrim(&ot[otz], polyg4);                          \
+        nextpri += sizeof(PrimType);                        \
     }
 
 // Draws 4 quads (out of 4) for 4x4 subdiv

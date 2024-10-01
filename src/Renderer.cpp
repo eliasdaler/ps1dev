@@ -15,7 +15,7 @@
 
 namespace
 {
-inline constexpr int LEVEL_1_SUBDIV_DIST = 400;
+inline constexpr int LEVEL_1_SUBDIV_DIST = 300;
 inline constexpr int LEVEL_2_SUBDIV_DIST = 0;
 }
 
@@ -33,7 +33,7 @@ void Renderer::init()
 
     SetBackColor(0, 0, 0);
     SetFarColor(0, 0, 0);
-    SetFogNearFar(500, 200800, SCREENXRES / 2);
+    SetFogNearFar(1250, 20800, SCREENXRES / 2);
 
     SetDefDispEnv(&dispEnv[0], 0, 0, SCREENXRES, SCREENYRES);
     SetDefDrawEnv(&drawEnv[0], 0, SCREENYRES, SCREENXRES, SCREENYRES);
@@ -103,7 +103,7 @@ void Renderer::display()
     currBuffer = !currBuffer;
 }
 
-void Renderer::drawModel(Object& object, const Model& model, TIM_IMAGE& texture, bool subdivide)
+void Renderer::drawModel(Object& object, const Model& model, TIM_IMAGE& texture)
 {
     RotMatrix(&object.rotation, &worldmat);
     TransMatrix(&worldmat, &object.position);
@@ -114,14 +114,8 @@ void Renderer::drawModel(Object& object, const Model& model, TIM_IMAGE& texture,
     gte_SetRotMatrix(&viewmat);
     gte_SetTransMatrix(&viewmat);
 
-    auto numModels = 0;
     for (const auto& mesh : model.meshes) {
-        if (numModels == 27) {
-            drawMesh(object, mesh, texture, true);
-        } else {
-            drawMesh(object, mesh, texture, subdivide);
-        }
-        ++numModels;
+        drawMesh(object, mesh, texture, mesh.subdivide);
     }
 }
 
@@ -134,178 +128,48 @@ void Renderer::drawMesh(Object& object, const Mesh& mesh, const TIM_IMAGE& textu
 
     std::size_t vertexIdx = 0;
 
-    // TODO: subdiv for triangles
-    for (std::size_t i = 0; i < mesh.numTris; ++i, vertexIdx += 3) {
-        // FIXME: should be POLY_GT3!!!
-        auto* polyft3 = (POLY_FT3*)nextpri;
-        setPolyFT3(polyft3);
-
-        const auto& v0 = mesh.vertices[vertexIdx + 0];
-        const auto& v1 = mesh.vertices[vertexIdx + 1];
-        const auto& v2 = mesh.vertices[vertexIdx + 2];
-
-        setUV3(polyft3, v0.uv.r, v0.uv.g, v1.uv.r, v1.uv.g, v2.uv.r, v2.uv.g);
-
-        polyft3->tpage = tpage;
-        polyft3->clut = clut;
-
-        gte_ldv0(&v0.pos);
-        gte_ldv1(&v1.pos);
-        gte_ldv2(&v2.pos);
-
-        gte_rtpt();
-
-        gte_nclip();
-        gte_stopz(&nclip);
-        if (nclip < 0) {
-            continue;
-        }
-
-        gte_stsxy3(&polyft3->x0, &polyft3->x1, &polyft3->x2);
-
-        gte_avsz3();
-
-        gte_stotz(&otz);
-
-        gte_stdp(&p);
-
-        CVECTOR near = {128, 128, 128, 44};
-        CVECTOR col;
-        gte_DpqColor(&near, p, &col);
-        setRGB0(polyft3, col.r, col.g, col.b);
-
-        otz -= 64; // depth bias for not overlapping with tiles
-
-        if (otz > 0 && otz < OTLEN) {
-            CVECTOR col;
-
-            addPrim(&ot[otz], polyft3);
-            nextpri += sizeof(POLY_FT3);
-        }
+    // untextured faces don't need subdiv
+    vertexIdx = drawTris<POLY_G3>(mesh, tpage, clut, mesh.numUntexturedTris, vertexIdx);
+    if (!subdivide) {
+        vertexIdx = drawQuads<POLY_G4>(mesh, tpage, clut, mesh.numUntexturedQuads, vertexIdx);
+    } else {
+        vertexIdx = drawQuadsSubdiv<POLY_G4>(mesh, tpage, clut, mesh.numUntexturedQuads, vertexIdx);
     }
+
+    // TODO: subdiv for triangles
+    vertexIdx = drawTris<POLY_GT3>(mesh, tpage, clut, mesh.numTris, vertexIdx);
 
     if (!subdivide) {
-        drawQuads(mesh, tpage, clut);
-        return;
-    }
-
-    auto& wrk1 = *(SubdivData1*)(SCRATCH_PAD + 0xC0);
-    auto& wrk2 = *reinterpret_cast<SubdivData2*>(&wrk1);
-
-    for (int i = 0; i < mesh.numQuads; ++i, vertexIdx += 4) {
-        auto* polygt4 = (POLY_GT4*)nextpri;
-        setPolyGT4(polygt4);
-
-        const auto& v0 = mesh.vertices[vertexIdx + 0];
-        const auto& v1 = mesh.vertices[vertexIdx + 1];
-        const auto& v2 = mesh.vertices[vertexIdx + 2];
-
-        gte_ldv0(&v0.pos);
-        gte_ldv1(&v1.pos);
-        gte_ldv2(&v2.pos);
-
-        gte_rtpt();
-
-        gte_nclip();
-
-        gte_stopz(&nclip);
-
-        if (nclip < 0) {
-            continue;
-        }
-
-        gte_stsxy0(&polygt4->x0);
-
-        const auto& v3 = mesh.vertices[vertexIdx + 3];
-
-        gte_ldv0(&v3.pos);
-        gte_rtps();
-
-        gte_stsxy3(&polygt4->x1, &polygt4->x2, &polygt4->x3);
-
-        if (quad_clip(
-                &screenClip,
-                (DVECTOR*)&polygt4->x0,
-                (DVECTOR*)&polygt4->x1,
-                (DVECTOR*)&polygt4->x2,
-                (DVECTOR*)&polygt4->x3)) {
-            continue;
-        }
-
-        gte_avsz4();
-        gte_stotz(&otz);
-
-        if (otz < LEVEL_1_SUBDIV_DIST) {
-            wrk1.ov[0] = v0.pos;
-            wrk1.ov[1] = v1.pos;
-            wrk1.ov[2] = v2.pos;
-            wrk1.ov[3] = v3.pos;
-
-            wrk1.ouv[0] = v0.uv;
-            wrk1.ouv[1] = v1.uv;
-            wrk1.ouv[2] = v2.uv;
-            wrk1.ouv[3] = v3.uv;
-
-            wrk1.ocol[0] = v0.col;
-            wrk1.ocol[1] = v1.col;
-            wrk1.ocol[2] = v2.col;
-            wrk1.ocol[3] = v3.col;
-        }
-
-        if (otz < LEVEL_2_SUBDIV_DIST) {
-            for (int i = 0; i < 4; ++i) {
-                wrk2.oov[i] = wrk2.ov[i];
-                wrk2.oouv[i] = wrk2.ouv[i];
-                wrk2.oocol[i] = wrk2.ocol[i];
-            }
-
-            DRAW_QUADS_44(wrk2);
-            continue;
-        }
-
-        if (otz < LEVEL_1_SUBDIV_DIST) {
-            DRAW_QUADS_22(wrk1);
-            continue;
-        }
-
-        // else: draw without subdiv
-
-        CVECTOR col;
-        gte_stdp(&p);
-        INTERP_COLOR_GTE(polygt4, 0);
-        INTERP_COLOR_GTE(polygt4, 1);
-        INTERP_COLOR_GTE(polygt4, 2);
-        INTERP_COLOR_GTE(polygt4, 3);
-
-        otz -= 64; // depth bias for not overlapping with tiles
-        if (otz > 0 && otz < OTLEN) {
-            polygt4->tpage = tpage;
-            polygt4->clut = clut;
-            setUV4(polygt4, v0.uv.r, v0.uv.g, v1.uv.r, v1.uv.g, v2.uv.r, v2.uv.g, v3.uv.r, v3.uv.g);
-
-            addPrim(&ot[otz], polygt4);
-            nextpri += sizeof(POLY_GT4);
-        }
+        vertexIdx = drawQuads<POLY_GT4>(mesh, tpage, clut, mesh.numQuads, vertexIdx);
+    } else {
+        vertexIdx = drawQuadsSubdiv<POLY_GT4>(mesh, tpage, clut, mesh.numQuads, vertexIdx);
     }
 }
 
-void Renderer::drawQuads(const Mesh& mesh, u_long tpage, int clut)
+template<typename PrimType>
+int Renderer::drawTris(const Mesh& mesh, u_long tpage, int clut, int numFaces, int vertexIdx)
 {
     long otz, nclip, p;
 
-    for (int i = 0, vertexIdx = mesh.numTris * 3; i < mesh.numQuads; ++i, vertexIdx += 4) {
-        auto* polygt4 = (POLY_GT4*)nextpri;
-        setPolyGT4(polygt4);
+    for (int i = 0; i < numFaces; ++i, vertexIdx += 3) {
+        auto* polyg3 = (PrimType*)nextpri;
+        if constexpr (eastl::is_same_v<PrimType, POLY_GT3>) {
+            setPolyGT3(polyg3);
+        } else {
+            static_assert(eastl::is_same_v<PrimType, POLY_G3>);
+            setPolyG3(polyg3);
+        }
 
         const auto& v0 = mesh.vertices[vertexIdx + 0];
         const auto& v1 = mesh.vertices[vertexIdx + 1];
         const auto& v2 = mesh.vertices[vertexIdx + 2];
-        const auto& v3 = mesh.vertices[vertexIdx + 3];
 
-        setUV4(polygt4, v0.uv.r, v0.uv.g, v1.uv.r, v1.uv.g, v2.uv.r, v2.uv.g, v3.uv.r, v3.uv.g);
+        if constexpr (eastl::is_same_v<PrimType, POLY_GT3>) {
+            setUV3(polyg3, v0.uv.r, v0.uv.g, v1.uv.r, v1.uv.g, v2.uv.r, v2.uv.g);
 
-        polygt4->tpage = tpage;
-        polygt4->clut = clut;
+            polyg3->tpage = tpage;
+            polyg3->clut = clut;
+        }
 
         gte_ldv0(&v0);
         gte_ldv1(&v1);
@@ -319,12 +183,71 @@ void Renderer::drawQuads(const Mesh& mesh, u_long tpage, int clut)
             continue;
         }
 
-        gte_stsxy0(&polygt4->x0);
+        gte_stsxy3(&polyg3->x0, &polyg3->x1, &polyg3->x2);
+
+        gte_avsz3();
+        gte_stotz(&otz);
+        otz -= 64; // depth bias for not overlapping with tiles
+        if (otz > 0 && otz < OTLEN) {
+            gte_stdp(&p);
+
+            CVECTOR col;
+            INTERP_COLOR_GTE(polyg3, 0);
+            INTERP_COLOR_GTE(polyg3, 1);
+            INTERP_COLOR_GTE(polyg3, 2);
+
+            addPrim(&ot[otz], polyg3);
+            nextpri += sizeof(PrimType);
+        }
+    }
+
+    return vertexIdx;
+}
+
+template<typename PrimType>
+int Renderer::drawQuads(const Mesh& mesh, u_long tpage, int clut, int numFaces, int vertexIdx)
+{
+    long otz, nclip, p;
+
+    for (int i = 0; i < numFaces; ++i, vertexIdx += 4) {
+        auto* polyg4 = (PrimType*)nextpri;
+        if constexpr (eastl::is_same_v<PrimType, POLY_GT4>) {
+            setPolyGT4(polyg4);
+        } else {
+            static_assert(eastl::is_same_v<PrimType, POLY_G4>);
+            setPolyG4(polyg4);
+        }
+
+        const auto& v0 = mesh.vertices[vertexIdx + 0];
+        const auto& v1 = mesh.vertices[vertexIdx + 1];
+        const auto& v2 = mesh.vertices[vertexIdx + 2];
+        const auto& v3 = mesh.vertices[vertexIdx + 3];
+
+        if constexpr (eastl::is_same_v<PrimType, POLY_GT4>) {
+            setUV4(polyg4, v0.uv.r, v0.uv.g, v1.uv.r, v1.uv.g, v2.uv.r, v2.uv.g, v3.uv.r, v3.uv.g);
+
+            polyg4->tpage = tpage;
+            polyg4->clut = clut;
+        }
+
+        gte_ldv0(&v0);
+        gte_ldv1(&v1);
+        gte_ldv2(&v2);
+
+        gte_rtpt();
+
+        gte_nclip();
+        gte_stopz(&nclip);
+        if (nclip < 0) {
+            continue;
+        }
+
+        gte_stsxy0(&polyg4->x0);
 
         gte_ldv0(&v3);
         gte_rtps();
 
-        gte_stsxy3(&polygt4->x1, &polygt4->x2, &polygt4->x3);
+        gte_stsxy3(&polyg4->x1, &polyg4->x2, &polyg4->x3);
 
         /* if (quad_clip(
                 &screenClip,
@@ -342,15 +265,17 @@ void Renderer::drawQuads(const Mesh& mesh, u_long tpage, int clut)
             gte_stdp(&p);
 
             CVECTOR col;
-            INTERP_COLOR_GTE(polygt4, 0);
-            INTERP_COLOR_GTE(polygt4, 1);
-            INTERP_COLOR_GTE(polygt4, 2);
-            INTERP_COLOR_GTE(polygt4, 3);
+            INTERP_COLOR_GTE(polyg4, 0);
+            INTERP_COLOR_GTE(polyg4, 1);
+            INTERP_COLOR_GTE(polyg4, 2);
+            INTERP_COLOR_GTE(polyg4, 3);
 
-            addPrim(&ot[otz], polygt4);
-            nextpri += sizeof(POLY_GT4);
+            addPrim(&ot[otz], polyg4);
+            nextpri += sizeof(PrimType);
         }
     }
+
+    return vertexIdx;
 }
 
 void Renderer::drawModelFast(Object& object, const FastModelInstance& fm)
@@ -447,4 +372,118 @@ void Renderer::drawModelFast(Object& object, const FastModelInstance& fm)
             addPrim(&ot[otz], polygt4);
         }
     }
+}
+
+template<typename PrimType>
+int Renderer::drawQuadsSubdiv(const Mesh& mesh, u_long tpage, int clut, int numFaces, int vertexIdx)
+{
+    long otz, p, nclip;
+
+    auto& wrk1 = *(SubdivData1*)(SCRATCH_PAD + 0xC0);
+    auto& wrk2 = *reinterpret_cast<SubdivData2*>(&wrk1);
+
+    for (int i = 0; i < numFaces; ++i, vertexIdx += 4) {
+        auto* polyg4 = (PrimType*)nextpri;
+        if constexpr (eastl::is_same_v<PrimType, POLY_GT4>) {
+            setPolyGT4(polyg4);
+        } else {
+            static_assert(eastl::is_same_v<PrimType, POLY_G4>);
+            setPolyG4(polyg4);
+        }
+
+        const auto& v0 = mesh.vertices[vertexIdx + 0];
+        const auto& v1 = mesh.vertices[vertexIdx + 1];
+        const auto& v2 = mesh.vertices[vertexIdx + 2];
+        const auto& v3 = mesh.vertices[vertexIdx + 3];
+
+        gte_ldv0(&v0.pos);
+        gte_ldv1(&v1.pos);
+        gte_ldv2(&v2.pos);
+
+        gte_rtpt();
+
+        gte_nclip();
+
+        gte_stopz(&nclip);
+
+        if (nclip < 0) {
+            continue;
+        }
+
+        gte_stsxy0(&polyg4->x0);
+
+        gte_ldv0(&v3.pos);
+        gte_rtps();
+
+        gte_stsxy3(&polyg4->x1, &polyg4->x2, &polyg4->x3);
+
+        // FIXME: pretty slow for many quads, need to call less often?
+        if (quad_clip(
+                &screenClip,
+                (DVECTOR*)&polyg4->x0,
+                (DVECTOR*)&polyg4->x1,
+                (DVECTOR*)&polyg4->x2,
+                (DVECTOR*)&polyg4->x3)) {
+            continue;
+        }
+
+        gte_avsz4();
+        gte_stotz(&otz);
+
+        if (otz < LEVEL_1_SUBDIV_DIST) {
+            wrk1.ov[0] = v0.pos;
+            wrk1.ov[1] = v1.pos;
+            wrk1.ov[2] = v2.pos;
+            wrk1.ov[3] = v3.pos;
+
+            wrk1.ouv[0] = v0.uv;
+            wrk1.ouv[1] = v1.uv;
+            wrk1.ouv[2] = v2.uv;
+            wrk1.ouv[3] = v3.uv;
+
+            wrk1.ocol[0] = v0.col;
+            wrk1.ocol[1] = v1.col;
+            wrk1.ocol[2] = v2.col;
+            wrk1.ocol[3] = v3.col;
+        }
+
+        if (otz < LEVEL_2_SUBDIV_DIST) {
+            for (int i = 0; i < 4; ++i) {
+                wrk2.oov[i] = wrk2.ov[i];
+                wrk2.oouv[i] = wrk2.ouv[i];
+                wrk2.oocol[i] = wrk2.ocol[i];
+            }
+
+            DRAW_QUADS_44(wrk2);
+            continue;
+        }
+
+        if (otz < LEVEL_1_SUBDIV_DIST) {
+            DRAW_QUADS_22(wrk1);
+            continue;
+        }
+
+        // else: draw without subdiv
+
+        CVECTOR col;
+        gte_stdp(&p);
+        INTERP_COLOR_GTE(polyg4, 0);
+        INTERP_COLOR_GTE(polyg4, 1);
+        INTERP_COLOR_GTE(polyg4, 2);
+        INTERP_COLOR_GTE(polyg4, 3);
+
+        otz -= 64; // depth bias for not overlapping with tiles
+        if (otz > 0 && otz < OTLEN) {
+            if constexpr (eastl::is_same_v<PrimType, POLY_GT4>) {
+                polyg4->tpage = tpage;
+                polyg4->clut = clut;
+                setUV4(
+                    polyg4, v0.uv.r, v0.uv.g, v1.uv.r, v1.uv.g, v2.uv.r, v2.uv.g, v3.uv.r, v3.uv.g);
+            }
+
+            addPrim(&ot[otz], polyg4);
+            nextpri += sizeof(POLY_GT4);
+        }
+    }
+    return vertexIdx;
 }

@@ -37,10 +37,18 @@ struct Renderer {
     void beginDraw();
     void display();
 
-    void drawModel(Object& object, const Model& model, TIM_IMAGE& texture, bool subdivide = false);
+    void drawModel(Object& object, const Model& model, TIM_IMAGE& texture);
     void drawModelFast(Object& object, const FastModelInstance& mesh);
 
 private:
     void drawMesh(Object& object, const Mesh& mesh, const TIM_IMAGE& texture, bool subdivide);
-    void drawQuads(const Mesh& mesh, u_long tpage, int clut);
+
+    template<typename PrimType>
+    int drawTris(const Mesh& mesh, u_long tpage, int clut, int numFaces, int vertexIdx);
+
+    template<typename PrimType>
+    int drawQuads(const Mesh& mesh, u_long tpage, int clut, int numFaces, int vertexIdx);
+
+    template<typename PrimType>
+    int drawQuadsSubdiv(const Mesh& mesh, u_long tpage, int clut, int numFaces, int vertexIdx);
 };
