@@ -37,18 +37,41 @@ struct Renderer {
     void beginDraw();
     void display();
 
-    void drawModel(Object& object, const Model& model, TIM_IMAGE& texture);
-    void drawModelFast(Object& object, const FastModelInstance& mesh);
+    void drawModel(Object& object, const Model& model, TIM_IMAGE& texture, int depthBias = 0);
+    void drawModelFast(Object& object, const FastModelInstance& mesh, int depthBias = 0);
 
 private:
-    void drawMesh(Object& object, const Mesh& mesh, const TIM_IMAGE& texture, bool subdivide);
+    void drawMesh(
+        Object& object,
+        const Mesh& mesh,
+        const TIM_IMAGE& texture,
+        bool subdivide,
+        int depthBias);
 
     template<typename PrimType>
-    int drawTris(const Mesh& mesh, u_long tpage, int clut, int numFaces, int vertexIdx);
+    int drawTris(
+        const Mesh& mesh,
+        u_long tpage,
+        int clut,
+        int numFaces,
+        int vertexIdx,
+        int depthBias);
 
     template<typename PrimType>
-    int drawQuads(const Mesh& mesh, u_long tpage, int clut, int numFaces, int vertexIdx);
+    int drawQuads(
+        const Mesh& mesh,
+        u_long tpage,
+        int clut,
+        int numFaces,
+        int vertexIdx,
+        int depthBias);
 
     template<typename PrimType>
-    int drawQuadsSubdiv(const Mesh& mesh, u_long tpage, int clut, int numFaces, int vertexIdx);
+    int drawQuadsSubdiv(
+        const Mesh& mesh,
+        u_long tpage,
+        int clut,
+        int numFaces,
+        int vertexIdx,
+        int depthBias);
 };

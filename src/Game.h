@@ -45,6 +45,13 @@ private:
 
     ModelObject level;
 
+    Model humanModel;
+    ModelObject human;
+
+    Model catoModel;
+    ModelObject cato;
+    std::uint16_t catoTextureIdx;
+
     eastl::vector<TIM_IMAGE> textures;
     std::uint16_t bricksTextureIdx;
     std::uint16_t rollTextureIdx;

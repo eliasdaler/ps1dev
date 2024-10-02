@@ -33,7 +33,7 @@ void Renderer::init()
 
     SetBackColor(0, 0, 0);
     SetFarColor(0, 0, 0);
-    SetFogNearFar(12500, 20800, SCREENXRES / 2);
+    SetFogNearFar(5000, 20800, SCREENXRES / 2);
 
     SetDefDispEnv(&dispEnv[0], 0, 0, SCREENXRES, SCREENYRES);
     SetDefDrawEnv(&drawEnv[0], 0, SCREENYRES, SCREENXRES, SCREENYRES);
@@ -103,7 +103,7 @@ void Renderer::display()
     currBuffer = !currBuffer;
 }
 
-void Renderer::drawModel(Object& object, const Model& model, TIM_IMAGE& texture)
+void Renderer::drawModel(Object& object, const Model& model, TIM_IMAGE& texture, int depthBias)
 {
     RotMatrix(&object.rotation, &worldmat);
     TransMatrix(&worldmat, &object.position);
@@ -115,11 +115,16 @@ void Renderer::drawModel(Object& object, const Model& model, TIM_IMAGE& texture)
     gte_SetTransMatrix(&viewmat);
 
     for (const auto& mesh : model.meshes) {
-        drawMesh(object, mesh, texture, mesh.subdivide);
+        drawMesh(object, mesh, texture, mesh.subdivide, depthBias);
     }
 }
 
-void Renderer::drawMesh(Object& object, const Mesh& mesh, const TIM_IMAGE& texture, bool subdivide)
+void Renderer::drawMesh(
+    Object& object,
+    const Mesh& mesh,
+    const TIM_IMAGE& texture,
+    bool subdivide,
+    int depthBias)
 {
     const auto tpage = getTPage(texture.mode & 0x3, 0, texture.prect->x, texture.prect->y);
     const auto clut = getClut(texture.crect->x, texture.crect->y);
@@ -129,25 +134,34 @@ void Renderer::drawMesh(Object& object, const Mesh& mesh, const TIM_IMAGE& textu
     std::size_t vertexIdx = 0;
 
     // untextured faces don't need subdiv
-    vertexIdx = drawTris<POLY_G3>(mesh, tpage, clut, mesh.numUntexturedTris, vertexIdx);
+    vertexIdx = drawTris<POLY_G3>(mesh, tpage, clut, mesh.numUntexturedTris, vertexIdx, depthBias);
     if (!subdivide) {
-        vertexIdx = drawQuads<POLY_G4>(mesh, tpage, clut, mesh.numUntexturedQuads, vertexIdx);
+        vertexIdx =
+            drawQuads<POLY_G4>(mesh, tpage, clut, mesh.numUntexturedQuads, vertexIdx, depthBias);
     } else {
-        vertexIdx = drawQuadsSubdiv<POLY_G4>(mesh, tpage, clut, mesh.numUntexturedQuads, vertexIdx);
+        vertexIdx = drawQuadsSubdiv<
+            POLY_G4>(mesh, tpage, clut, mesh.numUntexturedQuads, vertexIdx, depthBias);
     }
 
     // TODO: subdiv for triangles
-    vertexIdx = drawTris<POLY_GT3>(mesh, tpage, clut, mesh.numTris, vertexIdx);
+    vertexIdx = drawTris<POLY_GT3>(mesh, tpage, clut, mesh.numTris, vertexIdx, depthBias);
 
     if (!subdivide) {
-        vertexIdx = drawQuads<POLY_GT4>(mesh, tpage, clut, mesh.numQuads, vertexIdx);
+        vertexIdx = drawQuads<POLY_GT4>(mesh, tpage, clut, mesh.numQuads, vertexIdx, depthBias);
     } else {
-        vertexIdx = drawQuadsSubdiv<POLY_GT4>(mesh, tpage, clut, mesh.numQuads, vertexIdx);
+        vertexIdx =
+            drawQuadsSubdiv<POLY_GT4>(mesh, tpage, clut, mesh.numQuads, vertexIdx, depthBias);
     }
 }
 
 template<typename PrimType>
-int Renderer::drawTris(const Mesh& mesh, u_long tpage, int clut, int numFaces, int vertexIdx)
+int Renderer::drawTris(
+    const Mesh& mesh,
+    u_long tpage,
+    int clut,
+    int numFaces,
+    int vertexIdx,
+    int depthBias)
 {
     long otz, nclip, p;
 
@@ -187,7 +201,7 @@ int Renderer::drawTris(const Mesh& mesh, u_long tpage, int clut, int numFaces, i
 
         gte_avsz3();
         gte_stotz(&otz);
-        otz -= 64; // depth bias for not overlapping with tiles
+        otz -= depthBias;
         if (otz > 0 && otz < OTLEN) {
             gte_stdp(&p);
 
@@ -205,7 +219,13 @@ int Renderer::drawTris(const Mesh& mesh, u_long tpage, int clut, int numFaces, i
 }
 
 template<typename PrimType>
-int Renderer::drawQuads(const Mesh& mesh, u_long tpage, int clut, int numFaces, int vertexIdx)
+int Renderer::drawQuads(
+    const Mesh& mesh,
+    u_long tpage,
+    int clut,
+    int numFaces,
+    int vertexIdx,
+    int depthBias)
 {
     long otz, nclip, p;
 
@@ -260,7 +280,7 @@ int Renderer::drawQuads(const Mesh& mesh, u_long tpage, int clut, int numFaces, 
 
         gte_avsz4();
         gte_stotz(&otz);
-        otz -= 64; // depth bias for not overlapping with tiles
+        otz -= depthBias;
         if (otz > 0 && otz < OTLEN) {
             gte_stdp(&p);
 
@@ -278,7 +298,7 @@ int Renderer::drawQuads(const Mesh& mesh, u_long tpage, int clut, int numFaces, 
     return vertexIdx;
 }
 
-void Renderer::drawModelFast(Object& object, const FastModelInstance& fm)
+void Renderer::drawModelFast(Object& object, const FastModelInstance& fm, int depthBias)
 {
     RotMatrix(&object.rotation, &worldmat);
     TransMatrix(&worldmat, &object.position);
@@ -315,7 +335,7 @@ void Renderer::drawModelFast(Object& object, const FastModelInstance& fm)
 
         gte_avsz3();
         gte_stotz(&otz);
-        otz -= 64; // depth bias for not overlapping with tiles
+        otz -= depthBias;
         if (otz > 0 && otz < OTLEN) {
             gte_stdp(&p);
 
@@ -375,7 +395,13 @@ void Renderer::drawModelFast(Object& object, const FastModelInstance& fm)
 }
 
 template<typename PrimType>
-int Renderer::drawQuadsSubdiv(const Mesh& mesh, u_long tpage, int clut, int numFaces, int vertexIdx)
+int Renderer::drawQuadsSubdiv(
+    const Mesh& mesh,
+    u_long tpage,
+    int clut,
+    int numFaces,
+    int vertexIdx,
+    int depthBias)
 {
     long otz, p, nclip;
 
@@ -472,7 +498,7 @@ int Renderer::drawQuadsSubdiv(const Mesh& mesh, u_long tpage, int clut, int numF
         INTERP_COLOR_GTE(polyg4, 2);
         INTERP_COLOR_GTE(polyg4, 3);
 
-        otz -= 64; // depth bias
+        otz -= depthBias;
         if (otz > 0 && otz < OTLEN) {
             if constexpr (eastl::is_same_v<PrimType, POLY_GT4>) {
                 polyg4->tpage = tpage;

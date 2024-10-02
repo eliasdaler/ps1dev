@@ -108,6 +108,8 @@ set(ASSETS_DIR_RAW "${PROJECT_SOURCE_DIR}/assets/raw")
 set(models
   "${ASSETS_DIR}/raw/level.blend"
   "${ASSETS_DIR}/raw/house_psx.blend"
+  "${ASSETS_DIR}/raw/human.blend"
+  "${ASSETS_DIR}/raw/cato.blend"
 )
 
 set(fast_models

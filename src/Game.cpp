@@ -46,7 +46,7 @@ void Game::init()
 
     renderer.init();
 
-    setVector(&renderer.camera.position, 0, -ONE * 107, -ONE * 2500);
+    setVector(&renderer.camera.position, 0, -ONE * 1507, -ONE * 2500);
 
     // testing
     /* camera.position.vx = ONE * -379;
@@ -74,10 +74,25 @@ void Game::init()
     rollModel.load("\\ROLL.FM;1");
     levelModel.load("\\LEVEL.BIN;1");
 
+    humanModel.load("\\HUMAN.BIN;1");
+
     level.position = {0, 0, 0};
     level.rotation = {};
     level.scale = {ONE, ONE, ONE};
     level.model = &levelModel;
+
+    human.position = {0, ONE, 0};
+    human.rotation = {};
+    human.scale = {ONE, ONE, ONE};
+    human.model = &humanModel;
+
+    const auto textureData4 = util::readFile("\\CATO.TIM;1");
+    catoTextureIdx = addTexture(loadTexture(textureData4));
+    catoModel.load("\\CATO.BIN;1");
+    cato.position = {-512, ONE, 0};
+    cato.rotation = {};
+    cato.scale = {ONE, ONE, ONE};
+    cato.model = &catoModel;
 
     const auto& rollTexture = textures[rollTextureIdx];
     for (int i = 0; i < numRolls; ++i) {
@@ -172,16 +187,20 @@ void Game::draw()
     auto& bricksTexture = textures[bricksTextureIdx];
     renderer.drawModel(level, *level.model, bricksTexture);
 
+    auto& catoTexture = textures[catoTextureIdx];
+    renderer.drawModel(cato, *cato.model, catoTexture, 256);
+    // renderer.drawModel(human, *human.model, bricksTexture, 256);
+
     /* for (auto& roll : rolls) {
         renderer.drawModelFast(roll, roll.model);
     } */
 
-    FntPrint(
+    /* FntPrint(
         "X=%d Y=%d Z=%d\n",
         renderer.camera.position.vx >> 12,
         renderer.camera.position.vy >> 12,
         renderer.camera.position.vz >> 12);
-    FntPrint("RX=%d, RY=%d\n", renderer.camera.trot.vx, renderer.camera.trot.vy);
+    FntPrint("RX=%d, RY=%d\n", renderer.camera.trot.vx, renderer.camera.trot.vy); */
 
     FntFlush(-1);
 

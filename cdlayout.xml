@@ -23,9 +23,12 @@
                 <file name="ROLL.TIM" type="data" source="assets/roll.tim"/>
                 <file name="BRICKS.TIM" type="data" source="assets/bricks.tim"/>
                 <file name="LEVEL.BIN" type="data" source="assets/house_psx.bin"/>
+                <file name="HUMAN.BIN" type="data" source="assets/human.bin"/>
                 <file name="FTEX.TIM" type="data" source="assets/ftex.tim"/>
                 <file name="PS1.TIM" type="data" source="assets/ps1.tim"/>
                 <file name="STEP1.VAG" type="data" source="assets/step1.vag"/>
+                <file name="CATO.BIN" type="data" source="assets/cato.bin"/>
+                <file name="CATO.TIM" type="data" source="assets/cato.tim"/>
                 <dummy sectors="1024"/>
             </directory_tree>
         </track>
