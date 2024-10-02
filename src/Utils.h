@@ -8,7 +8,9 @@
 #include <EASTL/string_view.h>
 #include <EASTL/span.h>
 
+#undef ONE
 #include <psyqo/gte-registers.hh>
+#define ONE 4096
 
 namespace util
 {
