@@ -110,8 +110,8 @@ void Game::handleInput()
     const auto PadStatus = PadRead(0);
 
     auto fac = 2;
-    auto strafeSpeed = 4;
-    auto walkSpeed = 5;
+    auto strafeSpeed = 5;
+    auto walkSpeed = 6;
 
     // rotating the camera around Y
     if (PadStatus & PADLleft) {

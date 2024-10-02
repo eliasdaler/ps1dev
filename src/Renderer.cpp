@@ -15,8 +15,8 @@
 
 namespace
 {
-inline constexpr int LEVEL_1_SUBDIV_DIST = 300;
-inline constexpr int LEVEL_2_SUBDIV_DIST = 0;
+inline constexpr int LEVEL_1_SUBDIV_DIST = 700;
+inline constexpr int LEVEL_2_SUBDIV_DIST = 300;
 }
 
 #define INTERP_COLOR_GTE(prim, i)     \
@@ -33,7 +33,7 @@ void Renderer::init()
 
     SetBackColor(0, 0, 0);
     SetFarColor(0, 0, 0);
-    SetFogNearFar(1250, 20800, SCREENXRES / 2);
+    SetFogNearFar(12500, 20800, SCREENXRES / 2);
 
     SetDefDispEnv(&dispEnv[0], 0, 0, SCREENXRES, SCREENYRES);
     SetDefDrawEnv(&drawEnv[0], 0, SCREENYRES, SCREENXRES, SCREENYRES);
@@ -359,7 +359,7 @@ void Renderer::drawModelFast(Object& object, const FastModelInstance& fm)
 
         gte_avsz4();
         gte_stotz(&otz);
-        otz -= 64; // depth bias for not overlapping with tiles
+        otz -= 64; // depth bias
         if (otz > 0 && otz < OTLEN) {
             gte_stdp(&p);
 
@@ -419,11 +419,11 @@ int Renderer::drawQuadsSubdiv(const Mesh& mesh, u_long tpage, int clut, int numF
 
         // FIXME: pretty slow for many quads, need to call less often?
         if (quad_clip(
-                &screenClip,
-                (DVECTOR*)&polyg4->x0,
-                (DVECTOR*)&polyg4->x1,
-                (DVECTOR*)&polyg4->x2,
-                (DVECTOR*)&polyg4->x3)) {
+                screenClip,
+                (const DVECTOR&)polyg4->x0,
+                (const DVECTOR&)polyg4->x1,
+                (const DVECTOR&)polyg4->x2,
+                (const DVECTOR&)polyg4->x3)) {
             continue;
         }
 
@@ -472,7 +472,7 @@ int Renderer::drawQuadsSubdiv(const Mesh& mesh, u_long tpage, int clut, int numF
         INTERP_COLOR_GTE(polyg4, 2);
         INTERP_COLOR_GTE(polyg4, 3);
 
-        otz -= 64; // depth bias for not overlapping with tiles
+        otz -= 64; // depth bias
         if (otz > 0 && otz < OTLEN) {
             if constexpr (eastl::is_same_v<PrimType, POLY_GT4>) {
                 polyg4->tpage = tpage;

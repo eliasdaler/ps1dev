@@ -14,7 +14,7 @@
  * v0,v1,v2		- Triangle coordinates
  *
  */
-int tri_clip(RECT* clip, DVECTOR* v0, DVECTOR* v1, DVECTOR* v2);
+int tri_clip(const RECT& clip, const DVECTOR& v0, const DVECTOR& v1, const DVECTOR& v2);
 
 /* quad_clip
  *
@@ -24,6 +24,11 @@ int tri_clip(RECT* clip, DVECTOR* v0, DVECTOR* v1, DVECTOR* v2);
  * v0,v1,v2,v3	- Quad coordinates
  *
  */
-int quad_clip(RECT* clip, DVECTOR* v0, DVECTOR* v1, DVECTOR* v2, DVECTOR* v3);
+int quad_clip(
+    const RECT& clip,
+    const DVECTOR& v0,
+    const DVECTOR& v1,
+    const DVECTOR& v2,
+    const DVECTOR& v3);
 
 #endif // _CLIP_H
