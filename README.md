@@ -8,9 +8,7 @@ See also: [psxtools](https://github.com/eliasdaler/psxtools) (to be incorporated
 
 # Current progress
 
-(Roll model is from Mega Man Legends 2 and is used temporarily until I make my own models)
-
-![progress](media/s4.png)
+![progress](media/s5.png)
 
 # Requirements
 

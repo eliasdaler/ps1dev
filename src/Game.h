@@ -37,11 +37,7 @@ public:
 private:
     std::uint16_t addTexture(TIM_IMAGE texture);
 
-    FastModel rollModel;
     Model levelModel;
-
-    static constexpr int numRolls{1};
-    FastModelObject rolls[numRolls];
 
     ModelObject level;
 
@@ -54,7 +50,6 @@ private:
 
     eastl::vector<TIM_IMAGE> textures;
     std::uint16_t bricksTextureIdx;
-    std::uint16_t rollTextureIdx;
 
     Renderer renderer;
     SoundPlayer soundPlayer;
