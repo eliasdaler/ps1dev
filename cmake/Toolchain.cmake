@@ -114,7 +114,7 @@ set(common_compiler_flags
   -fno-strict-aliasing
   -fomit-frame-pointer
   # MIPS specific flags
-  -march=r3000          # PS1 used MIPS R3000A-compatible 32-bit RISC CPU
+  -march=mips1 # PS1 used MIPS R3000A-compatible 32-bit RISC CPU
   -mabi=32              # 32-bit
   -mfp32                # floating-point registers
   -mno-abicalls
@@ -130,7 +130,7 @@ set(common_compiler_flags
 # CMake makes "${LIST}" expand to "elem1;elem2;elem3", but we want "elem1 elem2 elem3"
 string(REPLACE ";" " " common_compiler_flags_str "${common_compiler_flags}")
 
-set(CMAKE_ASM_FLAGS_INIT "-fno-pic -mno-abicalls")
+set(CMAKE_ASM_FLAGS_INIT "-march=mips1 -mabi=32 -EL -fno-pic -mno-shared -mno-abicalls -mfp32 -mno-llsc")
 set(CMAKE_C_FLAGS_INIT "${common_compiler_flags_str}")
 set(CMAKE_CXX_FLAGS_INIT "${common_compiler_flags_str} -fno-exceptions -fno-rtti")
 set(CMAKE_EXE_LINKER_FLAGS_INIT "-static -nostdlib -Wl,--gc-sections -Wl,--oformat=elf32-tradlittlemips")

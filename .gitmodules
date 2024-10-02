@@ -1,6 +1,3 @@
 [submodule "third_party/nugget"]
 	path = third_party/nugget
 	url = https://github.com/pcsx-redux/nugget
-[submodule "third_party/psyq-iwyu"]
-	path = third_party/psyq-iwyu
-	url = https://github.com/eliasdaler/psyq_include_what_you_use

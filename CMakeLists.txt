@@ -18,8 +18,6 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(PSYQ_DIR "${CMAKE_CURRENT_LIST_DIR}/../psyq" CACHE PATH "Location of PsyQ libraries")
-
 set(PSXTOOLS_DIR "${CMAKE_CURRENT_LIST_DIR}/../psxtools" CACHE PATH "Location of psxtools")
 set(PSXTOOLS_BIN_DIR "${CMAKE_CURRENT_LIST_DIR}/../psxtools/build" CACHE PATH "Location of built psxtools")
 
@@ -28,17 +26,15 @@ add_subdirectory(third_party)
 set(PSYQO_DIR "${CMAKE_CURRENT_LIST_DIR}/third_party/nugget/psyqo")
 
 add_executable(game
-  ${PSYQO_DIR}/src/alloc.c
-
-  src/Trig.cpp
-  src/Clip.cpp
-  src/Utils.cpp
-  src/Camera.cpp
-  src/Model.cpp
-  src/FastModel.cpp
-  src/Renderer.cpp
-  src/SoundPlayer.cpp
-  src/Game.cpp
+  # src/Trig.cpp
+  # src/Clip.cpp
+  # src/Utils.cpp
+  # src/Camera.cpp
+  # src/Model.cpp
+  # src/FastModel.cpp
+  # src/Renderer.cpp
+  # src/SoundPlayer.cpp
+  # src/Game.cpp
   src/main.cpp
 )
 
@@ -53,6 +49,7 @@ target_compile_options(game PRIVATE
   -Wno-unused-label
   -Wno-missing-field-initializers
   -Wno-sign-compare # TODO: enable
+  -Wno-attributes
   # sadly GCC static analyzer is not yet very helpful
   # -fanalyzer
   # -Wno-analyzer-possible-null-dereference
@@ -76,11 +73,9 @@ target_compile_options(game PRIVATE
 #  -Wno-analyzer-allocation-size
 #)
 
-target_include_directories(game PRIVATE "${PSYQO_DIR}")
-
 target_link_libraries(game PRIVATE
   nugget::nugget
-  psyq::psyq
+  psyqo::psyqo
   EASTL::EASTL
 )
 
