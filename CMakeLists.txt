@@ -23,8 +23,6 @@ set(PSXTOOLS_BIN_DIR "${CMAKE_CURRENT_LIST_DIR}/../psxtools/build" CACHE PATH "L
 
 add_subdirectory(third_party)
 
-set(PSYQO_DIR "${CMAKE_CURRENT_LIST_DIR}/third_party/nugget/psyqo")
-
 add_executable(game
   # src/Trig.cpp
   # src/Clip.cpp
@@ -35,6 +33,7 @@ add_executable(game
   # src/Renderer.cpp
   # src/SoundPlayer.cpp
   # src/Game.cpp
+  src/TimFile.cpp
   src/main.cpp
 )
 
@@ -74,9 +73,7 @@ target_compile_options(game PRIVATE
 #)
 
 target_link_libraries(game PRIVATE
-  nugget::nugget
   psyqo::psyqo
-  EASTL::EASTL
 )
 
 find_program (

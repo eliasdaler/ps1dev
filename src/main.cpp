@@ -7,22 +7,37 @@
 #include <psyqo/gte-kernels.hh>
 #include <psyqo/soft-math.hh>
 
+#include <psyqo/cdrom-device.hh>
+#include <psyqo/iso9660-parser.hh>
+#include <psyqo-paths/cdrom-loader.hh>
+
+#include <common/syscalls/syscalls.h>
+
+#include <cstdint>
+
+#include "TimFile.h"
+
 using namespace psyqo::fixed_point_literals;
 using namespace psyqo::trig_literals;
 
 namespace
 {
 
-// A PSYQo software needs to declare one `Application` object.
-// This is the one we're going to do for our hello world.
 class Game final : public psyqo::Application {
     void prepare() override;
     void createScene() override;
+
+    void uploadTIM();
 
 public:
     psyqo::Font<> m_systemFont;
     psyqo::Font<> m_romFont;
     psyqo::Trig<> m_trig;
+
+    psyqo::CDRomDevice m_cdrom;
+    psyqo::ISO9660Parser m_isoParser = psyqo::ISO9660Parser(&m_cdrom);
+    psyqo::paths::CDRomLoader m_cdromLoader;
+    eastl::vector<uint8_t> m_buffer;
 };
 
 struct Quad {
@@ -36,8 +51,8 @@ using Short = psyqo::GTE::Short;
 class GameplayScene final : public psyqo::Scene {
     void start(StartReason reason) override
     {
-        static constexpr psyqo::GTE::Short tileSize{1.0};
-        auto raw = Short::Raw::RAW;
+        const auto raw = Short::Raw::RAW;
+
 #define SHORT(x) Short((x), raw)
 
         quad3d.verts[0] = psyqo::GTE::PackedVec3(SHORT(-256), SHORT(-512), SHORT(768));
@@ -45,8 +60,28 @@ class GameplayScene final : public psyqo::Scene {
         quad3d.verts[2] = psyqo::GTE::PackedVec3(SHORT(-256), SHORT(0), SHORT(768));
         quad3d.verts[3] = psyqo::GTE::PackedVec3(SHORT(256), SHORT(0), SHORT(768));
 
+        // set quad2d const stuff
+        auto u0 = 0;
+        auto v0 = 64;
+        auto u1 = 63;
+        auto v1 = 127;
+        quad2d.uvA.u = u0;
+        quad2d.uvA.v = v0;
+        quad2d.uvB.u = u1;
+        quad2d.uvB.v = v0;
+        quad2d.uvC.u = u0;
+        quad2d.uvC.v = v1;
+        quad2d.uvD.u = u1;
+        quad2d.uvD.v = v1;
+        quad2d.tpage.setPageX(5).setPageY(0).setDithering(true).set(
+            psyqo::Prim::TPageAttr::Tex8Bits);
+        quad2d.clutIndex = {{.x = 0, .y = 240}};
+        quad2d.setColor({.r = 127, .g = 127, .b = 127});
+
+        // fov
         psyqo::GTE::write<psyqo::GTE::Register::H, psyqo::GTE::Unsafe>(h);
 
+        // screen "center" (screenWidth / 2, screenHeight / 2)
         psyqo::GTE::write<psyqo::GTE::Register::OFX, psyqo::GTE::Unsafe>(
             psyqo::FixedPoint<16>(160.0).raw());
         psyqo::GTE::write<psyqo::GTE::Register::OFY, psyqo::GTE::Unsafe>(
@@ -55,7 +90,7 @@ class GameplayScene final : public psyqo::Scene {
 
     void frame() override;
 
-    psyqo::Prim::Quad quad2d{{.r = 255, .g = 0, .b = 255}};
+    psyqo::Prim::TexturedQuad quad2d{{.r = 255, .g = 0, .b = 255}};
     psyqo::OrderingTable<4096> ots[2];
     Quad quad3d;
 
@@ -79,20 +114,39 @@ void Game::prepare()
         .set(psyqo::GPU::ColorMode::C15BITS)
         .set(psyqo::GPU::Interlace::PROGRESSIVE);
     gpu().initialize(config);
+    m_cdrom.prepare();
 }
 
 void Game::createScene()
 {
-    // We're going to use two fonts, one from the system, and one from the kernel rom.
-    // We need to upload them to VRAM first. The system font is 256x48x4bpp, and the
-    // kernel rom font is 256x90x4bpp. We're going to upload them to the same texture
-    // page, so we need to make sure they don't overlap. The default location for the
-    // system font is {{.x = 960, .y = 464}}, and the default location for the kernel
-    // rom font is {{.x = 960, .y = 422}}, so we need to nudge the kernel rom
-    // font up a bit.
     m_systemFont.uploadSystemFont(gpu());
     m_romFont.uploadKromFont(gpu(), {{.x = 960, .y = int16_t(512 - 48 - 90)}});
     pushScene(&gameplayScene);
+
+    // load stuff from CD
+    m_cdromLoader
+        .readFile("BRICKS.TIM;1", gpu(), m_isoParser, [this](eastl::vector<uint8_t>&& buffer) {
+            m_buffer = eastl::move(buffer);
+            uploadTIM();
+        });
+}
+
+void Game::uploadTIM()
+{
+    TimFile tim = readTimFile(m_buffer);
+    psyqo::Rect region =
+        {.pos = {{.x = (std::int16_t)tim.pixDX, .y = (std::int16_t)tim.pixDY}},
+         .size = {{.w = (std::int16_t)tim.pixW, .h = (std::int16_t)tim.pixH}}};
+    gpu().uploadToVRAM((uint16_t*)tim.pixelsIdx.data(), region);
+
+    // upload CLUT(s)
+    // FIXME: support multiple cluts
+    region =
+        {.pos = {{.x = (std::int16_t)tim.clutDX, .y = (std::int16_t)tim.clutDY}},
+         .size = {{.w = (std::int16_t)tim.clutW, .h = (std::int16_t)tim.clutH}}};
+    gpu().uploadToVRAM((uint16_t*)tim.cluts[0].colors.data(), region);
+
+    ramsyscall_printf("TIM loaded! Num bytes: %d\n", m_buffer.size());
 }
 
 void GameplayScene::frame()
@@ -128,6 +182,7 @@ void GameplayScene::frame()
     const auto parity = gpu().getParity();
     auto& ot = ots[parity];
 
+    // draw quad
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(quad3d.verts[0]);
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(quad3d.verts[1]);
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(quad3d.verts[2]);

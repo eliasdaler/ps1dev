@@ -5,8 +5,8 @@ add_library(nugget OBJECT
   "${NUGGET_PATH}/common/crt0/cxxglue.c"
   "${NUGGET_PATH}/common/crt0/memory-c.c"
   "${NUGGET_PATH}/common/crt0/memory-s.s"
-  "${NUGGET_PATH}/common/syscalls/printf.s"
   "${NUGGET_PATH}/common/hardware/flushcache.s"
+  "${NUGGET_PATH}/common/syscalls/printf.s"
 )
 
 target_include_directories(nugget PRIVATE
@@ -25,8 +25,6 @@ target_link_options(nugget INTERFACE
 
 add_library(nugget::nugget ALIAS nugget)
 
-add_library(psyq INTERFACE)
-
 # EASTL comes with nugget
 add_library(EASTL STATIC
   "${NUGGET_PATH}/third_party/EASTL/source/fixed_pool.cpp"
@@ -41,6 +39,10 @@ add_library(EASTL::EASTL ALIAS EASTL)
 
 set(PSYQO_DIR "${CMAKE_CURRENT_LIST_DIR}/nugget/psyqo")
 add_library(psyqo STATIC
+  ${PSYQO_DIR}/src/hardware/cdrom.cpp
+  ${PSYQO_DIR}/src/hardware/cpu.cpp
+  ${PSYQO_DIR}/src/hardware/gpu.cpp
+  ${PSYQO_DIR}/src/hardware/sbus.cpp
   ${PSYQO_DIR}/src/alloc.c
   ${PSYQO_DIR}/src/xprintf.c
   ${PSYQO_DIR}/src/adler32.cpp
@@ -67,25 +69,37 @@ add_library(psyqo STATIC
   ${PSYQO_DIR}/src/task.cpp
   ${PSYQO_DIR}/src/trigonometry.cpp
   ${PSYQO_DIR}/src/vector.s
-  ${PSYQO_DIR}/src/hardware/cdrom.cpp
-  ${PSYQO_DIR}/src/hardware/cpu.cpp
-  ${PSYQO_DIR}/src/hardware/gpu.cpp
-  ${PSYQO_DIR}/src/hardware/sbus.cpp
+)
+
+add_library(psyqo_paths STATIC
+  ${PSYQO_DIR}/../psyqo-paths/src/cdrom-loader.cpp
+)
+
+add_library(psyqo::paths ALIAS psyqo_paths)
+
+target_include_directories(psyqo_paths PUBLIC
+  ${PSYQO_DIR}/../psyqo_paths
+)
+
+target_link_libraries(psyqo_paths PUBLIC psyqo::psyqo)
+
+target_link_libraries(psyqo
+  PUBLIC
+    EASTL::EASTL
+    psyqo::paths
+  PRIVATE
+    nugget::nugget
 )
 
 target_include_directories(psyqo PUBLIC
-  "${NUGGET_PATH}"
-)
-
-target_link_libraries(psyqo PUBLIC
-  EASTL::EASTL
-  nugget::nugget
+  ${NUGGET_PATH}
 )
 
 add_library(psyqo::psyqo ALIAS psyqo)
 
 target_compile_options(psyqo PUBLIC
   -Wno-attributes
+  -Wno-unused-function
   -Wno-switch
 )
 
