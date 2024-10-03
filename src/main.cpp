@@ -79,6 +79,7 @@ class GameplayScene final : public psyqo::Scene {
     psyqo::Vec3 camRot{200.f, 230.f, 0.f};
 
     eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::TexturedQuad>, 1> m_quads[2];
+    psyqo::Fragments::SimpleFragment<psyqo::Prim::FastFill> fills[2];
 
     uint16_t h = 300;
 };
@@ -158,13 +159,14 @@ void GameplayScene::frame()
     psyqo::GTE::write<psyqo::GTE::Register::TRY, psyqo::GTE::Unsafe>(camTrans.y.raw());
     psyqo::GTE::write<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>(camTrans.z.raw());
 
+    const auto parity = gpu().getParity();
+
     // draw
     psyqo::Color bg{{.r = 0, .g = 64, .b = 91}};
-    game.gpu().clear(bg);
+    gpu().getNextClear(fills[parity].primitive, bg);
+    // game.gpu().clear(bg);
 
-    const auto parity = gpu().getParity();
     auto& ot = ots[parity];
-    ot.clear();
 
     // draw quad
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(quad3d.verts[0]);
@@ -213,6 +215,7 @@ void GameplayScene::frame()
     // gpu().sendPrimitive(quad2d);
 
     // debug
+    /*
     psyqo::Color c = {{.r = 255, .g = 255, .b = 255}};
     game.m_systemFont.printf(
         game.gpu(),
@@ -223,7 +226,7 @@ void GameplayScene::frame()
         camTrans.y.raw(),
         camTrans.z.raw());
     game.m_systemFont
-        .printf(game.gpu(), {{.x = 16, .y = 32}}, c, "RX: %d, RY: %d", m_angleX, m_angleY);
+        .printf(game.gpu(), {{.x = 16, .y = 32}}, c, "RX: %d, RY: %d", m_angleX, m_angleY); */
     // game.m_romFont.print(game.gpu(), "Hello World!", {{.x = 16, .y = 64}}, c);
 }
 
