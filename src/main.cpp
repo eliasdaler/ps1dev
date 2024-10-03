@@ -60,24 +60,6 @@ class GameplayScene final : public psyqo::Scene {
         quad3d.verts[2] = psyqo::GTE::PackedVec3(SHORT(-256), SHORT(0), SHORT(768));
         quad3d.verts[3] = psyqo::GTE::PackedVec3(SHORT(256), SHORT(0), SHORT(768));
 
-        // set quad2d const stuff
-        auto u0 = 0;
-        auto v0 = 64;
-        auto u1 = 63;
-        auto v1 = 127;
-        quad2d.uvA.u = u0;
-        quad2d.uvA.v = v0;
-        quad2d.uvB.u = u1;
-        quad2d.uvB.v = v0;
-        quad2d.uvC.u = u0;
-        quad2d.uvC.v = v1;
-        quad2d.uvD.u = u1;
-        quad2d.uvD.v = v1;
-        quad2d.tpage.setPageX(5).setPageY(0).setDithering(true).set(
-            psyqo::Prim::TPageAttr::Tex8Bits);
-        quad2d.clutIndex = {{.x = 0, .y = 240}};
-        quad2d.setColor({.r = 127, .g = 127, .b = 127});
-
         // fov
         psyqo::GTE::write<psyqo::GTE::Register::H, psyqo::GTE::Unsafe>(h);
 
@@ -90,12 +72,13 @@ class GameplayScene final : public psyqo::Scene {
 
     void frame() override;
 
-    psyqo::Prim::TexturedQuad quad2d{{.r = 255, .g = 0, .b = 255}};
     psyqo::OrderingTable<4096> ots[2];
     Quad quad3d;
 
     psyqo::Vec3 camPos{-500.f, 0.f, -1000.f};
     psyqo::Vec3 camRot{200.f, 230.f, 0.f};
+
+    eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::TexturedQuad>, 1> m_quads[2];
 
     uint16_t h = 300;
 };
@@ -181,6 +164,7 @@ void GameplayScene::frame()
 
     const auto parity = gpu().getParity();
     auto& ot = ots[parity];
+    ot.clear();
 
     // draw quad
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(quad3d.verts[0]);
@@ -188,15 +172,45 @@ void GameplayScene::frame()
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(quad3d.verts[2]);
     psyqo::GTE::Kernels::rtpt();
 
+    auto& quads = m_quads[parity];
+    auto& quad2d = quads[0].primitive;
+    // set quad2d const stuff
+    auto u0 = 0;
+    auto v0 = 64;
+    auto u1 = 63;
+    auto v1 = 127;
+    quad2d.uvA.u = u0;
+    quad2d.uvA.v = v0;
+    quad2d.uvB.u = u1;
+    quad2d.uvB.v = v0;
+    quad2d.uvC.u = u0;
+    quad2d.uvC.v = v1;
+    quad2d.uvD.u = u1;
+    quad2d.uvD.v = v1;
+    quad2d.tpage.setPageX(5).setPageY(0).setDithering(true).set(psyqo::Prim::TPageAttr::Tex8Bits);
+    quad2d.clutIndex = {{.x = 0, .y = 240}};
+    quad2d.setColor({.r = 127, .g = 127, .b = 127});
+
+    int32_t zValues[4];
     psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointA.packed);
+    psyqo::GTE::read<psyqo::GTE::Register::SZ1>(reinterpret_cast<uint32_t*>(&zValues[0]));
     psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointB.packed);
+    psyqo::GTE::read<psyqo::GTE::Register::SZ2>(reinterpret_cast<uint32_t*>(&zValues[1]));
     psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointC.packed);
+    psyqo::GTE::read<psyqo::GTE::Register::SZ3>(reinterpret_cast<uint32_t*>(&zValues[2]));
 
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(quad3d.verts[3]);
     psyqo::GTE::Kernels::rtps();
-    psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
 
-    gpu().sendPrimitive(quad2d);
+    psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
+    psyqo::GTE::read<psyqo::GTE::Register::SZ3>(reinterpret_cast<uint32_t*>(&zValues[3]));
+
+    const auto avgZ = (zValues[0] + zValues[1] + zValues[2] + zValues[3]) / 4;
+    if (avgZ >= 0 && avgZ < 4096) {
+        ot.insert(quads[0], avgZ);
+    }
+    gpu().chain(ot);
+    // gpu().sendPrimitive(quad2d);
 
     // debug
     psyqo::Color c = {{.r = 255, .g = 255, .b = 255}};
