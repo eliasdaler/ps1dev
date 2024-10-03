@@ -38,6 +38,8 @@ public:
     psyqo::ISO9660Parser m_isoParser = psyqo::ISO9660Parser(&m_cdrom);
     psyqo::paths::CDRomLoader m_cdromLoader;
     eastl::vector<uint8_t> m_buffer;
+
+    bool textureLoaded{false};
 };
 
 struct Quad {
@@ -131,10 +133,15 @@ void Game::uploadTIM()
     gpu().uploadToVRAM((uint16_t*)tim.cluts[0].colors.data(), region);
 
     ramsyscall_printf("TIM loaded! Num bytes: %d\n", m_buffer.size());
+    textureLoaded = true;
 }
 
 void GameplayScene::frame()
 {
+    if (!game.textureLoaded) {
+        return;
+    }
+
     // calculate camera rotation matrix
     psyqo::Angle m_angleX;
     psyqo::Angle m_angleY;
