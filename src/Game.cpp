@@ -50,11 +50,17 @@ void Game::init()
     setVector(&camera.position, 0, -ONE * 1507, -ONE * 2500);
 
     // testing
-    camera.position.vx = ONE * 3588;
+    /* camera.position.vx = ONE * 3588;
     camera.position.vy = ONE * -1507;
     camera.position.vz = ONE * -10259;
     camera.rotation.vx = ONE * 150;
-    camera.rotation.vy = ONE * 300;
+    camera.rotation.vy = ONE * 300; */
+
+    camera.position.vx = 0;
+    camera.position.vy = 0;
+    camera.position.vz = 0;
+    camera.rotation.vx = 0;
+    camera.rotation.vy = 0;
 
     CdInit();
     soundPlayer.init();

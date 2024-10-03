@@ -1,82 +1,77 @@
-/* #include "Game.h"
+#include <psyqo/application.hh>
+#include <psyqo/font.hh>
+#include <psyqo/gpu.hh>
+#include <psyqo/scene.hh>
+#include <psyqo/primitives/quads.hh>
+#include <psyqo/gte-registers.hh>
+#include <psyqo/gte-kernels.hh>
+#include <psyqo/soft-math.hh>
 
-namespace
-{
-Game game;
-}
-
-int main()
-{
-    game.init();
-    game.run();
-
-    return 0;
-}
-*/
-
-/*
-
-MIT License
-
-Copyright (c) 2022 PCSX-Redux authors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-*/
-
-#include "psyqo/application.hh"
-#include "psyqo/font.hh"
-#include "psyqo/gpu.hh"
-#include "psyqo/scene.hh"
+using namespace psyqo::fixed_point_literals;
+using namespace psyqo::trig_literals;
 
 namespace
 {
 
 // A PSYQo software needs to declare one `Application` object.
 // This is the one we're going to do for our hello world.
-class Hello final : public psyqo::Application {
+class Game final : public psyqo::Application {
     void prepare() override;
     void createScene() override;
 
 public:
     psyqo::Font<> m_systemFont;
     psyqo::Font<> m_romFont;
+    psyqo::Trig<> m_trig;
 };
+
+struct Quad {
+    psyqo::GTE::PackedVec3 verts[4];
+};
+
+using Short = psyqo::GTE::Short;
 
 // And we need at least one scene to be created.
 // This is the one we're going to do for our hello world.
-class HelloScene final : public psyqo::Scene {
+class GameplayScene final : public psyqo::Scene {
+    void start(StartReason reason) override
+    {
+        static constexpr psyqo::GTE::Short tileSize{1.0};
+        auto raw = Short::Raw::RAW;
+#define SHORT(x) Short((x), raw)
+
+        quad3d.verts[0] = psyqo::GTE::PackedVec3(SHORT(-256), SHORT(-512), SHORT(768));
+        quad3d.verts[1] = psyqo::GTE::PackedVec3(SHORT(256), SHORT(-512), SHORT(768));
+        quad3d.verts[2] = psyqo::GTE::PackedVec3(SHORT(-256), SHORT(0), SHORT(768));
+        quad3d.verts[3] = psyqo::GTE::PackedVec3(SHORT(256), SHORT(0), SHORT(768));
+
+        psyqo::GTE::write<psyqo::GTE::Register::H, psyqo::GTE::Unsafe>(h);
+
+        psyqo::GTE::write<psyqo::GTE::Register::OFX, psyqo::GTE::Unsafe>(
+            psyqo::FixedPoint<16>(160.0).raw());
+        psyqo::GTE::write<psyqo::GTE::Register::OFY, psyqo::GTE::Unsafe>(
+            psyqo::FixedPoint<16>(120.0).raw());
+    }
+
     void frame() override;
 
-    // We'll have some simple animation going on, so we
-    // need to keep track of our state here.
-    uint8_t m_anim = 0;
-    bool m_direction = true;
+    psyqo::Prim::Quad quad2d{{.r = 255, .g = 0, .b = 255}};
+    psyqo::OrderingTable<4096> ots[2];
+    Quad quad3d;
+
+    psyqo::Vec3 camPos{-500.f, 0.f, -1000.f};
+    psyqo::Vec3 camRot{200.f, 230.f, 0.f};
+
+    uint16_t h = 300;
 };
 
 // We're instantiating the two objects above right now.
-Hello hello;
-HelloScene helloScene;
+Game game;
+GameplayScene gameplayScene;
 
 } // namespace
 
-void Hello::prepare()
+void Game::prepare()
 {
     psyqo::GPU::Configuration config;
     config.set(psyqo::GPU::Resolution::W320)
@@ -86,7 +81,7 @@ void Hello::prepare()
     gpu().initialize(config);
 }
 
-void Hello::createScene()
+void Game::createScene()
 {
     // We're going to use two fonts, one from the system, and one from the kernel rom.
     // We need to upload them to VRAM first. The system font is 256x48x4bpp, and the
@@ -97,31 +92,73 @@ void Hello::createScene()
     // font up a bit.
     m_systemFont.uploadSystemFont(gpu());
     m_romFont.uploadKromFont(gpu(), {{.x = 960, .y = int16_t(512 - 48 - 90)}});
-    pushScene(&helloScene);
+    pushScene(&gameplayScene);
 }
 
-void HelloScene::frame()
+void GameplayScene::frame()
 {
-    if (m_anim == 0) {
-        m_direction = true;
-    } else if (m_anim == 255) {
-        m_direction = false;
-    }
-    psyqo::Color bg{{.r = 0, .g = 64, .b = 91}};
-    bg.r = m_anim;
-    hello.gpu().clear(bg);
-    if (m_direction) {
-        m_anim++;
-    } else {
-        m_anim--;
-    }
+    // calculate camera rotation matrix
+    psyqo::Angle m_angleX;
+    psyqo::Angle m_angleY;
+    m_angleX.value = (camRot.x.value / 2) >> 12;
+    m_angleY.value = (camRot.y.value / 2) >> 12;
+    auto rotX =
+        psyqo::SoftMath::generateRotationMatrix33(m_angleX, psyqo::SoftMath::Axis::X, &game.m_trig);
+    const auto rotY =
+        psyqo::SoftMath::generateRotationMatrix33(m_angleY, psyqo::SoftMath::Axis::Y, &game.m_trig);
+    psyqo::SoftMath::multiplyMatrix33(&rotY, &rotX, &rotX);
+    psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(rotX);
 
-    psyqo::Color c = {{.r = 255, .g = 255, .b = uint8_t(255 - m_anim)}};
-    hello.m_systemFont.print(hello.gpu(), "Hello World!", {{.x = 16, .y = 32}}, c);
-    hello.m_romFont.print(hello.gpu(), "Hello World!", {{.x = 16, .y = 64}}, c);
+    // calcuolate and upload camera translation
+    psyqo::Vec3 camTrans{};
+    camTrans.x = -camPos.x >> 12;
+    camTrans.y = -camPos.y >> 12;
+    camTrans.z = -camPos.z >> 12;
+
+    psyqo::SoftMath::matrixVecMul3(&rotX, &camTrans, &camTrans);
+
+    psyqo::GTE::write<psyqo::GTE::Register::TRX, psyqo::GTE::Unsafe>(camTrans.x.raw());
+    psyqo::GTE::write<psyqo::GTE::Register::TRY, psyqo::GTE::Unsafe>(camTrans.y.raw());
+    psyqo::GTE::write<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>(camTrans.z.raw());
+
+    // draw
+    psyqo::Color bg{{.r = 0, .g = 64, .b = 91}};
+    game.gpu().clear(bg);
+
+    const auto parity = gpu().getParity();
+    auto& ot = ots[parity];
+
+    psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(quad3d.verts[0]);
+    psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(quad3d.verts[1]);
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(quad3d.verts[2]);
+    psyqo::GTE::Kernels::rtpt();
+
+    psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointA.packed);
+    psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointB.packed);
+    psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointC.packed);
+
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(quad3d.verts[3]);
+    psyqo::GTE::Kernels::rtps();
+    psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
+
+    gpu().sendPrimitive(quad2d);
+
+    // debug
+    psyqo::Color c = {{.r = 255, .g = 255, .b = 255}};
+    game.m_systemFont.printf(
+        game.gpu(),
+        {{.x = 16, .y = 16}},
+        c,
+        "TRX: %d, TRY: %d, TRZ: %d",
+        camTrans.x.raw(),
+        camTrans.y.raw(),
+        camTrans.z.raw());
+    game.m_systemFont
+        .printf(game.gpu(), {{.x = 16, .y = 32}}, c, "RX: %d, RY: %d", m_angleX, m_angleY);
+    // game.m_romFont.print(game.gpu(), "Hello World!", {{.x = 16, .y = 64}}, c);
 }
 
 int main()
 {
-    return hello.run();
+    return game.run();
 }

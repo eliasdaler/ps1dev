@@ -84,7 +84,17 @@ target_link_libraries(psyqo PUBLIC
 
 add_library(psyqo::psyqo ALIAS psyqo)
 
-target_compile_options(psyqo PRIVATE
+target_compile_options(psyqo PUBLIC
   -Wno-attributes
+  -Wno-switch
 )
 
+add_executable(torus_example
+  ${PSYQO_DIR}/examples/torus/torus.cpp
+)
+
+target_link_libraries(torus_example PRIVATE
+  nugget::nugget
+  psyqo::psyqo
+  EASTL::EASTL
+)

@@ -5,11 +5,17 @@
 # breaking clangd's target autodetection).
 
 CompileFlags:
-  Add:    [
+  Add: [
     --target=mipsel-none-elf,
     -march=mips1,
     -I/usr/mipsel-linux-gnu/include/c++/12/,
     -I/usr/mipsel-linux-gnu/include/c++/12/mipsel-linux-gnu/,
-    -I/usr/mipsel-linux-gnu/include/
+    -I/usr/mipsel-linux-gnu/include/,
+    # FIXME: for some reason clangd doesn't pick these up even though they're in compile_commands.json
+    -I/home/eliasdaler/work/ps1dev/third_party/nugget/third_party/EASTL/include,
+    -I/home/eliasdaler/work/ps1dev/third_party/nugget/third_party/EABase/include/Common
   ]
-  Remove: [ -march, -mno-llsc, -mdivide-breaks ]
+  Remove: [ -march, -mno-llsc, -mdivide-breaks, -fcoroutines-ts ]
+
+Diagnostics:
+  UnusedIncludes: None
