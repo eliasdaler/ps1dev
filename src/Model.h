@@ -3,20 +3,21 @@
 #include <EASTL/vector.h>
 #include <EASTL/string_view.h>
 
+#include <psyqo/gte-registers.hh>
 #include <psyqo/vector.hh>
+
+#include <cstdint>
 
 struct Object;
 
-struct SVECTOR {
-    short vx, vy, vz, pad;
-};
-
 struct CVECTOR {
-    char vx, vy, vz, pad;
+    std::uint8_t vx, vy, vz, pad;
 };
 
 struct Vertex {
-    SVECTOR pos;
+    psyqo::GTE::PackedVec3 pos;
+    std::int16_t pad;
+
     CVECTOR uv;
     CVECTOR col;
 };

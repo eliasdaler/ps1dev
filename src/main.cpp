@@ -82,8 +82,8 @@ class GameplayScene final : public psyqo::Scene {
     psyqo::OrderingTable<4096> ots[2];
     Quad quad3d;
 
-    psyqo::Vec3 camPos{-500.f, 0.f, -1000.f};
-    psyqo::Vec3 camRot{200.f, 230.f, 0.f};
+    psyqo::Vec3 camPos{-500.f, -180.f, -1000.f};
+    psyqo::Vec3 camRot{0.f, 230.f, 0.f};
 
     eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::TexturedQuad>, 1> m_quads[2];
 
@@ -221,68 +221,97 @@ void GameplayScene::frame()
     nextpri += sizeof(FastFillPrim);
     // game.gpu().clear(bg);
 
-    // draw quad
-    psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(quad3d.verts[0]);
-    psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(quad3d.verts[1]);
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(quad3d.verts[2]);
-    psyqo::GTE::Kernels::rtpt();
+    for (const auto& mesh : game.levelModel.meshes) {
+        if (mesh.numQuads == 0) {
+            continue;
+        }
 
-    auto& quads = m_quads[parity];
-    using TexQuadPrim = psyqo::Fragments::SimpleFragment<psyqo::Prim::TexturedQuad>;
-    auto& quadFrag = *(TexQuadPrim*)nextpri;
-    auto& quad2d = quadFrag.primitive;
-    // set quad2d const stuff
-    auto u0 = 0;
-    auto v0 = 64;
-    auto u1 = 63;
-    auto v1 = 127;
-    quad2d.uvA.u = u0;
-    quad2d.uvA.v = v0;
-    quad2d.uvB.u = u1;
-    quad2d.uvB.v = v0;
-    quad2d.uvC.u = u0;
-    quad2d.uvC.v = v1;
-    quad2d.uvD.u = u1;
-    quad2d.uvD.v = v1;
-    quad2d.tpage.setPageX(5).setPageY(0).setDithering(true).set(psyqo::Prim::TPageAttr::Tex8Bits);
-    quad2d.clutIndex = {{.x = 0, .y = 240}};
-    quad2d.setColor({.r = 127, .g = 127, .b = 127});
+        std::size_t vertexIdx = 0;
+        for (int i = 0; i < mesh.numQuads; ++i, vertexIdx += 4) {
+            const auto& v0 = mesh.vertices[vertexIdx + 0];
+            const auto& v1 = mesh.vertices[vertexIdx + 1];
+            const auto& v2 = mesh.vertices[vertexIdx + 2];
+            const auto& v3 = mesh.vertices[vertexIdx + 3];
 
-    int32_t zValues[4];
-    psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointA.packed);
-    psyqo::GTE::read<psyqo::GTE::Register::SZ1>(reinterpret_cast<uint32_t*>(&zValues[0]));
-    psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointB.packed);
-    psyqo::GTE::read<psyqo::GTE::Register::SZ2>(reinterpret_cast<uint32_t*>(&zValues[1]));
-    psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointC.packed);
-    psyqo::GTE::read<psyqo::GTE::Register::SZ3>(reinterpret_cast<uint32_t*>(&zValues[2]));
+            // draw quad
+            psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
+            psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
+            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
+            psyqo::GTE::Kernels::rtpt();
 
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(quad3d.verts[3]);
-    psyqo::GTE::Kernels::rtps();
+            auto& quads = m_quads[parity];
+            using TexQuadGouraudPrim =
+                psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedQuad>;
+            auto& quadFrag = *(TexQuadGouraudPrim*)nextpri;
+            auto& quad2d = quadFrag.primitive;
+            // set quad2d const stuff
+            quad2d.uvA.u = v0.uv.vx;
+            quad2d.uvA.v = v0.uv.vy;
+            quad2d.uvB.u = v1.uv.vx;
+            quad2d.uvB.v = v1.uv.vy;
+            quad2d.uvC.u = v2.uv.vx;
+            quad2d.uvC.v = v2.uv.vy;
+            quad2d.uvD.u = v3.uv.vx;
+            quad2d.uvD.v = v3.uv.vy;
 
-    psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
-    psyqo::GTE::read<psyqo::GTE::Register::SZ3>(reinterpret_cast<uint32_t*>(&zValues[3]));
+            // TODO: read from arg
+            quad2d.tpage.setPageX(5).setPageY(0).setDithering(true).set(
+                psyqo::Prim::TPageAttr::Tex8Bits);
+            quad2d.clutIndex = {{.x = 0, .y = 240}};
 
-    const auto avgZ = (zValues[0] + zValues[1] + zValues[2] + zValues[3]) / 4;
-    if (avgZ >= 0 && avgZ < 4096) {
-        ot.insert(quadFrag, avgZ);
+            // TODO: read?
+
+            int32_t zValues[4];
+            psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointA.packed);
+            psyqo::GTE::read<psyqo::GTE::Register::SZ1>(reinterpret_cast<uint32_t*>(&zValues[0]));
+            psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointB.packed);
+            psyqo::GTE::read<psyqo::GTE::Register::SZ2>(reinterpret_cast<uint32_t*>(&zValues[1]));
+            psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointC.packed);
+            psyqo::GTE::read<psyqo::GTE::Register::SZ3>(reinterpret_cast<uint32_t*>(&zValues[2]));
+
+            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v3.pos);
+            psyqo::GTE::Kernels::rtps();
+
+            psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
+            psyqo::GTE::read<psyqo::GTE::Register::SZ3>(reinterpret_cast<uint32_t*>(&zValues[3]));
+
+            const auto avgZ = (zValues[0] + zValues[1] + zValues[2] + zValues[3]) / 4;
+            if (avgZ >= 0 && avgZ < 4096) {
+                quad2d.setColorA({.r = v0.col.vx, .g = v0.col.vy, .b = v0.col.vz});
+                quad2d.setColorB({.r = v1.col.vx, .g = v1.col.vy, .b = v1.col.vz});
+                quad2d.setColorC({.r = v2.col.vx, .g = v2.col.vy, .b = v2.col.vz});
+                quad2d.setColorD({.r = v3.col.vx, .g = v3.col.vy, .b = v3.col.vz});
+
+                ot.insert(quadFrag, avgZ);
+            }
+            nextpri += sizeof(TexQuadGouraudPrim);
+        }
     }
-    nextpri += sizeof(TexQuadPrim);
 
     gpu().chain(ot);
 
     // debug
 
     psyqo::Color c = {{.r = 255, .g = 255, .b = 255}};
-    game.m_systemFont.chainprintf(
+    /* game.m_systemFont.chainprintf(
         game.gpu(),
         {{.x = 16, .y = 16}},
         c,
         "TRX: %d, TRY: %d, TRZ: %d",
         camTrans.x.raw(),
         camTrans.y.raw(),
-        camTrans.z.raw());
+        camTrans.z.raw()); */
+
+    game.m_systemFont.chainprintf(
+        game.gpu(),
+        {{.x = 16, .y = 16}},
+        c,
+        "1: %d, 2: %d",
+        quad3d.verts[0].x.raw(),
+        game.levelModel.meshes[0].vertices[0].pos.x.raw());
     /* game.m_systemFont
-        .chainprintf(game.gpu(), {{.x = 16, .y = 32}}, c, "RX: %d, RY: %d", m_angleX, m_angleY); */
+        .chainprintf(game.gpu(), {{.x = 16, .y = 32}}, c, "RX: %d, RY: %d", m_angleX, m_angleY);
+     */
     // game.m_romFont.print(game.gpu(), "Hello World!", {{.x = 16, .y = 64}}, c);
 }
 
