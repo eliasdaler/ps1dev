@@ -20,7 +20,7 @@
                 <file name="SYSTEM.CNF"	type="data" source="system.cnf"/>
                 <file name="GAME.EXE" type="data" source="build/game.ps-exe"/>
                 <file name="BRICKS.TIM" type="data" source="assets/bricks.tim"/>
-                <file name="LEVEL.BIN" type="data" source="assets/house_psx.bin"/>
+                <file name="LEVEL.BIN" type="data" source="assets/level.bin"/>
                 <file name="HUMAN.BIN" type="data" source="assets/human.bin"/>
                 <file name="PS1.TIM" type="data" source="assets/ps1.tim"/>
                 <file name="STEP1.VAG" type="data" source="assets/step1.vag"/>

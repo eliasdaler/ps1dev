@@ -6,6 +6,7 @@
 #include <psyqo/gte-registers.hh>
 #include <psyqo/gte-kernels.hh>
 #include <psyqo/soft-math.hh>
+#include <psyqo/coroutine.hh>
 
 #include <psyqo/cdrom-device.hh>
 #include <psyqo/iso9660-parser.hh>
@@ -16,6 +17,7 @@
 #include <cstdint>
 
 #include "TimFile.h"
+#include "Model.h"
 
 using namespace psyqo::fixed_point_literals;
 using namespace psyqo::trig_literals;
@@ -27,9 +29,9 @@ class Game final : public psyqo::Application {
     void prepare() override;
     void createScene() override;
 
+public:
     void uploadTIM();
 
-public:
     psyqo::Font<> m_systemFont;
     psyqo::Font<> m_romFont;
     psyqo::Trig<> m_trig;
@@ -39,7 +41,10 @@ public:
     psyqo::paths::CDRomLoader m_cdromLoader;
     eastl::vector<uint8_t> m_buffer;
 
-    bool textureLoaded{false};
+    bool texturesLoaded{false};
+    Model levelModel;
+
+    psyqo::Coroutine<> m_coroutine;
 };
 
 struct Quad {
@@ -81,7 +86,10 @@ class GameplayScene final : public psyqo::Scene {
     psyqo::Vec3 camRot{200.f, 230.f, 0.f};
 
     eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::TexturedQuad>, 1> m_quads[2];
-    psyqo::Fragments::SimpleFragment<psyqo::Prim::FastFill> fills[2]{};
+
+    static constexpr int PRIMBUFFLEN = 32768 * 8;
+    std::byte primBytes[2][PRIMBUFFLEN];
+    std::byte* nextpri{nullptr}; // pointer to primbuff
 
     uint16_t h = 300;
 };
@@ -103,18 +111,49 @@ void Game::prepare()
     m_cdrom.prepare();
 }
 
+psyqo::Coroutine<> loadCoroutine(Game* game)
+{
+    psyqo::Coroutine<>::Awaiter awaiter = game->m_coroutine.awaiter();
+    // load stuff from CD
+
+    ramsyscall_printf("Loading BRICKS.TIM...\n");
+    game->m_cdromLoader.readFile(
+        "BRICKS.TIM;1", game->gpu(), game->m_isoParser, [game](eastl::vector<uint8_t>&& buffer) {
+            game->m_buffer = eastl::move(buffer);
+            game->uploadTIM();
+            game->m_coroutine.resume();
+        });
+    co_await awaiter;
+
+    ramsyscall_printf("Loading CATO.TIM...\n");
+    game->m_cdromLoader.readFile(
+        "CATO.TIM;1", game->gpu(), game->m_isoParser, [game](eastl::vector<uint8_t>&& buffer) {
+            game->m_buffer = eastl::move(buffer);
+            game->uploadTIM();
+            game->m_coroutine.resume();
+        });
+    co_await awaiter;
+
+    ramsyscall_printf("Loading LEVEL.BIN...\n");
+    game->m_cdromLoader.readFile(
+        "LEVEL.BIN;1", game->gpu(), game->m_isoParser, [game](eastl::vector<uint8_t>&& buffer) {
+            game->m_buffer = eastl::move(buffer);
+            game->levelModel.load(game->m_buffer);
+            game->m_coroutine.resume();
+        });
+    co_await awaiter;
+
+    game->texturesLoaded = true;
+}
+
 void Game::createScene()
 {
     m_systemFont.uploadSystemFont(gpu());
     m_romFont.uploadKromFont(gpu(), {{.x = 960, .y = int16_t(512 - 48 - 90)}});
     pushScene(&gameplayScene);
 
-    // load stuff from CD
-    m_cdromLoader
-        .readFile("BRICKS.TIM;1", gpu(), m_isoParser, [this](eastl::vector<uint8_t>&& buffer) {
-            m_buffer = eastl::move(buffer);
-            uploadTIM();
-        });
+    m_coroutine = loadCoroutine(this);
+    m_coroutine.resume();
 }
 
 void Game::uploadTIM()
@@ -133,14 +172,15 @@ void Game::uploadTIM()
     gpu().uploadToVRAM((uint16_t*)tim.cluts[0].colors.data(), region);
 
     ramsyscall_printf("TIM loaded! Num bytes: %d\n", m_buffer.size());
-    textureLoaded = true;
 }
 
 void GameplayScene::frame()
 {
-    if (!game.textureLoaded) {
+    if (!game.texturesLoaded) {
         return;
     }
+
+    // ramsyscall_printf("hmm: %d\n", gpu().getFrameCount());
 
     // calculate camera rotation matrix
     psyqo::Angle m_angleX;
@@ -148,10 +188,10 @@ void GameplayScene::frame()
     m_angleX.value = (camRot.x.value / 2) >> 12;
     m_angleY.value = (camRot.y.value / 2) >> 12;
     auto rotX =
-        psyqo::SoftMath::generateRotationMatrix33(m_angleX, psyqo::SoftMath::Axis::X, &game.m_trig);
+        psyqo::SoftMath::generateRotationMatrix33(m_angleX, psyqo::SoftMath::Axis::X, game.m_trig);
     const auto rotY =
-        psyqo::SoftMath::generateRotationMatrix33(m_angleY, psyqo::SoftMath::Axis::Y, &game.m_trig);
-    psyqo::SoftMath::multiplyMatrix33(&rotY, &rotX, &rotX);
+        psyqo::SoftMath::generateRotationMatrix33(m_angleY, psyqo::SoftMath::Axis::Y, game.m_trig);
+    psyqo::SoftMath::multiplyMatrix33(rotY, rotX, &rotX);
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(rotX);
 
     // calcuolate and upload camera translation
@@ -160,7 +200,7 @@ void GameplayScene::frame()
     camTrans.y = -camPos.y >> 12;
     camTrans.z = -camPos.z >> 12;
 
-    psyqo::SoftMath::matrixVecMul3(&rotX, &camTrans, &camTrans);
+    psyqo::SoftMath::matrixVecMul3(rotX, camTrans, &camTrans);
 
     psyqo::GTE::write<psyqo::GTE::Register::TRX, psyqo::GTE::Unsafe>(camTrans.x.raw());
     psyqo::GTE::write<psyqo::GTE::Register::TRY, psyqo::GTE::Unsafe>(camTrans.y.raw());
@@ -168,13 +208,18 @@ void GameplayScene::frame()
 
     const auto parity = gpu().getParity();
 
+    auto& ot = ots[parity];
+    auto& primBuf = primBytes[parity];
+    nextpri = &primBuf[0];
+
     // draw
     psyqo::Color bg{{.r = 0, .g = 64, .b = 91}};
-    gpu().getNextClear(fills[parity].primitive, bg);
-    gpu().chain(fills[parity]);
+    using FastFillPrim = psyqo::Fragments::SimpleFragment<psyqo::Prim::FastFill>;
+    auto& fill = *(FastFillPrim*)nextpri;
+    gpu().getNextClear(fill.primitive, bg);
+    gpu().chain(fill);
+    nextpri += sizeof(FastFillPrim);
     // game.gpu().clear(bg);
-
-    auto& ot = ots[parity];
 
     // draw quad
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(quad3d.verts[0]);
@@ -183,7 +228,9 @@ void GameplayScene::frame()
     psyqo::GTE::Kernels::rtpt();
 
     auto& quads = m_quads[parity];
-    auto& quad2d = quads[0].primitive;
+    using TexQuadPrim = psyqo::Fragments::SimpleFragment<psyqo::Prim::TexturedQuad>;
+    auto& quadFrag = *(TexQuadPrim*)nextpri;
+    auto& quad2d = quadFrag.primitive;
     // set quad2d const stuff
     auto u0 = 0;
     auto v0 = 64;
@@ -217,10 +264,11 @@ void GameplayScene::frame()
 
     const auto avgZ = (zValues[0] + zValues[1] + zValues[2] + zValues[3]) / 4;
     if (avgZ >= 0 && avgZ < 4096) {
-        ot.insert(quads[0], avgZ);
+        ot.insert(quadFrag, avgZ);
     }
+    nextpri += sizeof(TexQuadPrim);
+
     gpu().chain(ot);
-    // gpu().sendPrimitive(quad2d);
 
     // debug
 
@@ -233,8 +281,8 @@ void GameplayScene::frame()
         camTrans.x.raw(),
         camTrans.y.raw(),
         camTrans.z.raw());
-    game.m_systemFont
-        .chainprintf(game.gpu(), {{.x = 16, .y = 32}}, c, "RX: %d, RY: %d", m_angleX, m_angleY);
+    /* game.m_systemFont
+        .chainprintf(game.gpu(), {{.x = 16, .y = 32}}, c, "RX: %d, RY: %d", m_angleX, m_angleY); */
     // game.m_romFont.print(game.gpu(), "Hello World!", {{.x = 16, .y = 64}}, c);
 }
 

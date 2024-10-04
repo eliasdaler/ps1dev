@@ -6,20 +6,14 @@
 
 #include <common/syscalls/syscalls.h>
 
+#ifdef DEBUG_TIM
+#define DEBUG_PRINT(fmt, ...) ramsyscall_printf((fmt), __VA_ARGS__)
+#else
+#define DEBUG_PRINT(fmt, ...)
+#endif
+
 namespace
 {
-/* template<std::size_t N>
-TimFile::Clut readClut(FileReader& fr)
-{
-    TimFile::Clut clut;
-    clut.colors.resize(N);
-    for (int i = 0; i < N; ++i) {
-        auto clutEntry = fr.GetUInt16();
-        clut.colors[i] = clutEntry;
-    }
-    return clut;
-} */
-
 eastl::pair<std::uint16_t, std::uint16_t> getXY16(std::uint32_t xy)
 {
     return {xy & 0xFFFF, xy >> 16};
@@ -51,38 +45,38 @@ TimFile readTimFile(const eastl::vector<uint8_t>& data)
     // 4 - Mixed
     tim.pmode = static_cast<TimFile::PMode>(flag & 0b11);
     if (tim.pmode == TimFile::PMode::Clut4Bit) {
-        ramsyscall_printf("PMode: 4-bit CLUT\n");
+        DEBUG_PRINT("PMode: 4-bit CLUT\n");
     } else if (tim.pmode == TimFile::PMode::Clut8Bit) {
-        ramsyscall_printf("PMode: 8-bit CLUT\n");
+        DEBUG_PRINT("PMode: 8-bit CLUT\n");
     } else if (tim.pmode == TimFile::PMode::Direct15Bit) {
-        ramsyscall_printf("PMode: Direct 15-bit CLUT\n");
+        DEBUG_PRINT("PMode: Direct 15-bit CLUT\n");
         psyqo::Kernel::assert(false, "TODO");
     } else {
-        ramsyscall_printf("PMode: not supported yet\n");
+        DEBUG_PRINT("PMode: not supported yet\n");
         psyqo::Kernel::assert(false, "TODO");
     }
 
     // Bit 3 (CF)
     tim.hasClut = ((flag & 0b1000) != 0);
-    ramsyscall_printf("has CLUT: %d\n", (int)tim.hasClut);
+    DEBUG_PRINT("has CLUT: %d\n", (int)tim.hasClut);
 
     if (tim.hasClut) { // CLUT
         const auto clutBNum = fr.GetUInt32();
-        ramsyscall_printf("CLUT bnum: %d\n", (int)clutBNum);
+        DEBUG_PRINT("CLUT bnum: %d\n", (int)clutBNum);
 
         // 31     0
         // [DY, DX]
         const auto [clutDX, clutDY] = getXY16(fr.GetUInt32());
         tim.clutDX = clutDX;
         tim.clutDY = clutDY;
-        ramsyscall_printf("CLUT DX: %d, DY: %d\n", clutDX, clutDY);
+        DEBUG_PRINT("CLUT DX: %d, DY: %d\n", clutDX, clutDY);
 
         // 31     0
         // [W,   H]
         const auto [clutW, clutH] = getXY16(fr.GetUInt32());
         tim.clutW = clutW;
         tim.clutH = clutH;
-        ramsyscall_printf("CLUT W: %d, H: %d\n", clutW, clutH);
+        DEBUG_PRINT("CLUT W: %d, H: %d\n", clutW, clutH);
 
         // TODO: handle CLUTs positioned side by side?
         tim.cluts.reserve(tim.clutH);
@@ -101,21 +95,21 @@ TimFile readTimFile(const eastl::vector<uint8_t>& data)
     // pixel data
     {
         const auto pixBNum = fr.GetUInt32();
-        ramsyscall_printf("pixels bnum: %d\n", (int)pixBNum);
+        DEBUG_PRINT("pixels bnum: %d\n", (int)pixBNum);
 
         // 31     0
         // [DY, DX]
         const auto [pixDX, pixDY] = getXY16(fr.GetUInt32());
         tim.pixDX = pixDX;
         tim.pixDY = pixDY;
-        ramsyscall_printf("CLUT DX: %d, DY: %d\n", pixDX, pixDY);
+        DEBUG_PRINT("CLUT DX: %d, DY: %d\n", pixDX, pixDY);
 
         // 31     0
         // [W,   H]
         const auto [pixW, pixH] = getXY16(fr.GetUInt32());
         tim.pixW = pixW;
         tim.pixH = pixH;
-        ramsyscall_printf("pix W: %d, H: %d\n", pixW, pixH);
+        DEBUG_PRINT("pix W: %d, H: %d\n", pixW, pixH);
 
         auto numPixels = pixW * pixH;
         if (tim.pmode == TimFile::PMode::Clut4Bit) {

@@ -1,13 +1,11 @@
 #include "Model.h"
 
-#include "Utils.h"
+#include "FileReader.h"
 
 #include <utility>
 
-void Model::load(eastl::string_view filename)
+void Model::load(const eastl::vector<uint8_t>& data)
 {
-    const auto data = util::readFile(filename);
-
     // vertices
     util::FileReader fr{
         .bytes = data.data(),

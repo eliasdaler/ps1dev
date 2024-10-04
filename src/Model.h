@@ -3,9 +3,17 @@
 #include <EASTL/vector.h>
 #include <EASTL/string_view.h>
 
-#include <libgpu.h>
+#include <psyqo/vector.hh>
 
 struct Object;
+
+struct SVECTOR {
+    short vx, vy, vz, pad;
+};
+
+struct CVECTOR {
+    char vx, vy, vz, pad;
+};
 
 struct Vertex {
     SVECTOR pos;
@@ -25,5 +33,5 @@ struct Mesh {
 struct Model {
     eastl::vector<Mesh> meshes;
 
-    void load(eastl::string_view filename);
+    void load(const eastl::vector<uint8_t>& data);
 };

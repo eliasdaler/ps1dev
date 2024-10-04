@@ -28,11 +28,11 @@ add_executable(game
   # src/Clip.cpp
   # src/Utils.cpp
   # src/Camera.cpp
-  # src/Model.cpp
   # src/FastModel.cpp
   # src/Renderer.cpp
   # src/SoundPlayer.cpp
   # src/Game.cpp
+  src/Model.cpp
   src/TimFile.cpp
   src/main.cpp
 )
