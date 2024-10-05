@@ -79,6 +79,9 @@ class GameplayScene final : public psyqo::Scene {
         psyqo::GTE::write<psyqo::GTE::Register::OFY, psyqo::GTE::Unsafe>(
             psyqo::FixedPoint<16>(120.0).raw());
 
+        psyqo::GTE::write<psyqo::GTE::Register::ZSF3, psyqo::GTE::Unsafe>(341);
+        psyqo::GTE::write<psyqo::GTE::Register::ZSF4, psyqo::GTE::Unsafe>(256);
+
         cato.position.y = 0.88;
     }
 
@@ -93,7 +96,7 @@ class GameplayScene final : public psyqo::Scene {
     template<typename PrimType>
     int drawQuads(const Mesh& mesh, const TextureInfo& texture, int numFaces, int vertexIdx);
 
-    static constexpr auto OT_SIZE = 4096;
+    static constexpr auto OT_SIZE = 4096 * 2;
     psyqo::OrderingTable<OT_SIZE> ots[2];
 
     psyqo::Vec3 camPos{225.f, 0.f, -12711.f};
@@ -392,8 +395,6 @@ int GameplayScene::drawTris(
 {
     auto& ot = ots[gpu().getParity()];
 
-    int32_t zValues[3];
-
     for (int i = 0; i < numFaces; ++i, vertexIdx += 3) {
         const auto& v0 = mesh.vertices[vertexIdx + 0];
         const auto& v1 = mesh.vertices[vertexIdx + 1];
@@ -410,20 +411,19 @@ int GameplayScene::drawTris(
         auto& tri2d = triFrag.primitive;
 
         psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&tri2d.pointA.packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SZ1>(reinterpret_cast<uint32_t*>(&zValues[0]));
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&tri2d.pointB.packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SZ2>(reinterpret_cast<uint32_t*>(&zValues[1]));
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&tri2d.pointC.packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SZ3>(reinterpret_cast<uint32_t*>(&zValues[2]));
 
         psyqo::GTE::Kernels::nclip();
-        int32_t dot = psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
+        const auto dot =
+            (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
         if (dot < 0) {
             continue;
         }
 
-        auto avgZ = (zValues[0] + zValues[1] + zValues[2]) / 3;
-        avgZ >>= 3;
+        psyqo::GTE::Kernels::avsz3();
+        const auto avgZ =
+            (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
         if (avgZ >= 0 && avgZ < OT_SIZE) {
             tri2d.setColorA(v0.col);
             tri2d.setColorB(v1.col);
@@ -458,8 +458,6 @@ int GameplayScene::drawQuads(
 {
     auto& ot = ots[gpu().getParity()];
 
-    int32_t zValues[4];
-
     for (int i = 0; i < numFaces; ++i, vertexIdx += 4) {
         const auto& v0 = mesh.vertices[vertexIdx + 0];
         const auto& v1 = mesh.vertices[vertexIdx + 1];
@@ -477,14 +475,12 @@ int GameplayScene::drawQuads(
         auto& quad2d = quadFrag.primitive;
 
         psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointA.packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SZ1>(reinterpret_cast<uint32_t*>(&zValues[0]));
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointB.packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SZ2>(reinterpret_cast<uint32_t*>(&zValues[1]));
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointC.packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SZ3>(reinterpret_cast<uint32_t*>(&zValues[2]));
 
         psyqo::GTE::Kernels::nclip();
-        int32_t dot = psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
+        const auto dot =
+            (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
         if (dot < 0) {
             continue;
         }
@@ -493,10 +489,10 @@ int GameplayScene::drawQuads(
         psyqo::GTE::Kernels::rtps();
 
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SZ3>(reinterpret_cast<uint32_t*>(&zValues[3]));
+        psyqo::GTE::Kernels::avsz4();
+        const auto avgZ =
+            (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
 
-        auto avgZ = (zValues[0] + zValues[1] + zValues[2] + zValues[3]) / 4;
-        avgZ >>= 3;
         if (avgZ >= 0 && avgZ < OT_SIZE) {
             quad2d.setColorA(v0.col);
             quad2d.setColorB(v1.col);
