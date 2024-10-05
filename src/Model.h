@@ -19,7 +19,7 @@ struct Vertex {
     std::int16_t pad;
 
     CVECTOR uv;
-    CVECTOR col;
+    psyqo::Color col;
 };
 
 struct Mesh {

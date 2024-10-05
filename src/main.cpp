@@ -74,6 +74,14 @@ class GameplayScene final : public psyqo::Scene {
     void drawModel(const Model& model);
     void drawMesh(const Mesh& mesh);
 
+    template<typename PrimType>
+    int drawQuads(
+        const Mesh& mesh,
+        psyqo::PrimPieces::TPageAttr tpage,
+        psyqo::PrimPieces::ClutIndex clut,
+        int numFaces,
+        int vertexIdx);
+
     psyqo::OrderingTable<4096> ots[2];
 
     psyqo::Vec3 camPos{-500.f, -280.f, -1000.f};
@@ -276,12 +284,29 @@ void GameplayScene::drawModel(const Model& model)
 
 void GameplayScene::drawMesh(const Mesh& mesh)
 {
+    std::size_t vertexIdx = 0;
+
+    psyqo::PrimPieces::TPageAttr tpage;
+    tpage.setPageX(5).setPageY(0).setDithering(true).set(psyqo::Prim::TPageAttr::Tex8Bits);
+    auto clut = psyqo::PrimPieces::ClutIndex{{.x = 0, .y = 240}};
+
+    vertexIdx =
+        drawQuads<psyqo::Prim::GouraudTexturedQuad>(mesh, tpage, clut, mesh.numQuads, vertexIdx);
+}
+
+template<typename PrimType>
+int GameplayScene::drawQuads(
+    const Mesh& mesh,
+    psyqo::PrimPieces::TPageAttr tpage,
+    psyqo::PrimPieces::ClutIndex clut,
+    int numFaces,
+    int vertexIdx)
+{
     auto& ot = ots[gpu().getParity()];
 
     int32_t zValues[4];
 
-    std::size_t vertexIdx = 0;
-    for (int i = 0; i < mesh.numQuads; ++i, vertexIdx += 4) {
+    for (int i = 0; i < numFaces; ++i, vertexIdx += 4) {
         const auto& v0 = mesh.vertices[vertexIdx + 0];
         const auto& v1 = mesh.vertices[vertexIdx + 1];
         const auto& v2 = mesh.vertices[vertexIdx + 2];
@@ -297,19 +322,6 @@ void GameplayScene::drawMesh(const Mesh& mesh)
             psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedQuad>;
         auto& quadFrag = *(TexQuadGouraudPrim*)nextpri;
         auto& quad2d = quadFrag.primitive;
-        quad2d.uvA.u = v0.uv.vx;
-        quad2d.uvA.v = v0.uv.vy;
-        quad2d.uvB.u = v1.uv.vx;
-        quad2d.uvB.v = v1.uv.vy;
-        quad2d.uvC.u = v2.uv.vx;
-        quad2d.uvC.v = v2.uv.vy;
-        quad2d.uvD.u = v3.uv.vx;
-        quad2d.uvD.v = v3.uv.vy;
-
-        // TODO: read from arg
-        quad2d.tpage.setPageX(5).setPageY(0).setDithering(true).set(
-            psyqo::Prim::TPageAttr::Tex8Bits);
-        quad2d.clutIndex = {{.x = 0, .y = 240}};
 
         psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointA.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SZ1>(reinterpret_cast<uint32_t*>(&zValues[0]));
@@ -317,6 +329,12 @@ void GameplayScene::drawMesh(const Mesh& mesh)
         psyqo::GTE::read<psyqo::GTE::Register::SZ2>(reinterpret_cast<uint32_t*>(&zValues[1]));
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointC.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SZ3>(reinterpret_cast<uint32_t*>(&zValues[2]));
+
+        psyqo::GTE::Kernels::nclip();
+        int32_t dot = psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
+        if (dot < 0) {
+            continue;
+        }
 
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v3.pos);
         psyqo::GTE::Kernels::rtps();
@@ -326,15 +344,30 @@ void GameplayScene::drawMesh(const Mesh& mesh)
 
         const auto avgZ = (zValues[0] + zValues[1] + zValues[2] + zValues[3]) / 4;
         if (avgZ >= 0 && avgZ < 4096) {
-            quad2d.setColorA({.r = v0.col.vx, .g = v0.col.vy, .b = v0.col.vz});
-            quad2d.setColorB({.r = v1.col.vx, .g = v1.col.vy, .b = v1.col.vz});
-            quad2d.setColorC({.r = v2.col.vx, .g = v2.col.vy, .b = v2.col.vz});
-            quad2d.setColorD({.r = v3.col.vx, .g = v3.col.vy, .b = v3.col.vz});
+            quad2d.setColorA(v0.col);
+            quad2d.setColorB(v1.col);
+            quad2d.setColorC(v2.col);
+            quad2d.setColorD(v3.col);
+
+            quad2d.uvA.u = v0.uv.vx;
+            quad2d.uvA.v = v0.uv.vy;
+            quad2d.uvB.u = v1.uv.vx;
+            quad2d.uvB.v = v1.uv.vy;
+            quad2d.uvC.u = v2.uv.vx;
+            quad2d.uvC.v = v2.uv.vy;
+            quad2d.uvD.u = v3.uv.vx;
+            quad2d.uvD.v = v3.uv.vy;
+
+            // TODO: read from arg
+            quad2d.tpage = tpage;
+            quad2d.clutIndex = clut;
 
             ot.insert(quadFrag, avgZ);
         }
         nextpri += sizeof(TexQuadGouraudPrim);
     }
+
+    return vertexIdx;
 }
 
 int main()
