@@ -6,10 +6,14 @@
 
 #include <common/syscalls/syscalls.h>
 
+#define DEBUG_TIM
+
 #ifdef DEBUG_TIM
-#define DEBUG_PRINT(fmt, ...) ramsyscall_printf((fmt), __VA_ARGS__)
+#define DEBUG_PRINT(fmt) ramsyscall_printf((fmt));
+#define DEBUG_PRINTF(fmt, ...) ramsyscall_printf((fmt), __VA_ARGS__)
 #else
-#define DEBUG_PRINT(fmt, ...)
+#define DEBUG_PRINT(fmt)
+#define DEBUG_PRINTF(fmt, ...)
 #endif
 
 namespace
@@ -58,25 +62,25 @@ TimFile readTimFile(const eastl::vector<uint8_t>& data)
 
     // Bit 3 (CF)
     tim.hasClut = ((flag & 0b1000) != 0);
-    DEBUG_PRINT("has CLUT: %d\n", (int)tim.hasClut);
+    DEBUG_PRINTF("has CLUT: %d\n", (int)tim.hasClut);
 
     if (tim.hasClut) { // CLUT
         const auto clutBNum = fr.GetUInt32();
-        DEBUG_PRINT("CLUT bnum: %d\n", (int)clutBNum);
+        DEBUG_PRINTF("CLUT bnum: %d\n", (int)clutBNum);
 
         // 31     0
         // [DY, DX]
         const auto [clutDX, clutDY] = getXY16(fr.GetUInt32());
         tim.clutDX = clutDX;
         tim.clutDY = clutDY;
-        DEBUG_PRINT("CLUT DX: %d, DY: %d\n", clutDX, clutDY);
+        DEBUG_PRINTF("CLUT DX: %d, DY: %d\n", clutDX, clutDY);
 
         // 31     0
         // [W,   H]
         const auto [clutW, clutH] = getXY16(fr.GetUInt32());
         tim.clutW = clutW;
         tim.clutH = clutH;
-        DEBUG_PRINT("CLUT W: %d, H: %d\n", clutW, clutH);
+        DEBUG_PRINTF("CLUT W: %d, H: %d\n", clutW, clutH);
 
         // TODO: handle CLUTs positioned side by side?
         tim.cluts.reserve(tim.clutH);
@@ -95,21 +99,21 @@ TimFile readTimFile(const eastl::vector<uint8_t>& data)
     // pixel data
     {
         const auto pixBNum = fr.GetUInt32();
-        DEBUG_PRINT("pixels bnum: %d\n", (int)pixBNum);
+        DEBUG_PRINTF("pixels bnum: %d\n", (int)pixBNum);
 
         // 31     0
         // [DY, DX]
         const auto [pixDX, pixDY] = getXY16(fr.GetUInt32());
         tim.pixDX = pixDX;
         tim.pixDY = pixDY;
-        DEBUG_PRINT("CLUT DX: %d, DY: %d\n", pixDX, pixDY);
+        DEBUG_PRINTF("CLUT DX: %d, DY: %d\n", pixDX, pixDY);
 
         // 31     0
         // [W,   H]
         const auto [pixW, pixH] = getXY16(fr.GetUInt32());
         tim.pixW = pixW;
         tim.pixH = pixH;
-        DEBUG_PRINT("pix W: %d, H: %d\n", pixW, pixH);
+        DEBUG_PRINTF("pix W: %d, H: %d\n", pixW, pixH);
 
         auto numPixels = pixW * pixH;
         if (tim.pmode == TimFile::PMode::Clut4Bit) {

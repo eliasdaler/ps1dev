@@ -3,6 +3,7 @@
 #include <psyqo/gpu.hh>
 #include <psyqo/scene.hh>
 #include <psyqo/primitives/quads.hh>
+#include <psyqo/primitives/triangles.hh>
 #include <psyqo/gte-registers.hh>
 #include <psyqo/gte-kernels.hh>
 #include <psyqo/soft-math.hh>
@@ -75,6 +76,14 @@ class GameplayScene final : public psyqo::Scene {
     void drawMesh(const Mesh& mesh);
 
     template<typename PrimType>
+    int drawTris(
+        const Mesh& mesh,
+        psyqo::PrimPieces::TPageAttr tpage,
+        psyqo::PrimPieces::ClutIndex clut,
+        int numFaces,
+        int vertexIdx);
+
+    template<typename PrimType>
     int drawQuads(
         const Mesh& mesh,
         psyqo::PrimPieces::TPageAttr tpage,
@@ -82,10 +91,11 @@ class GameplayScene final : public psyqo::Scene {
         int numFaces,
         int vertexIdx);
 
-    psyqo::OrderingTable<4096> ots[2];
+    static constexpr auto OT_SIZE = 4096;
+    psyqo::OrderingTable<OT_SIZE> ots[2];
 
-    psyqo::Vec3 camPos{-500.f, -280.f, -1000.f};
-    psyqo::Vec3 camRot{0.f, 230.f, 0.f};
+    psyqo::Vec3 camPos{225.f, 0.f, -12711.f};
+    psyqo::Vec3 camRot{0.f, 0.f, 0.f};
 
     static constexpr int PRIMBUFFLEN = 32768 * 8;
     std::byte primBytes[2][PRIMBUFFLEN];
@@ -171,7 +181,7 @@ void Game::uploadTIM()
     region =
         {.pos = {{.x = (std::int16_t)tim.clutDX, .y = (std::int16_t)tim.clutDY}},
          .size = {{.w = (std::int16_t)tim.clutW, .h = (std::int16_t)tim.clutH}}};
-    gpu().uploadToVRAM((uint16_t*)tim.cluts[0].colors.data(), region);
+    gpu().uploadToVRAM(tim.cluts[0].colors.data(), region);
 }
 
 void GameplayScene::frame()
@@ -275,23 +285,93 @@ void GameplayScene::frame()
 void GameplayScene::drawModel(const Model& model)
 {
     for (const auto& mesh : model.meshes) {
-        if (mesh.numQuads == 0) {
-            continue;
-        }
         drawMesh(mesh);
     }
 }
 
 void GameplayScene::drawMesh(const Mesh& mesh)
 {
-    std::size_t vertexIdx = 0;
-
     psyqo::PrimPieces::TPageAttr tpage;
     tpage.setPageX(5).setPageY(0).setDithering(true).set(psyqo::Prim::TPageAttr::Tex8Bits);
     auto clut = psyqo::PrimPieces::ClutIndex{{.x = 0, .y = 240}};
 
+    std::size_t vertexIdx = 0;
+    vertexIdx = drawTris<
+        psyqo::Prim::GouraudTriangle>(mesh, tpage, clut, mesh.numUntexturedTris, vertexIdx);
+    vertexIdx =
+        drawQuads<psyqo::Prim::GouraudQuad>(mesh, tpage, clut, mesh.numUntexturedQuads, vertexIdx);
+    vertexIdx =
+        drawTris<psyqo::Prim::GouraudTexturedTriangle>(mesh, tpage, clut, mesh.numTris, vertexIdx);
     vertexIdx =
         drawQuads<psyqo::Prim::GouraudTexturedQuad>(mesh, tpage, clut, mesh.numQuads, vertexIdx);
+}
+
+template<typename PrimType>
+int GameplayScene::drawTris(
+    const Mesh& mesh,
+    psyqo::PrimPieces::TPageAttr tpage,
+    psyqo::PrimPieces::ClutIndex clut,
+    int numFaces,
+    int vertexIdx)
+{
+    auto& ot = ots[gpu().getParity()];
+
+    int32_t zValues[3];
+
+    for (int i = 0; i < numFaces; ++i, vertexIdx += 3) {
+        const auto& v0 = mesh.vertices[vertexIdx + 0];
+        const auto& v1 = mesh.vertices[vertexIdx + 1];
+        const auto& v2 = mesh.vertices[vertexIdx + 2];
+
+        // draw quad
+        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
+        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
+        psyqo::GTE::Kernels::rtpt();
+
+        using FragType = psyqo::Fragments::SimpleFragment<PrimType>;
+        auto& triFrag = *(FragType*)nextpri;
+        auto& tri2d = triFrag.primitive;
+
+        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&tri2d.pointA.packed);
+        psyqo::GTE::read<psyqo::GTE::Register::SZ1>(reinterpret_cast<uint32_t*>(&zValues[0]));
+        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&tri2d.pointB.packed);
+        psyqo::GTE::read<psyqo::GTE::Register::SZ2>(reinterpret_cast<uint32_t*>(&zValues[1]));
+        psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&tri2d.pointC.packed);
+        psyqo::GTE::read<psyqo::GTE::Register::SZ3>(reinterpret_cast<uint32_t*>(&zValues[2]));
+
+        psyqo::GTE::Kernels::nclip();
+        int32_t dot = psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
+        if (dot < 0) {
+            continue;
+        }
+
+        auto avgZ = (zValues[0] + zValues[1] + zValues[2]) / 3;
+        avgZ >>= 3;
+        if (avgZ >= 0 && avgZ < OT_SIZE) {
+            tri2d.setColorA(v0.col);
+            tri2d.setColorB(v1.col);
+            tri2d.setColorC(v2.col);
+
+            if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedTriangle>) {
+                tri2d.uvA.u = v0.uv.vx;
+                tri2d.uvA.v = v0.uv.vy;
+                tri2d.uvB.u = v1.uv.vx;
+                tri2d.uvB.v = v1.uv.vy;
+                tri2d.uvC.u = v2.uv.vx;
+                tri2d.uvC.v = v2.uv.vy;
+
+                // TODO: read from arg
+                tri2d.tpage = tpage;
+                tri2d.clutIndex = clut;
+            }
+
+            ot.insert(triFrag, avgZ);
+        }
+        nextpri += sizeof(FragType);
+    }
+
+    return vertexIdx;
 }
 
 template<typename PrimType>
@@ -318,9 +398,8 @@ int GameplayScene::drawQuads(
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
         psyqo::GTE::Kernels::rtpt();
 
-        using TexQuadGouraudPrim =
-            psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedQuad>;
-        auto& quadFrag = *(TexQuadGouraudPrim*)nextpri;
+        using FragType = psyqo::Fragments::SimpleFragment<PrimType>;
+        auto& quadFrag = *(FragType*)nextpri;
         auto& quad2d = quadFrag.primitive;
 
         psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointA.packed);
@@ -342,29 +421,32 @@ int GameplayScene::drawQuads(
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SZ3>(reinterpret_cast<uint32_t*>(&zValues[3]));
 
-        const auto avgZ = (zValues[0] + zValues[1] + zValues[2] + zValues[3]) / 4;
-        if (avgZ >= 0 && avgZ < 4096) {
+        auto avgZ = (zValues[0] + zValues[1] + zValues[2] + zValues[3]) / 4;
+        avgZ >>= 3;
+        if (avgZ >= 0 && avgZ < OT_SIZE) {
             quad2d.setColorA(v0.col);
             quad2d.setColorB(v1.col);
             quad2d.setColorC(v2.col);
             quad2d.setColorD(v3.col);
 
-            quad2d.uvA.u = v0.uv.vx;
-            quad2d.uvA.v = v0.uv.vy;
-            quad2d.uvB.u = v1.uv.vx;
-            quad2d.uvB.v = v1.uv.vy;
-            quad2d.uvC.u = v2.uv.vx;
-            quad2d.uvC.v = v2.uv.vy;
-            quad2d.uvD.u = v3.uv.vx;
-            quad2d.uvD.v = v3.uv.vy;
+            if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedQuad>) {
+                quad2d.uvA.u = v0.uv.vx;
+                quad2d.uvA.v = v0.uv.vy;
+                quad2d.uvB.u = v1.uv.vx;
+                quad2d.uvB.v = v1.uv.vy;
+                quad2d.uvC.u = v2.uv.vx;
+                quad2d.uvC.v = v2.uv.vy;
+                quad2d.uvD.u = v3.uv.vx;
+                quad2d.uvD.v = v3.uv.vy;
 
-            // TODO: read from arg
-            quad2d.tpage = tpage;
-            quad2d.clutIndex = clut;
+                // TODO: read from arg
+                quad2d.tpage = tpage;
+                quad2d.clutIndex = clut;
+            }
 
             ot.insert(quadFrag, avgZ);
         }
-        nextpri += sizeof(TexQuadGouraudPrim);
+        nextpri += sizeof(FragType);
     }
 
     return vertexIdx;
