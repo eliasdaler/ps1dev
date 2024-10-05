@@ -197,8 +197,8 @@ void GameplayScene::frame()
 
     { // input
         const auto& pad = game.m_input;
-        const auto walkSpeed = 8;
-        const auto rotateSpeed = 8;
+        const auto walkSpeed = 64;
+        const auto rotateSpeed = 16;
 
         if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Left)) {
             camRot.y -= rotateSpeed;

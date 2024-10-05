@@ -83,16 +83,11 @@ TimFile readTimFile(const eastl::vector<uint8_t>& data)
         DEBUG_PRINTF("CLUT W: %d, H: %d\n", clutW, clutH);
 
         // TODO: handle CLUTs positioned side by side?
-        tim.cluts.reserve(tim.clutH);
-
         const auto clutNumColors = TimFile::getNumColorsInClut(tim.pmode);
-        for (int i = 0; i < tim.clutH; ++i) {
-            TimFile::Clut clut;
+        tim.cluts.resize(tim.clutH);
+        for (auto& clut : tim.cluts) {
             clut.colors.resize(clutNumColors);
-            for (int i = 0; i < clutNumColors; ++i) {
-                clut.colors[i] = fr.GetUInt16();
-            }
-            tim.cluts.push_back(eastl::move(clut));
+            fr.GetBytes(clut.colors.data(), clutNumColors * sizeof(std::uint16_t));
         }
     }
 
@@ -124,11 +119,12 @@ TimFile readTimFile(const eastl::vector<uint8_t>& data)
 
         if (tim.hasClut) {
             tim.pixelsIdx.resize(numPixels);
+            fr.GetBytes(tim.pixelsIdx.data(), numPixels * sizeof(std::uint8_t));
         } else {
             tim.pixels.resize(numPixels);
         }
 
-        for (int i = 0; i < pixW * pixH; ++i) {
+        /* for (int i = 0; i < pixW * pixH; ++i) {
             const auto pd = fr.GetUInt16();
             if (tim.pmode == TimFile::PMode::Clut4Bit) {
                 tim.pixelsIdx[i * 4 + 0] = static_cast<std::uint8_t>((pd & 0x000F) >> 0);
@@ -141,7 +137,7 @@ TimFile readTimFile(const eastl::vector<uint8_t>& data)
             } else if (tim.pmode == TimFile::PMode::Direct15Bit) {
                 tim.pixels[i] = pd;
             }
-        }
+        } */
     }
 
     return tim;
