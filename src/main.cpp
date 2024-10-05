@@ -278,7 +278,7 @@ void GameplayScene::frame()
         camTrans.z.raw());
 
     /* game.m_systemFont
-        .chainprintf(game.gpu(), {{.x = 16, .y = 32}}, c, "RX: %d, RY: %d", m_angleX, m_angleY); */
+        .chainprintf(game.gpu(), {{.x = 16, .y = 32}}, c, "RX: %d, RY: %d", angleX, angleY); */
     // game.m_romFont.print(game.gpu(), "Hello World!", {{.x = 16, .y = 64}}, c);
 }
 
