@@ -20,6 +20,7 @@
 
 #include "TimFile.h"
 #include "Model.h"
+#include "Object.h"
 
 using namespace psyqo::fixed_point_literals;
 using namespace psyqo::trig_literals;
@@ -77,6 +78,8 @@ class GameplayScene final : public psyqo::Scene {
             psyqo::FixedPoint<16>(160.0).raw());
         psyqo::GTE::write<psyqo::GTE::Register::OFY, psyqo::GTE::Unsafe>(
             psyqo::FixedPoint<16>(120.0).raw());
+
+        cato.position.y = 0.88;
     }
 
     void frame() override;
@@ -95,6 +98,8 @@ class GameplayScene final : public psyqo::Scene {
 
     psyqo::Vec3 camPos{225.f, 0.f, -12711.f};
     psyqo::Vec3 camRot{0.f, 0.f, 0.f};
+
+    ModelObject cato;
 
     static constexpr int PRIMBUFFLEN = 32768 * 8;
     std::byte primBytes[2][PRIMBUFFLEN];
@@ -308,7 +313,37 @@ void GameplayScene::frame()
     nextpri += sizeof(FastFillPrim);
 
     drawModel(game.levelModel, game.bricksTexture);
-    drawModel(game.catoModel, game.catoTexture);
+
+    {
+        auto& cato = gameplayScene.cato;
+
+        /* psyqo::Angle angleX;
+        psyqo::Angle angleY;
+        angleX.value = (cato.rotation.x.value / 2) >> 12;
+        angleY.value = (cato.rotation.y.value / 2) >> 12;
+        auto worldRotX = psyqo::SoftMath::
+            generateRotationMatrix33(angleX, psyqo::SoftMath::Axis::X, game.m_trig);
+        const auto worldRotY = psyqo::SoftMath::
+            generateRotationMatrix33(angleY, psyqo::SoftMath::Axis::Y, game.m_trig);
+
+        psyqo::SoftMath::multiplyMatrix33(worldRotY, worldRotX, &worldRotX);
+        psyqo::SoftMath::multiplyMatrix33(rotX, worldRotX, &worldRotX);
+
+        auto posCamSpace = cato.position - camPos;
+        psyqo::SoftMath::matrixVecMul3(rotX, posCamSpace, &posCamSpace);
+
+        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(worldRotX);
+        psyqo::GTE::write<psyqo::GTE::Register::TRX, psyqo::GTE::Unsafe>(posCamSpace.x.raw());
+        psyqo::GTE::write<psyqo::GTE::Register::TRY, psyqo::GTE::Unsafe>(posCamSpace.y.raw());
+        psyqo::GTE::write<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>(posCamSpace.z.raw()); */
+
+        auto posCamSpace = cato.position + camTrans;
+        psyqo::GTE::write<psyqo::GTE::Register::TRX, psyqo::GTE::Unsafe>(posCamSpace.x.raw());
+        psyqo::GTE::write<psyqo::GTE::Register::TRY, psyqo::GTE::Unsafe>(posCamSpace.y.raw());
+        psyqo::GTE::write<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>(posCamSpace.z.raw());
+
+        drawModel(game.catoModel, game.catoTexture);
+    }
 
     gpu().chain(ot);
 

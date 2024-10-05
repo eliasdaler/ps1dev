@@ -1,19 +1,13 @@
 #pragma once
 
-#include <libgpu.h>
-
-#include "FastModel.h"
+#include <psyqo/vector.hh>
 
 struct Model;
 
 struct Object {
-    SVECTOR rotation{};
-    VECTOR position{};
-    VECTOR scale{ONE, ONE, ONE};
-};
-
-struct FastModelObject : Object {
-    FastModelInstance model;
+    psyqo::Vec3 position{0.f, 0.f, 0.f};
+    psyqo::Vec3 rotation{0.f, 0.f, 0.f};
+    // VECTOR scale{ONE, ONE, ONE};
 };
 
 struct ModelObject : Object {
