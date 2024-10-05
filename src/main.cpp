@@ -128,23 +128,14 @@ psyqo::Coroutine<> loadCoroutine(Game* game)
 {
     psyqo::Coroutine<>::Awaiter awaiter = game->m_coroutine.awaiter();
 
-    ramsyscall_printf("Loading LEVEL.BIN...\n");
-    game->m_cdromLoader.readFile(
-        "LEVEL.BIN;1", game->gpu(), game->m_isoParser, [game](eastl::vector<uint8_t>&& buffer) {
-            game->m_buffer = eastl::move(buffer);
-            game->levelModel.load(game->m_buffer);
-            game->m_coroutine.resume();
-        });
-    co_await awaiter;
-
-    ramsyscall_printf("Loading CATO.BIN...\n");
+    /* ramsyscall_printf("Loading CATO.BIN...\n");
     game->m_cdromLoader.readFile(
         "CATO.BIN;1", game->gpu(), game->m_isoParser, [game](eastl::vector<uint8_t>&& buffer) {
             game->m_buffer = eastl::move(buffer);
             game->catoModel.load(game->m_buffer);
             game->m_coroutine.resume();
         });
-    co_await awaiter;
+    co_await awaiter; */
 
     ramsyscall_printf("Loading BRICKS.TIM...\n");
     game->m_cdromLoader.readFile(
@@ -161,6 +152,15 @@ psyqo::Coroutine<> loadCoroutine(Game* game)
         "CATO.TIM;1", game->gpu(), game->m_isoParser, [game](eastl::vector<uint8_t>&& buffer) {
             game->m_buffer = eastl::move(buffer);
             game->catoTexture = game->uploadTIM();
+            game->m_coroutine.resume();
+        });
+    co_await awaiter;
+
+    ramsyscall_printf("Loading LEVEL.BIN...\n");
+    game->m_cdromLoader.readFile(
+        "LEVEL.BIN;1", game->gpu(), game->m_isoParser, [game](eastl::vector<uint8_t>&& buffer) {
+            game->m_buffer = eastl::move(buffer);
+            game->levelModel.load(game->m_buffer);
             game->m_coroutine.resume();
         });
     co_await awaiter;
