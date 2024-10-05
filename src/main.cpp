@@ -7,6 +7,7 @@
 #include <psyqo/gte-kernels.hh>
 #include <psyqo/soft-math.hh>
 #include <psyqo/coroutine.hh>
+#include <psyqo/simplepad.hh>
 
 #include <psyqo/cdrom-device.hh>
 #include <psyqo/iso9660-parser.hh>
@@ -45,6 +46,8 @@ public:
     Model levelModel;
 
     psyqo::Coroutine<> m_coroutine;
+
+    psyqo::SimplePad m_input;
 };
 
 struct Quad {
@@ -68,9 +71,12 @@ class GameplayScene final : public psyqo::Scene {
 
     void frame() override;
 
+    void drawModel(const Model& model);
+    void drawMesh(const Mesh& mesh);
+
     psyqo::OrderingTable<4096> ots[2];
 
-    psyqo::Vec3 camPos{-500.f, -180.f, -1000.f};
+    psyqo::Vec3 camPos{-500.f, -280.f, -1000.f};
     psyqo::Vec3 camRot{0.f, 230.f, 0.f};
 
     static constexpr int PRIMBUFFLEN = 32768 * 8;
@@ -80,7 +86,6 @@ class GameplayScene final : public psyqo::Scene {
     uint16_t h = 300;
 };
 
-// We're instantiating the two objects above right now.
 Game game;
 GameplayScene gameplayScene;
 
@@ -135,6 +140,10 @@ void Game::createScene()
 {
     m_systemFont.uploadSystemFont(gpu());
     m_romFont.uploadKromFont(gpu(), {{.x = 960, .y = int16_t(512 - 48 - 90)}});
+
+    // TODO: check if it's possible to call it in game init?
+    m_input.initialize();
+
     pushScene(&gameplayScene);
 
     m_coroutine = loadCoroutine(this);
@@ -163,15 +172,48 @@ void GameplayScene::frame()
         return;
     }
 
+    psyqo::Angle angleX;
+    psyqo::Angle angleY;
+    angleX.value = (camRot.x.value / 2) >> 12;
+    angleY.value = (camRot.y.value / 2) >> 12;
+
+    { // input
+        const auto& pad = game.m_input;
+        const auto walkSpeed = 8;
+        const auto rotateSpeed = 8;
+
+        if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Left)) {
+            camRot.y -= rotateSpeed;
+        }
+        if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Right)) {
+            camRot.y += rotateSpeed;
+        }
+
+        if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Up)) {
+            camPos.x += game.m_trig.sin(angleY) * walkSpeed;
+            camPos.z += game.m_trig.cos(angleY) * walkSpeed;
+        }
+        if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Down)) {
+            camPos.x -= game.m_trig.sin(angleY) * walkSpeed;
+            camPos.z -= game.m_trig.cos(angleY) * walkSpeed;
+        }
+
+        if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::L2)) {
+            camRot.x += rotateSpeed;
+        }
+        if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::R2)) {
+            camRot.x -= rotateSpeed;
+        }
+    }
+
     // calculate camera rotation matrix
-    psyqo::Angle m_angleX;
-    psyqo::Angle m_angleY;
-    m_angleX.value = (camRot.x.value / 2) >> 12;
-    m_angleY.value = (camRot.y.value / 2) >> 12;
+    // input might have changed the values
+    angleX.value = (camRot.x.value / 2) >> 12;
+    angleY.value = (camRot.y.value / 2) >> 12;
     auto rotX =
-        psyqo::SoftMath::generateRotationMatrix33(m_angleX, psyqo::SoftMath::Axis::X, game.m_trig);
+        psyqo::SoftMath::generateRotationMatrix33(angleX, psyqo::SoftMath::Axis::X, game.m_trig);
     const auto rotY =
-        psyqo::SoftMath::generateRotationMatrix33(m_angleY, psyqo::SoftMath::Axis::Y, game.m_trig);
+        psyqo::SoftMath::generateRotationMatrix33(angleY, psyqo::SoftMath::Axis::Y, game.m_trig);
     psyqo::SoftMath::multiplyMatrix33(rotY, rotX, &rotX);
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(rotX);
 
@@ -202,69 +244,7 @@ void GameplayScene::frame()
     gpu().chain(fill);
     nextpri += sizeof(FastFillPrim);
 
-    int32_t zValues[4];
-
-    for (const auto& mesh : game.levelModel.meshes) {
-        if (mesh.numQuads == 0) {
-            continue;
-        }
-
-        std::size_t vertexIdx = 0;
-        for (int i = 0; i < mesh.numQuads; ++i, vertexIdx += 4) {
-            const auto& v0 = mesh.vertices[vertexIdx + 0];
-            const auto& v1 = mesh.vertices[vertexIdx + 1];
-            const auto& v2 = mesh.vertices[vertexIdx + 2];
-            const auto& v3 = mesh.vertices[vertexIdx + 3];
-
-            // draw quad
-            psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
-            psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
-            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
-            psyqo::GTE::Kernels::rtpt();
-
-            using TexQuadGouraudPrim =
-                psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedQuad>;
-            auto& quadFrag = *(TexQuadGouraudPrim*)nextpri;
-            auto& quad2d = quadFrag.primitive;
-            quad2d.uvA.u = v0.uv.vx;
-            quad2d.uvA.v = v0.uv.vy;
-            quad2d.uvB.u = v1.uv.vx;
-            quad2d.uvB.v = v1.uv.vy;
-            quad2d.uvC.u = v2.uv.vx;
-            quad2d.uvC.v = v2.uv.vy;
-            quad2d.uvD.u = v3.uv.vx;
-            quad2d.uvD.v = v3.uv.vy;
-
-            // TODO: read from arg
-            quad2d.tpage.setPageX(5).setPageY(0).setDithering(true).set(
-                psyqo::Prim::TPageAttr::Tex8Bits);
-            quad2d.clutIndex = {{.x = 0, .y = 240}};
-
-            psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointA.packed);
-            psyqo::GTE::read<psyqo::GTE::Register::SZ1>(reinterpret_cast<uint32_t*>(&zValues[0]));
-            psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointB.packed);
-            psyqo::GTE::read<psyqo::GTE::Register::SZ2>(reinterpret_cast<uint32_t*>(&zValues[1]));
-            psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointC.packed);
-            psyqo::GTE::read<psyqo::GTE::Register::SZ3>(reinterpret_cast<uint32_t*>(&zValues[2]));
-
-            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v3.pos);
-            psyqo::GTE::Kernels::rtps();
-
-            psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
-            psyqo::GTE::read<psyqo::GTE::Register::SZ3>(reinterpret_cast<uint32_t*>(&zValues[3]));
-
-            const auto avgZ = (zValues[0] + zValues[1] + zValues[2] + zValues[3]) / 4;
-            if (avgZ >= 0 && avgZ < 4096) {
-                quad2d.setColorA({.r = v0.col.vx, .g = v0.col.vy, .b = v0.col.vz});
-                quad2d.setColorB({.r = v1.col.vx, .g = v1.col.vy, .b = v1.col.vz});
-                quad2d.setColorC({.r = v2.col.vx, .g = v2.col.vy, .b = v2.col.vz});
-                quad2d.setColorD({.r = v3.col.vx, .g = v3.col.vy, .b = v3.col.vz});
-
-                ot.insert(quadFrag, avgZ);
-            }
-            nextpri += sizeof(TexQuadGouraudPrim);
-        }
-    }
+    drawModel(game.levelModel);
 
     gpu().chain(ot);
 
@@ -282,6 +262,79 @@ void GameplayScene::frame()
     /* game.m_systemFont
         .chainprintf(game.gpu(), {{.x = 16, .y = 32}}, c, "RX: %d, RY: %d", m_angleX, m_angleY); */
     // game.m_romFont.print(game.gpu(), "Hello World!", {{.x = 16, .y = 64}}, c);
+}
+
+void GameplayScene::drawModel(const Model& model)
+{
+    for (const auto& mesh : model.meshes) {
+        if (mesh.numQuads == 0) {
+            continue;
+        }
+        drawMesh(mesh);
+    }
+}
+
+void GameplayScene::drawMesh(const Mesh& mesh)
+{
+    auto& ot = ots[gpu().getParity()];
+
+    int32_t zValues[4];
+
+    std::size_t vertexIdx = 0;
+    for (int i = 0; i < mesh.numQuads; ++i, vertexIdx += 4) {
+        const auto& v0 = mesh.vertices[vertexIdx + 0];
+        const auto& v1 = mesh.vertices[vertexIdx + 1];
+        const auto& v2 = mesh.vertices[vertexIdx + 2];
+        const auto& v3 = mesh.vertices[vertexIdx + 3];
+
+        // draw quad
+        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
+        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
+        psyqo::GTE::Kernels::rtpt();
+
+        using TexQuadGouraudPrim =
+            psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedQuad>;
+        auto& quadFrag = *(TexQuadGouraudPrim*)nextpri;
+        auto& quad2d = quadFrag.primitive;
+        quad2d.uvA.u = v0.uv.vx;
+        quad2d.uvA.v = v0.uv.vy;
+        quad2d.uvB.u = v1.uv.vx;
+        quad2d.uvB.v = v1.uv.vy;
+        quad2d.uvC.u = v2.uv.vx;
+        quad2d.uvC.v = v2.uv.vy;
+        quad2d.uvD.u = v3.uv.vx;
+        quad2d.uvD.v = v3.uv.vy;
+
+        // TODO: read from arg
+        quad2d.tpage.setPageX(5).setPageY(0).setDithering(true).set(
+            psyqo::Prim::TPageAttr::Tex8Bits);
+        quad2d.clutIndex = {{.x = 0, .y = 240}};
+
+        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointA.packed);
+        psyqo::GTE::read<psyqo::GTE::Register::SZ1>(reinterpret_cast<uint32_t*>(&zValues[0]));
+        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointB.packed);
+        psyqo::GTE::read<psyqo::GTE::Register::SZ2>(reinterpret_cast<uint32_t*>(&zValues[1]));
+        psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointC.packed);
+        psyqo::GTE::read<psyqo::GTE::Register::SZ3>(reinterpret_cast<uint32_t*>(&zValues[2]));
+
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v3.pos);
+        psyqo::GTE::Kernels::rtps();
+
+        psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
+        psyqo::GTE::read<psyqo::GTE::Register::SZ3>(reinterpret_cast<uint32_t*>(&zValues[3]));
+
+        const auto avgZ = (zValues[0] + zValues[1] + zValues[2] + zValues[3]) / 4;
+        if (avgZ >= 0 && avgZ < 4096) {
+            quad2d.setColorA({.r = v0.col.vx, .g = v0.col.vy, .b = v0.col.vz});
+            quad2d.setColorB({.r = v1.col.vx, .g = v1.col.vy, .b = v1.col.vz});
+            quad2d.setColorC({.r = v2.col.vx, .g = v2.col.vy, .b = v2.col.vz});
+            quad2d.setColorD({.r = v3.col.vx, .g = v3.col.vy, .b = v3.col.vz});
+
+            ot.insert(quadFrag, avgZ);
+        }
+        nextpri += sizeof(TexQuadGouraudPrim);
+    }
 }
 
 int main()
