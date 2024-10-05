@@ -53,20 +53,9 @@ struct Quad {
 
 using Short = psyqo::GTE::Short;
 
-// And we need at least one scene to be created.
-// This is the one we're going to do for our hello world.
 class GameplayScene final : public psyqo::Scene {
     void start(StartReason reason) override
     {
-        const auto raw = Short::Raw::RAW;
-
-#define SHORT(x) Short((x), raw)
-
-        quad3d.verts[0] = psyqo::GTE::PackedVec3(SHORT(-256), SHORT(-512), SHORT(768));
-        quad3d.verts[1] = psyqo::GTE::PackedVec3(SHORT(256), SHORT(-512), SHORT(768));
-        quad3d.verts[2] = psyqo::GTE::PackedVec3(SHORT(-256), SHORT(0), SHORT(768));
-        quad3d.verts[3] = psyqo::GTE::PackedVec3(SHORT(256), SHORT(0), SHORT(768));
-
         // fov
         psyqo::GTE::write<psyqo::GTE::Register::H, psyqo::GTE::Unsafe>(h);
 
@@ -80,12 +69,9 @@ class GameplayScene final : public psyqo::Scene {
     void frame() override;
 
     psyqo::OrderingTable<4096> ots[2];
-    Quad quad3d;
 
     psyqo::Vec3 camPos{-500.f, -180.f, -1000.f};
     psyqo::Vec3 camRot{0.f, 230.f, 0.f};
-
-    eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::TexturedQuad>, 1> m_quads[2];
 
     static constexpr int PRIMBUFFLEN = 32768 * 8;
     std::byte primBytes[2][PRIMBUFFLEN];
@@ -114,7 +100,6 @@ void Game::prepare()
 psyqo::Coroutine<> loadCoroutine(Game* game)
 {
     psyqo::Coroutine<>::Awaiter awaiter = game->m_coroutine.awaiter();
-    // load stuff from CD
 
     ramsyscall_printf("Loading BRICKS.TIM...\n");
     game->m_cdromLoader.readFile(
@@ -170,8 +155,6 @@ void Game::uploadTIM()
         {.pos = {{.x = (std::int16_t)tim.clutDX, .y = (std::int16_t)tim.clutDY}},
          .size = {{.w = (std::int16_t)tim.clutW, .h = (std::int16_t)tim.clutH}}};
     gpu().uploadToVRAM((uint16_t*)tim.cluts[0].colors.data(), region);
-
-    ramsyscall_printf("TIM loaded! Num bytes: %d\n", m_buffer.size());
 }
 
 void GameplayScene::frame()
@@ -179,8 +162,6 @@ void GameplayScene::frame()
     if (!game.texturesLoaded) {
         return;
     }
-
-    // ramsyscall_printf("hmm: %d\n", gpu().getFrameCount());
 
     // calculate camera rotation matrix
     psyqo::Angle m_angleX;
@@ -194,7 +175,7 @@ void GameplayScene::frame()
     psyqo::SoftMath::multiplyMatrix33(rotY, rotX, &rotX);
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(rotX);
 
-    // calcuolate and upload camera translation
+    // calculate and upload camera translation
     psyqo::Vec3 camTrans{};
     camTrans.x = -camPos.x >> 12;
     camTrans.y = -camPos.y >> 12;
@@ -209,6 +190,7 @@ void GameplayScene::frame()
     const auto parity = gpu().getParity();
 
     auto& ot = ots[parity];
+
     auto& primBuf = primBytes[parity];
     nextpri = &primBuf[0];
 
@@ -219,7 +201,8 @@ void GameplayScene::frame()
     gpu().getNextClear(fill.primitive, bg);
     gpu().chain(fill);
     nextpri += sizeof(FastFillPrim);
-    // game.gpu().clear(bg);
+
+    int32_t zValues[4];
 
     for (const auto& mesh : game.levelModel.meshes) {
         if (mesh.numQuads == 0) {
@@ -239,12 +222,10 @@ void GameplayScene::frame()
             psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
             psyqo::GTE::Kernels::rtpt();
 
-            auto& quads = m_quads[parity];
             using TexQuadGouraudPrim =
                 psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedQuad>;
             auto& quadFrag = *(TexQuadGouraudPrim*)nextpri;
             auto& quad2d = quadFrag.primitive;
-            // set quad2d const stuff
             quad2d.uvA.u = v0.uv.vx;
             quad2d.uvA.v = v0.uv.vy;
             quad2d.uvB.u = v1.uv.vx;
@@ -259,9 +240,6 @@ void GameplayScene::frame()
                 psyqo::Prim::TPageAttr::Tex8Bits);
             quad2d.clutIndex = {{.x = 0, .y = 240}};
 
-            // TODO: read?
-
-            int32_t zValues[4];
             psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointA.packed);
             psyqo::GTE::read<psyqo::GTE::Register::SZ1>(reinterpret_cast<uint32_t*>(&zValues[0]));
             psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointB.packed);
@@ -291,27 +269,18 @@ void GameplayScene::frame()
     gpu().chain(ot);
 
     // debug
-
     psyqo::Color c = {{.r = 255, .g = 255, .b = 255}};
-    /* game.m_systemFont.chainprintf(
+    game.m_systemFont.chainprintf(
         game.gpu(),
         {{.x = 16, .y = 16}},
         c,
         "TRX: %d, TRY: %d, TRZ: %d",
         camTrans.x.raw(),
         camTrans.y.raw(),
-        camTrans.z.raw()); */
+        camTrans.z.raw());
 
-    game.m_systemFont.chainprintf(
-        game.gpu(),
-        {{.x = 16, .y = 16}},
-        c,
-        "1: %d, 2: %d",
-        quad3d.verts[0].x.raw(),
-        game.levelModel.meshes[0].vertices[0].pos.x.raw());
     /* game.m_systemFont
-        .chainprintf(game.gpu(), {{.x = 16, .y = 32}}, c, "RX: %d, RY: %d", m_angleX, m_angleY);
-     */
+        .chainprintf(game.gpu(), {{.x = 16, .y = 32}}, c, "RX: %d, RY: %d", m_angleX, m_angleY); */
     // game.m_romFont.print(game.gpu(), "Hello World!", {{.x = 16, .y = 64}}, c);
 }
 
