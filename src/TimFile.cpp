@@ -6,7 +6,7 @@
 
 #include <common/syscalls/syscalls.h>
 
-#define DEBUG_TIM
+// #define DEBUG_TIM
 
 #ifdef DEBUG_TIM
 #define DEBUG_PRINT(fmt) ramsyscall_printf((fmt));

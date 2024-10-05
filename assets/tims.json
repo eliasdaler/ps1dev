@@ -1,26 +1,14 @@
 [
   {
-    "input": "raw/bricks.png",
+    "input": "raw/atlas.png",
     "output": "bricks.tim",
     "clut": [0, 240],
     "pix": [320, 0]
   },
   {
-    "input": "raw/face_cato.png",
-    "output": "ftex.tim",
-    "clut": [0, 482],
-    "pix": [448, 0]
-  },
-  {
     "input": "raw/cato.png",
     "output": "cato.tim",
-    "clut": [0, 483],
+    "clut": [0, 241],
     "pix": [512, 0]
-  },
-  {
-    "input": "raw/doge.png",
-    "output": "ps1.tim",
-    "clut": [0, 484],
-    "pix": [320, 256]
   }
 ]

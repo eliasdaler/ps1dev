@@ -4,6 +4,8 @@
 
 #include <utility>
 
+#include <common/syscalls/syscalls.h>
+
 void Model::load(const eastl::vector<uint8_t>& data)
 {
     // vertices
@@ -23,6 +25,13 @@ void Model::load(const eastl::vector<uint8_t>& data)
         mesh.numTris = fr.GetUInt16();
         mesh.numQuads = fr.GetUInt16();
 
+        if (i == 21) {
+            mesh.numQuads = mesh.numQuads;
+        }
+        if (i == 21) {
+            // return;
+        }
+
         const auto numVertices = mesh.numUntexturedTris * 3 + mesh.numUntexturedQuads * 4 +
                                  mesh.numTris * 3 + mesh.numQuads * 4;
         mesh.vertices.resize(numVertices);
@@ -39,7 +48,12 @@ void Model::load(const eastl::vector<uint8_t>& data)
         verticesPtr += mesh.numTris * 3;
 
         fr.ReadArr(verticesPtr, mesh.numQuads * 4);
-        // verticesPtr += mesh.numUntexturedQuads * 4;
+        verticesPtr += mesh.numQuads * 4;
+
+        auto last = &mesh.vertices[mesh.vertices.size()];
+        if (last != verticesPtr) {
+            ramsyscall_printf("WHAT: %d\n", (int)i);
+        }
 
         meshes.push_back(std::move(mesh));
     }

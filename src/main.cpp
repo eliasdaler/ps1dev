@@ -27,12 +27,17 @@ using namespace psyqo::trig_literals;
 namespace
 {
 
+struct TextureInfo {
+    psyqo::PrimPieces::TPageAttr tpage;
+    psyqo::PrimPieces::ClutIndex clut;
+};
+
 class Game final : public psyqo::Application {
     void prepare() override;
     void createScene() override;
 
 public:
-    void uploadTIM();
+    [[nodiscard]] TextureInfo uploadTIM();
 
     psyqo::Font<> m_systemFont;
     psyqo::Font<> m_romFont;
@@ -45,10 +50,14 @@ public:
 
     bool texturesLoaded{false};
     Model levelModel;
+    Model catoModel;
 
     psyqo::Coroutine<> m_coroutine;
 
     psyqo::SimplePad m_input;
+
+    TextureInfo bricksTexture;
+    TextureInfo catoTexture;
 };
 
 struct Quad {
@@ -72,24 +81,14 @@ class GameplayScene final : public psyqo::Scene {
 
     void frame() override;
 
-    void drawModel(const Model& model);
-    void drawMesh(const Mesh& mesh);
+    void drawModel(const Model& model, const TextureInfo& texture);
+    void drawMesh(const Mesh& mesh, const TextureInfo& texture);
 
     template<typename PrimType>
-    int drawTris(
-        const Mesh& mesh,
-        psyqo::PrimPieces::TPageAttr tpage,
-        psyqo::PrimPieces::ClutIndex clut,
-        int numFaces,
-        int vertexIdx);
+    int drawTris(const Mesh& mesh, const TextureInfo& texture, int numFaces, int vertexIdx);
 
     template<typename PrimType>
-    int drawQuads(
-        const Mesh& mesh,
-        psyqo::PrimPieces::TPageAttr tpage,
-        psyqo::PrimPieces::ClutIndex clut,
-        int numFaces,
-        int vertexIdx);
+    int drawQuads(const Mesh& mesh, const TextureInfo& texture, int numFaces, int vertexIdx);
 
     static constexpr auto OT_SIZE = 4096;
     psyqo::OrderingTable<OT_SIZE> ots[2];
@@ -124,11 +123,30 @@ psyqo::Coroutine<> loadCoroutine(Game* game)
 {
     psyqo::Coroutine<>::Awaiter awaiter = game->m_coroutine.awaiter();
 
+    ramsyscall_printf("Loading LEVEL.BIN...\n");
+    game->m_cdromLoader.readFile(
+        "LEVEL.BIN;1", game->gpu(), game->m_isoParser, [game](eastl::vector<uint8_t>&& buffer) {
+            game->m_buffer = eastl::move(buffer);
+            game->levelModel.load(game->m_buffer);
+            game->m_coroutine.resume();
+        });
+    co_await awaiter;
+
+    ramsyscall_printf("Loading CATO.BIN...\n");
+    game->m_cdromLoader.readFile(
+        "CATO.BIN;1", game->gpu(), game->m_isoParser, [game](eastl::vector<uint8_t>&& buffer) {
+            game->m_buffer = eastl::move(buffer);
+            game->catoModel.load(game->m_buffer);
+            game->m_coroutine.resume();
+        });
+    co_await awaiter;
+
     ramsyscall_printf("Loading BRICKS.TIM...\n");
     game->m_cdromLoader.readFile(
         "BRICKS.TIM;1", game->gpu(), game->m_isoParser, [game](eastl::vector<uint8_t>&& buffer) {
+            ramsyscall_printf("Loading BRICKS.TIM... bytes: %d\n", buffer.size());
             game->m_buffer = eastl::move(buffer);
-            game->uploadTIM();
+            game->bricksTexture = game->uploadTIM();
             game->m_coroutine.resume();
         });
     co_await awaiter;
@@ -137,16 +155,7 @@ psyqo::Coroutine<> loadCoroutine(Game* game)
     game->m_cdromLoader.readFile(
         "CATO.TIM;1", game->gpu(), game->m_isoParser, [game](eastl::vector<uint8_t>&& buffer) {
             game->m_buffer = eastl::move(buffer);
-            game->uploadTIM();
-            game->m_coroutine.resume();
-        });
-    co_await awaiter;
-
-    ramsyscall_printf("Loading LEVEL.BIN...\n");
-    game->m_cdromLoader.readFile(
-        "LEVEL.BIN;1", game->gpu(), game->m_isoParser, [game](eastl::vector<uint8_t>&& buffer) {
-            game->m_buffer = eastl::move(buffer);
-            game->levelModel.load(game->m_buffer);
+            game->catoTexture = game->uploadTIM();
             game->m_coroutine.resume();
         });
     co_await awaiter;
@@ -168,7 +177,7 @@ void Game::createScene()
     m_coroutine.resume();
 }
 
-void Game::uploadTIM()
+TextureInfo Game::uploadTIM()
 {
     TimFile tim = readTimFile(m_buffer);
     psyqo::Rect region =
@@ -182,6 +191,33 @@ void Game::uploadTIM()
         {.pos = {{.x = (std::int16_t)tim.clutDX, .y = (std::int16_t)tim.clutDY}},
          .size = {{.w = (std::int16_t)tim.clutW, .h = (std::int16_t)tim.clutH}}};
     gpu().uploadToVRAM(tim.cluts[0].colors.data(), region);
+
+    TextureInfo info;
+    info.clut = {{.x = tim.clutDX, .y = tim.clutDY}};
+
+    const auto colorMode = [](TimFile::PMode pmode) {
+        switch (pmode) {
+        case TimFile::PMode::Clut4Bit:
+            return psyqo::Prim::TPageAttr::Tex4Bits;
+            break;
+        case TimFile::PMode::Clut8Bit:
+            return psyqo::Prim::TPageAttr::Tex8Bits;
+            break;
+        case TimFile::PMode::Direct15Bit:
+            return psyqo::Prim::TPageAttr::Tex16Bits;
+            break;
+        }
+        psyqo::Kernel::assert(false, "unexpected pmode value");
+        return psyqo::Prim::TPageAttr::Tex16Bits;
+    }(tim.pmode);
+
+    ramsyscall_printf("dx: %d, dy: %d\n", tim.pixDX, tim.pixDY);
+    info.tpage.setPageX((std::uint8_t)(tim.pixDX / 64))
+        .setPageY((std::uint8_t)(tim.pixDY / 128))
+        .setDithering(true)
+        .set(colorMode);
+
+    return info;
 }
 
 void GameplayScene::frame()
@@ -255,6 +291,15 @@ void GameplayScene::frame()
     nextpri = &primBuf[0];
 
     // draw
+
+    // set dithering ON globally
+    using TPagePrim = psyqo::Fragments::SimpleFragment<psyqo::Prim::TPage>;
+    auto& tpage = *(TPagePrim*)nextpri;
+    tpage.primitive = {};
+    tpage.primitive.attr.setDithering(true);
+    gpu().chain(tpage);
+    nextpri += sizeof(TPagePrim);
+
     psyqo::Color bg{{.r = 0, .g = 64, .b = 91}};
     using FastFillPrim = psyqo::Fragments::SimpleFragment<psyqo::Prim::FastFill>;
     auto& fill = *(FastFillPrim*)nextpri;
@@ -262,7 +307,8 @@ void GameplayScene::frame()
     gpu().chain(fill);
     nextpri += sizeof(FastFillPrim);
 
-    drawModel(game.levelModel);
+    drawModel(game.levelModel, game.bricksTexture);
+    drawModel(game.catoModel, game.catoTexture);
 
     gpu().chain(ot);
 
@@ -282,35 +328,30 @@ void GameplayScene::frame()
     // game.m_romFont.print(game.gpu(), "Hello World!", {{.x = 16, .y = 64}}, c);
 }
 
-void GameplayScene::drawModel(const Model& model)
+void GameplayScene::drawModel(const Model& model, const TextureInfo& texture)
 {
     for (const auto& mesh : model.meshes) {
-        drawMesh(mesh);
+        drawMesh(mesh, texture);
     }
 }
 
-void GameplayScene::drawMesh(const Mesh& mesh)
+void GameplayScene::drawMesh(const Mesh& mesh, const TextureInfo& texture)
 {
-    psyqo::PrimPieces::TPageAttr tpage;
-    tpage.setPageX(5).setPageY(0).setDithering(true).set(psyqo::Prim::TPageAttr::Tex8Bits);
-    auto clut = psyqo::PrimPieces::ClutIndex{{.x = 0, .y = 240}};
-
     std::size_t vertexIdx = 0;
-    vertexIdx = drawTris<
-        psyqo::Prim::GouraudTriangle>(mesh, tpage, clut, mesh.numUntexturedTris, vertexIdx);
     vertexIdx =
-        drawQuads<psyqo::Prim::GouraudQuad>(mesh, tpage, clut, mesh.numUntexturedQuads, vertexIdx);
+        drawTris<psyqo::Prim::GouraudTriangle>(mesh, texture, mesh.numUntexturedTris, vertexIdx);
     vertexIdx =
-        drawTris<psyqo::Prim::GouraudTexturedTriangle>(mesh, tpage, clut, mesh.numTris, vertexIdx);
+        drawQuads<psyqo::Prim::GouraudQuad>(mesh, texture, mesh.numUntexturedQuads, vertexIdx);
     vertexIdx =
-        drawQuads<psyqo::Prim::GouraudTexturedQuad>(mesh, tpage, clut, mesh.numQuads, vertexIdx);
+        drawTris<psyqo::Prim::GouraudTexturedTriangle>(mesh, texture, mesh.numTris, vertexIdx);
+    vertexIdx =
+        drawQuads<psyqo::Prim::GouraudTexturedQuad>(mesh, texture, mesh.numQuads, vertexIdx);
 }
 
 template<typename PrimType>
 int GameplayScene::drawTris(
     const Mesh& mesh,
-    psyqo::PrimPieces::TPageAttr tpage,
-    psyqo::PrimPieces::ClutIndex clut,
+    const TextureInfo& texture,
     int numFaces,
     int vertexIdx)
 {
@@ -361,9 +402,8 @@ int GameplayScene::drawTris(
                 tri2d.uvC.u = v2.uv.vx;
                 tri2d.uvC.v = v2.uv.vy;
 
-                // TODO: read from arg
-                tri2d.tpage = tpage;
-                tri2d.clutIndex = clut;
+                tri2d.tpage = texture.tpage;
+                tri2d.clutIndex = texture.clut;
             }
 
             ot.insert(triFrag, avgZ);
@@ -377,8 +417,7 @@ int GameplayScene::drawTris(
 template<typename PrimType>
 int GameplayScene::drawQuads(
     const Mesh& mesh,
-    psyqo::PrimPieces::TPageAttr tpage,
-    psyqo::PrimPieces::ClutIndex clut,
+    const TextureInfo& texture,
     int numFaces,
     int vertexIdx)
 {
@@ -439,9 +478,8 @@ int GameplayScene::drawQuads(
                 quad2d.uvD.u = v3.uv.vx;
                 quad2d.uvD.v = v3.uv.vy;
 
-                // TODO: read from arg
-                quad2d.tpage = tpage;
-                quad2d.clutIndex = clut;
+                quad2d.tpage = texture.tpage;
+                quad2d.clutIndex = texture.clut;
             }
 
             ot.insert(quadFrag, avgZ);
