@@ -14,6 +14,8 @@
 #include <psyqo/iso9660-parser.hh>
 #include <psyqo-paths/cdrom-loader.hh>
 
+#include <psyqo/bump-allocator.h>
+
 #include <common/syscalls/syscalls.h>
 
 #include <cstdint>
@@ -105,8 +107,7 @@ class GameplayScene final : public psyqo::Scene {
     ModelObject cato;
 
     static constexpr int PRIMBUFFLEN = 32768 * 8;
-    std::byte primBytes[2][PRIMBUFFLEN];
-    std::byte* nextpri{nullptr}; // pointer to primbuff
+    psyqo::BumpAllocator<PRIMBUFFLEN> primBuffers[2];
 
     uint16_t h = 300;
 };
@@ -294,26 +295,20 @@ void GameplayScene::frame()
     const auto parity = gpu().getParity();
 
     auto& ot = ots[parity];
-
-    auto& primBuf = primBytes[parity];
-    nextpri = &primBuf[0];
+    auto& primBuffer = primBuffers[parity];
+    primBuffer.reset();
 
     // draw
 
     // set dithering ON globally
-    using TPagePrim = psyqo::Fragments::SimpleFragment<psyqo::Prim::TPage>;
-    auto& tpage = *(TPagePrim*)nextpri;
-    tpage.primitive = {};
+    auto& tpage = primBuffer.allocate<psyqo::Prim::TPage>();
     tpage.primitive.attr.setDithering(true);
     gpu().chain(tpage);
-    nextpri += sizeof(TPagePrim);
 
     psyqo::Color bg{{.r = 0, .g = 64, .b = 91}};
-    using FastFillPrim = psyqo::Fragments::SimpleFragment<psyqo::Prim::FastFill>;
-    auto& fill = *(FastFillPrim*)nextpri;
+    auto& fill = primBuffer.allocate<psyqo::Prim::FastFill>();
     gpu().getNextClear(fill.primitive, bg);
     gpu().chain(fill);
-    nextpri += sizeof(FastFillPrim);
 
     drawModel(game.levelModel, game.bricksTexture);
 
@@ -393,9 +388,9 @@ int GameplayScene::drawTris(
     int numFaces,
     int vertexIdx)
 {
-    using FragType = psyqo::Fragments::SimpleFragment<PrimType>;
-
-    auto& ot = ots[gpu().getParity()];
+    const auto parity = gpu().getParity();
+    auto& ot = ots[parity];
+    auto& primBuffer = primBuffers[parity];
 
     for (int i = 0; i < numFaces; ++i, vertexIdx += 3) {
         const auto& v0 = mesh.vertices[vertexIdx + 0];
@@ -408,7 +403,8 @@ int GameplayScene::drawTris(
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
         psyqo::GTE::Kernels::rtpt();
 
-        auto& triFrag = *(FragType*)nextpri;
+        // auto& triFrag = *(FragType*)nextpri;
+        auto& triFrag = primBuffer.allocate<PrimType>();
         auto& tri2d = triFrag.primitive;
 
         psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&tri2d.pointA.packed);
@@ -446,7 +442,6 @@ int GameplayScene::drawTris(
         }
 
         ot.insert(triFrag, avgZ);
-        nextpri += sizeof(FragType);
     }
 
     return vertexIdx;
@@ -459,9 +454,9 @@ int GameplayScene::drawQuads(
     int numFaces,
     int vertexIdx)
 {
-    using FragType = psyqo::Fragments::SimpleFragment<PrimType>;
-
-    auto& ot = ots[gpu().getParity()];
+    const auto parity = gpu().getParity();
+    auto& ot = ots[parity];
+    auto& primBuffer = primBuffers[parity];
 
     for (int i = 0; i < numFaces; ++i, vertexIdx += 4) {
         const auto& v0 = mesh.vertices[vertexIdx + 0];
@@ -475,7 +470,8 @@ int GameplayScene::drawQuads(
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
         psyqo::GTE::Kernels::rtpt();
 
-        auto& quadFrag = *(FragType*)nextpri;
+        // auto& quadFrag = *(FragType*)nextpri;
+        auto& quadFrag = primBuffer.allocate<PrimType>();
         auto& quad2d = quadFrag.primitive;
 
         psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointA.packed);
@@ -486,7 +482,6 @@ int GameplayScene::drawQuads(
         const auto dot =
             (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
         if (dot < 0) {
-            nextpri += sizeof(FragType);
             continue;
         }
 
@@ -521,7 +516,6 @@ int GameplayScene::drawQuads(
         }
 
         ot.insert(quadFrag, avgZ);
-        nextpri += sizeof(FragType);
     }
 
     return vertexIdx;

@@ -122,7 +122,7 @@ set(common_compiler_flags
   -mno-llsc
   # TODO: maybe make it optional or config dependent?
   -g
-  # -Os
+  -Os
   # link to libgcc (useful for some builtins)
   -static-libgcc
 )
