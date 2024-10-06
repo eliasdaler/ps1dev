@@ -17,6 +17,7 @@
             <! license file is only needed for running on JP consoles >
             <! license file="a\license_data.dat"/>
             <directory_tree>
+                <file name="EMPTY.BIN" type="data" source="assets/empty.bin"/>
                 <file name="SYSTEM.CNF"	type="data" source="system.cnf"/>
                 <file name="GAME.EXE" type="data" source="build/game.ps-exe"/>
                 <file name="BRICKS.TIM" type="data" source="assets/bricks.tim"/>

@@ -18,6 +18,9 @@ layout horizontal-asm
 # b Renderer.cpp:363
 # b Model.cpp:27
 # b main.cpp:482
-b main.cpp:480
+# b main.cpp:480
+# b iso9660-parser.cpp:195
+# b cdrom-device-readsectors.cpp:123
+b cdrom-device.cpp:134
 # b alloc.c:90
 c

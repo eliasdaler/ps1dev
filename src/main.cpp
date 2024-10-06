@@ -61,6 +61,10 @@ public:
 
     TextureInfo bricksTexture;
     TextureInfo catoTexture;
+
+    eastl::string m_text;
+    uint8_t m_buffery[2048];
+    uint32_t m_systemCnfSize = 0;
 };
 
 struct Quad {
@@ -125,6 +129,7 @@ void Game::prepare()
         .set(psyqo::GPU::ColorMode::C15BITS)
         .set(psyqo::GPU::Interlace::PROGRESSIVE);
     gpu().initialize(config);
+
     m_cdrom.prepare();
 }
 
@@ -132,7 +137,7 @@ psyqo::Coroutine<> loadCoroutine(Game* game)
 {
     psyqo::Coroutine<>::Awaiter awaiter = game->m_coroutine.awaiter();
 
-    ramsyscall_printf("Loading LEVEL.BIN...\n");
+    /* ramsyscall_printf("Loading LEVEL.BIN...\n");
     game->m_cdromLoader.readFile(
         "LEVEL.BIN;1", game->gpu(), game->m_isoParser, [game](eastl::vector<uint8_t>&& buffer) {
             game->m_buffer = eastl::move(buffer);
@@ -158,18 +163,21 @@ psyqo::Coroutine<> loadCoroutine(Game* game)
             game->bricksTexture = game->uploadTIM();
             game->m_coroutine.resume();
         });
-    co_await awaiter;
+    co_await awaiter; */
 
     ramsyscall_printf("Loading CATO.TIM...\n");
     game->m_cdromLoader.readFile(
         "CATO.TIM;1", game->gpu(), game->m_isoParser, [game](eastl::vector<uint8_t>&& buffer) {
-            game->m_buffer = eastl::move(buffer);
-            game->catoTexture = game->uploadTIM();
+            // game->m_buffer = eastl::move(buffer);
+            // game->catoTexture = game->uploadTIM();
+            game->m_text = eastl::to_string(buffer.size());
             game->m_coroutine.resume();
         });
     co_await awaiter;
 
-    game->texturesLoaded = true;
+    game->m_text = "OK";
+
+    // game->texturesLoaded = true;
 }
 
 void Game::createScene()
@@ -182,8 +190,8 @@ void Game::createScene()
 
     pushScene(&gameplayScene);
 
-    m_coroutine = loadCoroutine(this);
-    m_coroutine.resume();
+    // m_coroutine = loadCoroutine(this);
+    // m_coroutine.resume();
 }
 
 TextureInfo Game::uploadTIM()
@@ -229,9 +237,45 @@ TextureInfo Game::uploadTIM()
     return info;
 }
 
+int8_t m_anim = 20;
+bool m_direction = true;
+
 void GameplayScene::frame()
 {
     if (!game.texturesLoaded) {
+        if (m_anim < 10) {
+            m_direction = true;
+        } else if (m_anim > 30) {
+            m_direction = false;
+        }
+        if (m_direction) {
+            m_anim += 1;
+        } else {
+            m_anim -= 1;
+        }
+        psyqo::Color bgCol = {{.r = 60, .g = 80, .b = uint8_t(64 + m_anim)}};
+
+        const auto parity = gpu().getParity();
+        auto& primBuffer = primBuffers[parity];
+        primBuffer.reset();
+
+        auto& fill = primBuffer.allocate<psyqo::Prim::FastFill>();
+        gpu().getNextClear(fill.primitive, bgCol);
+        gpu().chain(fill);
+
+        psyqo::Color c = {{.r = 255, .g = 255, .b = 255}};
+        game.m_systemFont.chainprintf(
+            game.gpu(),
+            {{.x = 16, .y = 16}},
+            c,
+            "%s, %d",
+            game.m_text.c_str(),
+            gpu().getFrameCount());
+
+        if (gpu().getFrameCount() == 200) {
+            game.m_coroutine = loadCoroutine(&game);
+            game.m_coroutine.resume();
+        }
         return;
     }
 
@@ -303,14 +347,14 @@ void GameplayScene::frame()
     // set dithering ON globally
     auto& tpage = primBuffer.allocate<psyqo::Prim::TPage>();
     tpage.primitive.attr.setDithering(true);
-    gpu().chain(tpage);
+    // gpu().chain(tpage);
 
     psyqo::Color bg{{.r = 0, .g = 64, .b = 91}};
     auto& fill = primBuffer.allocate<psyqo::Prim::FastFill>();
     gpu().getNextClear(fill.primitive, bg);
     gpu().chain(fill);
 
-    drawModel(game.levelModel, game.bricksTexture);
+    // drawModel(game.levelModel, game.bricksTexture);
 
     {
         auto& cato = gameplayScene.cato;
@@ -340,7 +384,7 @@ void GameplayScene::frame()
         psyqo::GTE::write<psyqo::GTE::Register::TRY, psyqo::GTE::Unsafe>(posCamSpace.y.raw());
         psyqo::GTE::write<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>(posCamSpace.z.raw());
 
-        drawModel(game.catoModel, game.catoTexture);
+        // drawModel(game.catoModel, game.catoTexture);
     }
 
     gpu().chain(ot);
@@ -363,6 +407,8 @@ void GameplayScene::frame()
 
 void GameplayScene::drawModel(const Model& model, const TextureInfo& texture)
 {
+    return;
+
     for (const auto& mesh : model.meshes) {
         drawMesh(mesh, texture);
     }
