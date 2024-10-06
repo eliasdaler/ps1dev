@@ -393,6 +393,8 @@ int GameplayScene::drawTris(
     int numFaces,
     int vertexIdx)
 {
+    using FragType = psyqo::Fragments::SimpleFragment<PrimType>;
+
     auto& ot = ots[gpu().getParity()];
 
     for (int i = 0; i < numFaces; ++i, vertexIdx += 3) {
@@ -406,7 +408,6 @@ int GameplayScene::drawTris(
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
         psyqo::GTE::Kernels::rtpt();
 
-        using FragType = psyqo::Fragments::SimpleFragment<PrimType>;
         auto& triFrag = *(FragType*)nextpri;
         auto& tri2d = triFrag.primitive;
 
@@ -424,26 +425,28 @@ int GameplayScene::drawTris(
         psyqo::GTE::Kernels::avsz3();
         const auto avgZ =
             (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
-        if (avgZ >= 0 && avgZ < OT_SIZE) {
-            tri2d.setColorA(v0.col);
-            tri2d.setColorB(v1.col);
-            tri2d.setColorC(v2.col);
-
-            if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedTriangle>) {
-                tri2d.uvA.u = v0.uv.vx;
-                tri2d.uvA.v = v0.uv.vy;
-                tri2d.uvB.u = v1.uv.vx;
-                tri2d.uvB.v = v1.uv.vy;
-                tri2d.uvC.u = v2.uv.vx;
-                tri2d.uvC.v = v2.uv.vy;
-
-                tri2d.tpage = texture.tpage;
-                tri2d.clutIndex = texture.clut;
-            }
-
-            ot.insert(triFrag, avgZ);
-            nextpri += sizeof(FragType);
+        if (avgZ < 0 || avgZ >= OT_SIZE) {
+            continue;
         }
+
+        tri2d.setColorA(v0.col);
+        tri2d.setColorB(v1.col);
+        tri2d.setColorC(v2.col);
+
+        if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedTriangle>) {
+            tri2d.uvA.u = v0.uv.vx;
+            tri2d.uvA.v = v0.uv.vy;
+            tri2d.uvB.u = v1.uv.vx;
+            tri2d.uvB.v = v1.uv.vy;
+            tri2d.uvC.u = v2.uv.vx;
+            tri2d.uvC.v = v2.uv.vy;
+
+            tri2d.tpage = texture.tpage;
+            tri2d.clutIndex = texture.clut;
+        }
+
+        ot.insert(triFrag, avgZ);
+        nextpri += sizeof(FragType);
     }
 
     return vertexIdx;
@@ -456,6 +459,8 @@ int GameplayScene::drawQuads(
     int numFaces,
     int vertexIdx)
 {
+    using FragType = psyqo::Fragments::SimpleFragment<PrimType>;
+
     auto& ot = ots[gpu().getParity()];
 
     for (int i = 0; i < numFaces; ++i, vertexIdx += 4) {
@@ -470,7 +475,6 @@ int GameplayScene::drawQuads(
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
         psyqo::GTE::Kernels::rtpt();
 
-        using FragType = psyqo::Fragments::SimpleFragment<PrimType>;
         auto& quadFrag = *(FragType*)nextpri;
         auto& quad2d = quadFrag.primitive;
 
@@ -482,6 +486,7 @@ int GameplayScene::drawQuads(
         const auto dot =
             (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
         if (dot < 0) {
+            nextpri += sizeof(FragType);
             continue;
         }
 
@@ -492,30 +497,31 @@ int GameplayScene::drawQuads(
         psyqo::GTE::Kernels::avsz4();
         const auto avgZ =
             (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
-
-        if (avgZ >= 0 && avgZ < OT_SIZE) {
-            quad2d.setColorA(v0.col);
-            quad2d.setColorB(v1.col);
-            quad2d.setColorC(v2.col);
-            quad2d.setColorD(v3.col);
-
-            if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedQuad>) {
-                quad2d.uvA.u = v0.uv.vx;
-                quad2d.uvA.v = v0.uv.vy;
-                quad2d.uvB.u = v1.uv.vx;
-                quad2d.uvB.v = v1.uv.vy;
-                quad2d.uvC.u = v2.uv.vx;
-                quad2d.uvC.v = v2.uv.vy;
-                quad2d.uvD.u = v3.uv.vx;
-                quad2d.uvD.v = v3.uv.vy;
-
-                quad2d.tpage = texture.tpage;
-                quad2d.clutIndex = texture.clut;
-            }
-
-            ot.insert(quadFrag, avgZ);
-            nextpri += sizeof(FragType);
+        if (avgZ < 0 || avgZ >= OT_SIZE) {
+            continue;
         }
+
+        quad2d.setColorA(v0.col);
+        quad2d.setColorB(v1.col);
+        quad2d.setColorC(v2.col);
+        quad2d.setColorD(v3.col);
+
+        if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedQuad>) {
+            quad2d.uvA.u = v0.uv.vx;
+            quad2d.uvA.v = v0.uv.vy;
+            quad2d.uvB.u = v1.uv.vx;
+            quad2d.uvB.v = v1.uv.vy;
+            quad2d.uvC.u = v2.uv.vx;
+            quad2d.uvC.v = v2.uv.vy;
+            quad2d.uvD.u = v3.uv.vx;
+            quad2d.uvD.v = v3.uv.vy;
+
+            quad2d.tpage = texture.tpage;
+            quad2d.clutIndex = texture.clut;
+        }
+
+        ot.insert(quadFrag, avgZ);
+        nextpri += sizeof(FragType);
     }
 
     return vertexIdx;
