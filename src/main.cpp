@@ -416,7 +416,7 @@ int GameplayScene::drawTris(
 
         psyqo::GTE::Kernels::nclip();
         const auto dot =
-            (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
+            (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
         if (dot < 0) {
             continue;
         }
@@ -442,8 +442,8 @@ int GameplayScene::drawTris(
             }
 
             ot.insert(triFrag, avgZ);
+            nextpri += sizeof(FragType);
         }
-        nextpri += sizeof(FragType);
     }
 
     return vertexIdx;
@@ -480,7 +480,7 @@ int GameplayScene::drawQuads(
 
         psyqo::GTE::Kernels::nclip();
         const auto dot =
-            (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
+            (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
         if (dot < 0) {
             continue;
         }
@@ -514,8 +514,8 @@ int GameplayScene::drawQuads(
             }
 
             ot.insert(quadFrag, avgZ);
+            nextpri += sizeof(FragType);
         }
-        nextpri += sizeof(FragType);
     }
 
     return vertexIdx;
