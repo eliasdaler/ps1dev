@@ -30,6 +30,12 @@ using namespace psyqo::trig_literals;
 namespace
 {
 
+    int16_t sx;
+    int16_t sy;
+    int16_t avgZG;
+    bool encountered{false};
+    bool drewTri{false};
+
 struct TextureInfo {
     psyqo::PrimPieces::TPageAttr tpage;
     psyqo::PrimPieces::ClutIndex clut;
@@ -240,6 +246,7 @@ void GameplayScene::frame()
     angleX.value = (camRot.x.value / 2) >> 12;
     angleY.value = (camRot.y.value / 2) >> 12;
 
+
     { // input
         const auto& pad = game.m_input;
         const auto walkSpeed = 64;
@@ -273,6 +280,13 @@ void GameplayScene::frame()
     // input might have changed the values
     angleX.value = (camRot.x.value / 2) >> 12;
     angleY.value = (camRot.y.value / 2) >> 12;
+
+    // angleX.value = 120;
+    angleX.value = 144;
+    angleX.value = 143;
+    angleY.value = 96;
+
+
     auto rotX =
         psyqo::SoftMath::generateRotationMatrix33(angleX, psyqo::SoftMath::Axis::X, game.m_trig);
     const auto rotY =
@@ -310,6 +324,9 @@ void GameplayScene::frame()
     gpu().getNextClear(fill.primitive, bg);
     gpu().chain(fill);
 
+    encountered = false;
+    drewTri = false;
+
     drawModel(game.levelModel, game.bricksTexture);
 
     {
@@ -335,7 +352,7 @@ void GameplayScene::frame()
         psyqo::GTE::write<psyqo::GTE::Register::TRY, psyqo::GTE::Unsafe>(posCamSpace.y.raw());
         psyqo::GTE::write<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>(posCamSpace.z.raw()); */
 
-        auto posCamSpace = cato.position + camTrans;
+         auto posCamSpace = cato.position + camTrans;
         psyqo::GTE::write<psyqo::GTE::Register::TRX, psyqo::GTE::Unsafe>(posCamSpace.x.raw());
         psyqo::GTE::write<psyqo::GTE::Register::TRY, psyqo::GTE::Unsafe>(posCamSpace.y.raw());
         psyqo::GTE::write<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>(posCamSpace.z.raw());
@@ -343,18 +360,50 @@ void GameplayScene::frame()
         drawModel(game.catoModel, game.catoTexture);
     }
 
+
     gpu().chain(ot);
+
 
     // debug
     psyqo::Color c = {{.r = 255, .g = 255, .b = 255}};
-    game.m_systemFont.chainprintf(
+    /* game.m_systemFont.chainprintf(
         game.gpu(),
         {{.x = 16, .y = 16}},
         c,
         "TRX: %d, TRY: %d, TRZ: %d",
         camTrans.x.raw(),
         camTrans.y.raw(),
-        camTrans.z.raw());
+        camTrans.z.raw()); */
+
+    auto& mesh = game.levelModel.meshes[0];
+    /* game.m_systemFont.chainprintf(
+        game.gpu(),
+        {{.x = 16, .y = 16}},
+        c,
+        "nut: %d, nuq: %d, nt: %d, nq: %d",
+        mesh.numUntexturedTris,
+        mesh.numUntexturedQuads,
+        mesh.numTris,
+        mesh.numQuads); */
+
+     /* game.m_systemFont.chainprintf(
+        game.gpu(),
+        {{.x = 16, .y = 16}},
+        c,
+        "sx: %d, sy: %d, avgz: %d, enc: %d",
+        sx, sy, avgZG, (int)encountered); */
+
+
+    angleX.value = (camRot.x.value / 2) >> 12;
+    angleY.value = (camRot.y.value / 2) >> 12;
+
+
+     game.m_systemFont.chainprintf(
+        game.gpu(),
+        {{.x = 16, .y = 16}},
+        c,
+        "rx: %d, ry: %d",
+        angleX.raw(), angleY.raw());
 
     /* game.m_systemFont
         .chainprintf(game.gpu(), {{.x = 16, .y = 32}}, c, "RX: %d, RY: %d", angleX, angleY); */
@@ -375,10 +424,17 @@ void GameplayScene::drawMesh(const Mesh& mesh, const TextureInfo& texture)
         drawTris<psyqo::Prim::GouraudTriangle>(mesh, texture, mesh.numUntexturedTris, vertexIdx);
     vertexIdx =
         drawQuads<psyqo::Prim::GouraudQuad>(mesh, texture, mesh.numUntexturedQuads, vertexIdx);
-    vertexIdx =
+
+    if (mesh.numTris != 0) {
+        if (!drewTri) {
+        drawTris<psyqo::Prim::GouraudTexturedTriangle>(mesh, texture, 1, vertexIdx);
+        drewTri = true;
+        }
+    }
+    /* vertexIdx =
         drawTris<psyqo::Prim::GouraudTexturedTriangle>(mesh, texture, mesh.numTris, vertexIdx);
     vertexIdx =
-        drawQuads<psyqo::Prim::GouraudTexturedQuad>(mesh, texture, mesh.numQuads, vertexIdx);
+        drawQuads<psyqo::Prim::GouraudTexturedQuad>(mesh, texture, mesh.numQuads, vertexIdx); */
 }
 
 template<typename PrimType>
@@ -490,16 +546,50 @@ int GameplayScene::drawQuads(
 
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
         psyqo::GTE::Kernels::avsz4();
-        const auto avgZ =
+        auto avgZ =
             (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
         if (avgZ < 0 || avgZ >= OT_SIZE) {
             continue;
         }
 
-        quad2d.setColorA(v0.col);
-        quad2d.setColorB(v1.col);
-        quad2d.setColorC(v2.col);
-        quad2d.setColorD(v3.col);
+        if constexpr (!eastl::is_same_v<PrimType, psyqo::Prim::Quad>) {
+            quad2d.setColorA(v0.col);
+            quad2d.setColorB(v1.col);
+            quad2d.setColorC(v2.col);
+            quad2d.setColorD(v3.col);
+        } else {
+            quad2d.setColor(v0.col);
+        }
+
+        if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::TexturedQuad>) {
+            if (avgZ == avgZG) {
+                encountered = true;
+            }
+        }
+
+        if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudQuad>) {
+            quad2d.pointA.x = 16;
+            quad2d.pointA.y = 32;
+
+            quad2d.pointB.x = 64;
+            quad2d.pointB.y = 32;
+
+            quad2d.pointC.x = 16;
+            quad2d.pointC.y = 64;
+
+            // quad2d.pointD.x = 64;
+            // quad2d.pointD.y = 64;
+            sx = quad2d.pointD.x;
+            sy = quad2d.pointD.y;
+
+            quad2d.pointD.x = 78;
+            quad2d.pointD.y = 118;
+
+
+            avgZ = 2918;
+            avgZG = avgZ;
+            // avgZ = 1;
+        }
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedQuad>) {
             quad2d.uvA.u = v0.uv.vx;

@@ -15,12 +15,12 @@
                 copyright		= "NONE"
             />
             <! license file is only needed for running on JP consoles >
-            <! license file="a\license_data.dat"/>
+            <! license file="LICENSEJ.DAT"/>
             <directory_tree>
                 <file name="SYSTEM.CNF"	type="data" source="system.cnf"/>
                 <file name="GAME.EXE" type="data" source="build/game.ps-exe"/>
                 <file name="BRICKS.TIM" type="data" source="assets/bricks.tim"/>
-                <file name="LEVEL.BIN" type="data" source="assets/house_psx.bin"/>
+                <file name="LEVEL.BIN" type="data" source="assets/level.bin"/>
                 <file name="HUMAN.BIN" type="data" source="assets/human.bin"/>
                 <file name="STEP1.VAG" type="data" source="assets/step1.vag"/>
                 <file name="CATO.BIN" type="data" source="assets/cato.bin"/>
