@@ -13,21 +13,24 @@
 #include <gtemac.h>
 #include <libetc.h>
 
+#include "Trig.h"
+
 namespace
 {
 inline constexpr int LEVEL_1_SUBDIV_DIST = 700;
 inline constexpr int LEVEL_2_SUBDIV_DIST = 300;
 }
 
+// NOTE: replaced "p" with 0 for debug!
 #define INTERP_COLOR_GTE(prim, i)     \
-    gte_DpqColor(&v##i.col, p, &col); \
+    gte_DpqColor(&v##i.col, 0, &col); \
     setRGB##i((prim), col.r, col.g, col.b);
 
 void Renderer::init()
 {
     ResetGraph(0);
     InitGeom();
-    SetGeomOffset(SCREENXRES / 2, SCREENYRES / 2);
+    SetGeomOffset(0, 0);
     SetGeomScreen(420); // fov
     SetGeomScreen(300); // fov
 
@@ -81,15 +84,29 @@ void Renderer::beginDraw()
     // camera::lookAt(camera, camera.position, cube.position, globalUp);
 
     { // fps camera
-        RotMatrix(&camera.trot, &camera.view);
+        // RotMatrix(&camera.trot, &camera.view);
 
         camera.tpos.vx = -camera.position.vx >> 12;
         camera.tpos.vy = -camera.position.vy >> 12;
         camera.tpos.vz = -camera.position.vz >> 12;
 
-        ApplyMatrixLV(&camera.view, &camera.tpos, &camera.tpos);
-        TransMatrix(&camera.view, &camera.tpos);
+        // ApplyMatrixLV(&camera.view, &camera.tpos, &camera.tpos);
+        // TransMatrix(&camera.view, &camera.tpos);
     }
+
+        auto* polyg4 = (POLY_F4*)nextpri;
+        setPolyF4(polyg4);
+        polyg4->x0 = 160;
+        polyg4->y0 = 160;
+        polyg4->x1 = 200;
+        polyg4->y1 = 160;
+        polyg4->x2 = 160;
+        polyg4->y2 = 200;
+        polyg4->x3 = 200;
+        polyg4->y3 = 200;
+    setRGB0(polyg4, 255, 255, 255);
+            addPrim(&ot[0], polyg4);
+            nextpri += sizeof(POLY_F4);
 }
 
 void Renderer::display()
@@ -100,22 +117,31 @@ void Renderer::display()
     PutDrawEnv(&drawEnv[currBuffer]);
     DrawOTag(&ot[OTLEN - 1]);
 
+
     currBuffer = !currBuffer;
+
 }
 
 void Renderer::drawModel(Object& object, const Model& model, TIM_IMAGE& texture, int depthBias)
 {
+
+    /* 
     RotMatrix(&object.rotation, &worldmat);
     TransMatrix(&worldmat, &object.position);
     ScaleMatrix(&worldmat, &object.scale);
 
-    CompMatrixLV(&camera.view, &worldmat, &viewmat);
+    CompMatrixLV(&camera.view, &worldmat, &viewmat); */
 
-    gte_SetRotMatrix(&viewmat);
-    gte_SetTransMatrix(&viewmat);
+    viewmat.m[0][0] = 0;
+    viewmat.m[1][1] = 0;
+    viewmat.m[2][2] = 0;
+     // gte_SetRotMatrix(&viewmat);
+    // gte_SetTransMatrix(&viewmat);
+
 
     for (const auto& mesh : model.meshes) {
-        drawMesh(object, mesh, texture, mesh.subdivide, depthBias);
+        // drawMesh(object, mesh, texture, mesh.subdivide, depthBias);
+        drawMesh(object, mesh, texture, false, depthBias);
     }
 }
 
@@ -143,6 +169,8 @@ void Renderer::drawMesh(
             POLY_G4>(mesh, tpage, clut, mesh.numUntexturedQuads, vertexIdx, depthBias);
     }
 
+    return;
+
     // TODO: subdiv for triangles
     vertexIdx = drawTris<POLY_GT3>(mesh, tpage, clut, mesh.numTris, vertexIdx, depthBias);
 
@@ -166,6 +194,7 @@ int Renderer::drawTris(
     long otz, nclip, p;
 
     for (int i = 0; i < numFaces; ++i, vertexIdx += 3) {
+        continue;
         auto* polyg3 = (PrimType*)nextpri;
         if constexpr (eastl::is_same_v<PrimType, POLY_GT3>) {
             setPolyGT3(polyg3);
@@ -238,36 +267,15 @@ int Renderer::drawQuads(
             setPolyG4(polyg4);
         }
 
-        const auto& v0 = mesh.vertices[vertexIdx + 0];
-        const auto& v1 = mesh.vertices[vertexIdx + 1];
-        const auto& v2 = mesh.vertices[vertexIdx + 2];
-        const auto& v3 = mesh.vertices[vertexIdx + 3];
 
-        if constexpr (eastl::is_same_v<PrimType, POLY_GT4>) {
-            setUV4(polyg4, v0.uv.r, v0.uv.g, v1.uv.r, v1.uv.g, v2.uv.r, v2.uv.g, v3.uv.r, v3.uv.g);
-
-            polyg4->tpage = tpage;
-            polyg4->clut = clut;
-        }
-
-        gte_ldv0(&v0);
-        gte_ldv1(&v1);
-        gte_ldv2(&v2);
-
-        gte_rtpt();
-
-        gte_nclip();
-        gte_stopz(&nclip);
-        if (nclip < 0) {
-            continue;
-        }
-
-        gte_stsxy0(&polyg4->x0);
-
-        gte_ldv0(&v3);
-        gte_rtps();
-
-        gte_stsxy3(&polyg4->x1, &polyg4->x2, &polyg4->x3);
+        polyg4->x0 = 160;
+        polyg4->y0 = 160;
+        polyg4->x1 = 200;
+        polyg4->y1 = 160;
+        polyg4->x2 = 160;
+        polyg4->y3 = 200;
+        polyg4->x3 = 200;
+        polyg4->y3 = 200;
 
         /* if (quad_clip(
                 &screenClip,
@@ -281,14 +289,14 @@ int Renderer::drawQuads(
         gte_avsz4();
         gte_stotz(&otz);
         otz -= depthBias;
+        otz = 0;
         if (otz > 0 && otz < OTLEN) {
             gte_stdp(&p);
 
-            CVECTOR col;
-            INTERP_COLOR_GTE(polyg4, 0);
-            INTERP_COLOR_GTE(polyg4, 1);
-            INTERP_COLOR_GTE(polyg4, 2);
-            INTERP_COLOR_GTE(polyg4, 3);
+    setRGB0(polyg4, 255, 255, 255);
+    setRGB1(polyg4, 255, 255, 255);
+    setRGB2(polyg4, 255, 255, 255);
+    setRGB3(polyg4, 255, 255, 255);
 
             addPrim(&ot[otz], polyg4);
             nextpri += sizeof(PrimType);

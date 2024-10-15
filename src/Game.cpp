@@ -56,6 +56,13 @@ void Game::init()
     camera.rotation.vx = ONE * 150;
     camera.rotation.vy = ONE * 300;
 
+    camera.position.vx = 0;
+    camera.position.vy = 0;
+    camera.position.vz = 0;
+    camera.rotation.vx = 0;
+    camera.rotation.vy = 0;
+
+
     CdInit();
     soundPlayer.init();
 
@@ -172,19 +179,31 @@ void Game::draw()
 {
     renderer.beginDraw();
 
+#if 0
     auto& bricksTexture = textures[bricksTextureIdx];
     renderer.drawModel(level, *level.model, bricksTexture);
 
     auto& catoTexture = textures[catoTextureIdx];
-    renderer.drawModel(cato, *cato.model, catoTexture, 256);
+    // renderer.drawModel(cato, *cato.model, catoTexture, 256);
     // renderer.drawModel(human, *human.model, bricksTexture, 256);
+#endif
 
     FntPrint(
         "X=%d Y=%d Z=%d\n",
         renderer.camera.position.vx >> 12,
         renderer.camera.position.vy >> 12,
         renderer.camera.position.vz >> 12);
-    FntPrint("RX=%d, RY=%d\n", renderer.camera.trot.vx, renderer.camera.trot.vy);
+    FntPrint(
+        "X=%d Y=%d Z=%d\n",
+        renderer.camera.tpos.vx,
+        renderer.camera.tpos.vy,
+        renderer.camera.tpos.vz);
+    FntPrint(
+        "RX=%d, RY=%d\n, cos=%d, sin=%d",
+        renderer.camera.trot.vx,
+        renderer.camera.trot.vy,
+        math::icos(230),
+        math::isin(230));
 
     FntFlush(-1);
 
