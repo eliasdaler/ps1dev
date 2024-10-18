@@ -30,11 +30,26 @@ using namespace psyqo::trig_literals;
 namespace
 {
 
-    int16_t sx;
-    int16_t sy;
-    int16_t avgZG;
-    bool encountered{false};
-    bool drewTri{false};
+void SetFogNearFar(int a, int b, int h) {
+    // TODO: check params + add asserts?
+    const auto dqa = ((-a * b / (b - a)) << 8) / h;
+    const auto dqaF = eastl::clamp(dqa, -32767, 32767);
+    const auto dqbF = ((b << 12) / (b - a) << 12);
+
+    psyqo::GTE::write<psyqo::GTE::Register::DQA, psyqo::GTE::Unsafe>(dqaF);
+    psyqo::GTE::write<psyqo::GTE::Register::DQB, psyqo::GTE::Safe>(dqbF);
+};
+
+// FIXME: use dpct + dpcs for efficiency
+psyqo::Color interpColor (const psyqo::Color& c) {
+    psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(&c.packed);
+    psyqo::GTE::Kernels::dpcs();
+
+    psyqo::Color col;
+    col.packed =
+        (uint32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2, psyqo::GTE::Safe>();
+    return col;
+};
 
 struct TextureInfo {
     psyqo::PrimPieces::TPageAttr tpage;
@@ -90,6 +105,14 @@ class GameplayScene final : public psyqo::Scene {
         psyqo::GTE::write<psyqo::GTE::Register::ZSF3, psyqo::GTE::Unsafe>(341);
         psyqo::GTE::write<psyqo::GTE::Register::ZSF4, psyqo::GTE::Unsafe>(256);
 
+        SetFogNearFar(5000, 20800, 320 / 2);
+        // far color
+        const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
+        psyqo::GTE::write<psyqo::GTE::Register::RFC, psyqo::GTE::Unsafe>(farColor.r);
+        psyqo::GTE::write<psyqo::GTE::Register::GFC, psyqo::GTE::Unsafe>(farColor.g);
+        psyqo::GTE::write<psyqo::GTE::Register::BFC, psyqo::GTE::Unsafe>(farColor.b);
+
+
         cato.position.y = 0.88;
     }
 
@@ -107,8 +130,8 @@ class GameplayScene final : public psyqo::Scene {
     static constexpr auto OT_SIZE = 4096 * 2;
     psyqo::OrderingTable<OT_SIZE> ots[2];
 
-    psyqo::Vec3 camPos{225.f, 0.f, -12711.f};
-    psyqo::Vec3 camRot{0.f, 0.f, 0.f};
+    psyqo::Vec3 camPos{3588.f, -1507.f, -10259.f};
+    psyqo::Vec3 camRot{-150.f, -300.f, 0.f};
 
     ModelObject cato;
 
@@ -127,7 +150,7 @@ void Game::prepare()
 {
     psyqo::GPU::Configuration config;
     config.set(psyqo::GPU::Resolution::W320)
-        .set(psyqo::GPU::VideoMode::AUTO)
+        .set(psyqo::GPU::VideoMode::NTSC)
         .set(psyqo::GPU::ColorMode::C15BITS)
         .set(psyqo::GPU::Interlace::PROGRESSIVE);
     gpu().initialize(config);
@@ -246,7 +269,6 @@ void GameplayScene::frame()
     angleX.value = (camRot.x.value / 2) >> 12;
     angleY.value = (camRot.y.value / 2) >> 12;
 
-
     { // input
         const auto& pad = game.m_input;
         const auto walkSpeed = 64;
@@ -280,13 +302,6 @@ void GameplayScene::frame()
     // input might have changed the values
     angleX.value = (camRot.x.value / 2) >> 12;
     angleY.value = (camRot.y.value / 2) >> 12;
-
-    // angleX.value = 120;
-    angleX.value = 144;
-    angleX.value = 143;
-    angleY.value = 96;
-
-
     auto rotX =
         psyqo::SoftMath::generateRotationMatrix33(angleX, psyqo::SoftMath::Axis::X, game.m_trig);
     const auto rotY =
@@ -324,9 +339,6 @@ void GameplayScene::frame()
     gpu().getNextClear(fill.primitive, bg);
     gpu().chain(fill);
 
-    encountered = false;
-    drewTri = false;
-
     drawModel(game.levelModel, game.bricksTexture);
 
     {
@@ -352,7 +364,7 @@ void GameplayScene::frame()
         psyqo::GTE::write<psyqo::GTE::Register::TRY, psyqo::GTE::Unsafe>(posCamSpace.y.raw());
         psyqo::GTE::write<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>(posCamSpace.z.raw()); */
 
-         auto posCamSpace = cato.position + camTrans;
+        auto posCamSpace = cato.position + camTrans;
         psyqo::GTE::write<psyqo::GTE::Register::TRX, psyqo::GTE::Unsafe>(posCamSpace.x.raw());
         psyqo::GTE::write<psyqo::GTE::Register::TRY, psyqo::GTE::Unsafe>(posCamSpace.y.raw());
         psyqo::GTE::write<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>(posCamSpace.z.raw());
@@ -360,54 +372,21 @@ void GameplayScene::frame()
         drawModel(game.catoModel, game.catoTexture);
     }
 
-
     gpu().chain(ot);
-
 
     // debug
     psyqo::Color c = {{.r = 255, .g = 255, .b = 255}};
-    /* game.m_systemFont.chainprintf(
+    game.m_systemFont.chainprintf(
         game.gpu(),
         {{.x = 16, .y = 16}},
         c,
         "TRX: %d, TRY: %d, TRZ: %d",
         camTrans.x.raw(),
         camTrans.y.raw(),
-        camTrans.z.raw()); */
+        camTrans.z.raw());
 
-    auto& mesh = game.levelModel.meshes[0];
-    /* game.m_systemFont.chainprintf(
-        game.gpu(),
-        {{.x = 16, .y = 16}},
-        c,
-        "nut: %d, nuq: %d, nt: %d, nq: %d",
-        mesh.numUntexturedTris,
-        mesh.numUntexturedQuads,
-        mesh.numTris,
-        mesh.numQuads); */
-
-     /* game.m_systemFont.chainprintf(
-        game.gpu(),
-        {{.x = 16, .y = 16}},
-        c,
-        "sx: %d, sy: %d, avgz: %d, enc: %d",
-        sx, sy, avgZG, (int)encountered); */
-
-
-    angleX.value = (camRot.x.value / 2) >> 12;
-    angleY.value = (camRot.y.value / 2) >> 12;
-
-
-     game.m_systemFont.chainprintf(
-        game.gpu(),
-        {{.x = 16, .y = 16}},
-        c,
-        "rx: %d, ry: %d",
-        angleX.raw(), angleY.raw());
-
-    /* game.m_systemFont
-        .chainprintf(game.gpu(), {{.x = 16, .y = 32}}, c, "RX: %d, RY: %d", angleX, angleY); */
-    // game.m_romFont.print(game.gpu(), "Hello World!", {{.x = 16, .y = 64}}, c);
+     game.m_systemFont
+        .chainprintf(game.gpu(), {{.x = 16, .y = 32}}, c, "RX: %d, RY: %d", angleX, angleY); 
 }
 
 void GameplayScene::drawModel(const Model& model, const TextureInfo& texture)
@@ -424,17 +403,10 @@ void GameplayScene::drawMesh(const Mesh& mesh, const TextureInfo& texture)
         drawTris<psyqo::Prim::GouraudTriangle>(mesh, texture, mesh.numUntexturedTris, vertexIdx);
     vertexIdx =
         drawQuads<psyqo::Prim::GouraudQuad>(mesh, texture, mesh.numUntexturedQuads, vertexIdx);
-
-    if (mesh.numTris != 0) {
-        if (!drewTri) {
-        drawTris<psyqo::Prim::GouraudTexturedTriangle>(mesh, texture, 1, vertexIdx);
-        drewTri = true;
-        }
-    }
-    /* vertexIdx =
+    vertexIdx =
         drawTris<psyqo::Prim::GouraudTexturedTriangle>(mesh, texture, mesh.numTris, vertexIdx);
     vertexIdx =
-        drawQuads<psyqo::Prim::GouraudTexturedQuad>(mesh, texture, mesh.numQuads, vertexIdx); */
+        drawQuads<psyqo::Prim::GouraudTexturedQuad>(mesh, texture, mesh.numQuads, vertexIdx);
 }
 
 template<typename PrimType>
@@ -459,7 +431,6 @@ int GameplayScene::drawTris(
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
         psyqo::GTE::Kernels::rtpt();
 
-        // auto& triFrag = *(FragType*)nextpri;
         auto& triFrag = primBuffer.allocate<PrimType>();
         auto& tri2d = triFrag.primitive;
 
@@ -481,9 +452,15 @@ int GameplayScene::drawTris(
             continue;
         }
 
+#if 1
+        tri2d.setColorA(interpColor(v0.col));
+        tri2d.setColorB(interpColor(v1.col));
+        tri2d.setColorC(interpColor(v2.col));
+#else
         tri2d.setColorA(v0.col);
         tri2d.setColorB(v1.col);
         tri2d.setColorC(v2.col);
+#endif
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedTriangle>) {
             tri2d.uvA.u = v0.uv.vx;
@@ -526,7 +503,6 @@ int GameplayScene::drawQuads(
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
         psyqo::GTE::Kernels::rtpt();
 
-        // auto& quadFrag = *(FragType*)nextpri;
         auto& quadFrag = primBuffer.allocate<PrimType>();
         auto& quad2d = quadFrag.primitive;
 
@@ -546,50 +522,23 @@ int GameplayScene::drawQuads(
 
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
         psyqo::GTE::Kernels::avsz4();
-        auto avgZ =
+        const auto avgZ =
             (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
         if (avgZ < 0 || avgZ >= OT_SIZE) {
             continue;
         }
 
-        if constexpr (!eastl::is_same_v<PrimType, psyqo::Prim::Quad>) {
-            quad2d.setColorA(v0.col);
-            quad2d.setColorB(v1.col);
-            quad2d.setColorC(v2.col);
-            quad2d.setColorD(v3.col);
-        } else {
-            quad2d.setColor(v0.col);
-        }
-
-        if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::TexturedQuad>) {
-            if (avgZ == avgZG) {
-                encountered = true;
-            }
-        }
-
-        if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudQuad>) {
-            quad2d.pointA.x = 16;
-            quad2d.pointA.y = 32;
-
-            quad2d.pointB.x = 64;
-            quad2d.pointB.y = 32;
-
-            quad2d.pointC.x = 16;
-            quad2d.pointC.y = 64;
-
-            // quad2d.pointD.x = 64;
-            // quad2d.pointD.y = 64;
-            sx = quad2d.pointD.x;
-            sy = quad2d.pointD.y;
-
-            quad2d.pointD.x = 78;
-            quad2d.pointD.y = 118;
-
-
-            avgZ = 2918;
-            avgZG = avgZ;
-            // avgZ = 1;
-        }
+#if 1
+        quad2d.setColorA(interpColor(v0.col));
+        quad2d.setColorB(interpColor(v1.col));
+        quad2d.setColorC(interpColor(v2.col));
+        quad2d.setColorD(interpColor(v3.col));
+#else
+        quad2d.setColorA(v0.col);
+        quad2d.setColorB(v1.col);
+        quad2d.setColorC(v2.col);
+        quad2d.setColorD(v3.col);
+#endif
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedQuad>) {
             quad2d.uvA.u = v0.uv.vx;
@@ -615,3 +564,4 @@ int main()
 {
     return game.run();
 }
+
