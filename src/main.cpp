@@ -30,6 +30,27 @@ using namespace psyqo::trig_literals;
 namespace
 {
 
+void SetFogNearFar(int a, int b, int h) {
+    // TODO: check params + add asserts?
+    const auto dqa = ((-a * b / (b - a)) << 8) / h;
+    const auto dqaF = eastl::clamp(dqa, -32767, 32767);
+    const auto dqbF = ((b << 12) / (b - a) << 12);
+
+    psyqo::GTE::write<psyqo::GTE::Register::DQA, psyqo::GTE::Unsafe>(dqaF);
+    psyqo::GTE::write<psyqo::GTE::Register::DQB, psyqo::GTE::Safe>(dqbF);
+};
+
+// FIXME: use dpct + dpcs for efficiency
+psyqo::Color interpColor (const psyqo::Color& c) {
+    psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(&c.packed);
+    psyqo::GTE::Kernels::dpcs();
+
+    psyqo::Color col;
+    col.packed =
+        (uint32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2, psyqo::GTE::Safe>();
+    return col;
+};
+
 struct TextureInfo {
     psyqo::PrimPieces::TPageAttr tpage;
     psyqo::PrimPieces::ClutIndex clut;
@@ -84,6 +105,14 @@ class GameplayScene final : public psyqo::Scene {
         psyqo::GTE::write<psyqo::GTE::Register::ZSF3, psyqo::GTE::Unsafe>(341);
         psyqo::GTE::write<psyqo::GTE::Register::ZSF4, psyqo::GTE::Unsafe>(256);
 
+        SetFogNearFar(5000, 20800, 320 / 2);
+        // far color
+        const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
+        psyqo::GTE::write<psyqo::GTE::Register::RFC, psyqo::GTE::Unsafe>(farColor.r);
+        psyqo::GTE::write<psyqo::GTE::Register::GFC, psyqo::GTE::Unsafe>(farColor.g);
+        psyqo::GTE::write<psyqo::GTE::Register::BFC, psyqo::GTE::Unsafe>(farColor.b);
+
+
         cato.position.y = 0.88;
     }
 
@@ -101,8 +130,8 @@ class GameplayScene final : public psyqo::Scene {
     static constexpr auto OT_SIZE = 4096 * 2;
     psyqo::OrderingTable<OT_SIZE> ots[2];
 
-    psyqo::Vec3 camPos{225.f, 0.f, -12711.f};
-    psyqo::Vec3 camRot{0.f, 0.f, 0.f};
+    psyqo::Vec3 camPos{3588.f, -1507.f, -10259.f};
+    psyqo::Vec3 camRot{-150.f, -300.f, 0.f};
 
     ModelObject cato;
 
@@ -121,7 +150,7 @@ void Game::prepare()
 {
     psyqo::GPU::Configuration config;
     config.set(psyqo::GPU::Resolution::W320)
-        .set(psyqo::GPU::VideoMode::AUTO)
+        .set(psyqo::GPU::VideoMode::NTSC)
         .set(psyqo::GPU::ColorMode::C15BITS)
         .set(psyqo::GPU::Interlace::PROGRESSIVE);
     gpu().initialize(config);
@@ -356,9 +385,8 @@ void GameplayScene::frame()
         camTrans.y.raw(),
         camTrans.z.raw());
 
-    /* game.m_systemFont
-        .chainprintf(game.gpu(), {{.x = 16, .y = 32}}, c, "RX: %d, RY: %d", angleX, angleY); */
-    // game.m_romFont.print(game.gpu(), "Hello World!", {{.x = 16, .y = 64}}, c);
+     game.m_systemFont
+        .chainprintf(game.gpu(), {{.x = 16, .y = 32}}, c, "RX: %d, RY: %d", angleX, angleY); 
 }
 
 void GameplayScene::drawModel(const Model& model, const TextureInfo& texture)
@@ -403,7 +431,6 @@ int GameplayScene::drawTris(
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
         psyqo::GTE::Kernels::rtpt();
 
-        // auto& triFrag = *(FragType*)nextpri;
         auto& triFrag = primBuffer.allocate<PrimType>();
         auto& tri2d = triFrag.primitive;
 
@@ -425,9 +452,15 @@ int GameplayScene::drawTris(
             continue;
         }
 
+#if 1
+        tri2d.setColorA(interpColor(v0.col));
+        tri2d.setColorB(interpColor(v1.col));
+        tri2d.setColorC(interpColor(v2.col));
+#else
         tri2d.setColorA(v0.col);
         tri2d.setColorB(v1.col);
         tri2d.setColorC(v2.col);
+#endif
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedTriangle>) {
             tri2d.uvA.u = v0.uv.vx;
@@ -470,7 +503,6 @@ int GameplayScene::drawQuads(
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
         psyqo::GTE::Kernels::rtpt();
 
-        // auto& quadFrag = *(FragType*)nextpri;
         auto& quadFrag = primBuffer.allocate<PrimType>();
         auto& quad2d = quadFrag.primitive;
 
@@ -496,10 +528,17 @@ int GameplayScene::drawQuads(
             continue;
         }
 
+#if 1
+        quad2d.setColorA(interpColor(v0.col));
+        quad2d.setColorB(interpColor(v1.col));
+        quad2d.setColorC(interpColor(v2.col));
+        quad2d.setColorD(interpColor(v3.col));
+#else
         quad2d.setColorA(v0.col);
         quad2d.setColorB(v1.col);
         quad2d.setColorC(v2.col);
         quad2d.setColorD(v3.col);
+#endif
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedQuad>) {
             quad2d.uvA.u = v0.uv.vx;
@@ -525,3 +564,4 @@ int main()
 {
     return game.run();
 }
+
