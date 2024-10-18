@@ -3,14 +3,23 @@
 #include <EASTL/vector.h>
 #include <EASTL/string_view.h>
 
-#include <libgpu.h>
+#include <psyqo/gte-registers.hh>
+#include <psyqo/vector.hh>
+
+#include <cstdint>
 
 struct Object;
 
+struct CVECTOR {
+    std::uint8_t vx, vy, vz, pad;
+};
+
 struct Vertex {
-    SVECTOR pos;
+    psyqo::GTE::PackedVec3 pos;
+    std::int16_t pad;
+
     CVECTOR uv;
-    CVECTOR col;
+    psyqo::Color col;
 };
 
 struct Mesh {
@@ -25,5 +34,5 @@ struct Mesh {
 struct Model {
     eastl::vector<Mesh> meshes;
 
-    void load(eastl::string_view filename);
+    void load(const eastl::vector<uint8_t>& data);
 };

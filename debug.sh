@@ -6,7 +6,7 @@ cd "$(dirname "$0")"
 cmake --build --preset=default
 
 # launch pcsx
-pcsx-redux -iso build/game.iso -gdb -debugger -interpreter -run -fastboot -notrace &
+pcsx-redux -exe build/game.elf -iso build/game.iso -gdb -debugger -interpreter -run -fastboot -notrace &
 # start gdb
 gdb-multiarch
 

@@ -1,13 +1,13 @@
 #include "Model.h"
 
-#include "Utils.h"
+#include "FileReader.h"
 
 #include <utility>
 
-void Model::load(eastl::string_view filename)
-{
-    const auto data = util::readFile(filename);
+#include <common/syscalls/syscalls.h>
 
+void Model::load(const eastl::vector<uint8_t>& data)
+{
     // vertices
     util::FileReader fr{
         .bytes = data.data(),
@@ -25,6 +25,13 @@ void Model::load(eastl::string_view filename)
         mesh.numTris = fr.GetUInt16();
         mesh.numQuads = fr.GetUInt16();
 
+        if (i == 21) {
+            mesh.numQuads = mesh.numQuads;
+        }
+        if (i == 21) {
+            // return;
+        }
+
         const auto numVertices = mesh.numUntexturedTris * 3 + mesh.numUntexturedQuads * 4 +
                                  mesh.numTris * 3 + mesh.numQuads * 4;
         mesh.vertices.resize(numVertices);
@@ -41,7 +48,12 @@ void Model::load(eastl::string_view filename)
         verticesPtr += mesh.numTris * 3;
 
         fr.ReadArr(verticesPtr, mesh.numQuads * 4);
-        // verticesPtr += mesh.numUntexturedQuads * 4;
+        verticesPtr += mesh.numQuads * 4;
+
+        auto last = &mesh.vertices[mesh.vertices.size()];
+        if (last != verticesPtr) {
+            ramsyscall_printf("WHAT: %d\n", (int)i);
+        }
 
         meshes.push_back(std::move(mesh));
     }

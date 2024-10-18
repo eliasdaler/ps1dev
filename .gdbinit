@@ -16,5 +16,8 @@ layout horizontal-asm
 
 # b Game.cpp:621
 # b Renderer.cpp:363
-b Model.cpp:29
+# b Model.cpp:27
+# b main.cpp:482
+b main.cpp:546
+# b alloc.c:90
 c
