@@ -30,6 +30,9 @@ using namespace psyqo::trig_literals;
 namespace
 {
 
+static constexpr auto SCREEN_WIDTH = 320;
+static constexpr auto SCREEN_HEIGHT = 240;
+
 void SetFogNearFar(int a, int b, int h)
 {
     // TODO: check params + add asserts?
@@ -77,36 +80,30 @@ struct TextureInfo {
     psyqo::PrimPieces::ClutIndex clut;
 };
 
-class Game final : public psyqo::Application {
+class Game : public psyqo::Application {
     void prepare() override;
     void createScene() override;
 
 public:
     [[nodiscard]] TextureInfo uploadTIM();
 
-    psyqo::Font<> m_systemFont;
-    psyqo::Font<> m_romFont;
-    psyqo::Trig<> m_trig;
+    psyqo::Font<> romFont;
+    psyqo::Trig<> trig;
 
-    psyqo::CDRomDevice m_cdrom;
-    psyqo::ISO9660Parser m_isoParser = psyqo::ISO9660Parser(&m_cdrom);
-    psyqo::paths::CDRomLoader m_cdromLoader;
-    eastl::vector<uint8_t> m_buffer;
+    psyqo::CDRomDevice cdrom;
+    psyqo::ISO9660Parser isoParser = psyqo::ISO9660Parser(&cdrom);
+    psyqo::paths::CDRomLoader cdromLoader;
+    eastl::vector<std::uint8_t> cdReadBuffer;
+    psyqo::Coroutine<> cdLoadCoroutine;
+
+    psyqo::SimplePad pad;
 
     bool texturesLoaded{false};
     Model levelModel;
     Model catoModel;
 
-    psyqo::Coroutine<> m_coroutine;
-
-    psyqo::SimplePad m_input;
-
     TextureInfo bricksTexture;
     TextureInfo catoTexture;
-};
-
-struct Quad {
-    psyqo::GTE::PackedVec3 verts[4];
 };
 
 using Short = psyqo::GTE::Short;
@@ -119,14 +116,15 @@ class GameplayScene final : public psyqo::Scene {
 
         // screen "center" (screenWidth / 2, screenHeight / 2)
         psyqo::GTE::write<psyqo::GTE::Register::OFX, psyqo::GTE::Unsafe>(
-            psyqo::FixedPoint<16>(160.0).raw());
+            psyqo::FixedPoint<16>(SCREEN_WIDTH / 2.0).raw());
         psyqo::GTE::write<psyqo::GTE::Register::OFY, psyqo::GTE::Unsafe>(
-            psyqo::FixedPoint<16>(120.0).raw());
+            psyqo::FixedPoint<16>(SCREEN_HEIGHT / 2.0).raw());
 
-        psyqo::GTE::write<psyqo::GTE::Register::ZSF3, psyqo::GTE::Unsafe>(341);
-        psyqo::GTE::write<psyqo::GTE::Register::ZSF4, psyqo::GTE::Unsafe>(256);
+        // FIXME: use OT_SIZE here somehow?
+        psyqo::GTE::write<psyqo::GTE::Register::ZSF3, psyqo::GTE::Unsafe>(1024 / 3);
+        psyqo::GTE::write<psyqo::GTE::Register::ZSF4, psyqo::GTE::Unsafe>(1024 / 4);
 
-        SetFogNearFar(5000, 20800, 320 / 2);
+        SetFogNearFar(5000, 20800, SCREEN_WIDTH / 2);
         // far color
         const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
         psyqo::GTE::write<psyqo::GTE::Register::RFC, psyqo::GTE::Unsafe>(farColor.r);
@@ -148,7 +146,7 @@ class GameplayScene final : public psyqo::Scene {
     int drawQuads(const Mesh& mesh, const TextureInfo& texture, int numFaces, int vertexIdx);
 
     static constexpr auto OT_SIZE = 4096 * 2;
-    psyqo::OrderingTable<OT_SIZE> ots[2];
+    eastl::array<psyqo::OrderingTable<OT_SIZE>, 2> ots;
 
     psyqo::Vec3 camPos{3588.f, -1507.f, -10259.f};
     psyqo::Vec3 camRot{-150.f, -300.f, 0.f};
@@ -156,9 +154,9 @@ class GameplayScene final : public psyqo::Scene {
     ModelObject cato;
 
     static constexpr int PRIMBUFFLEN = 32768 * 8;
-    psyqo::BumpAllocator<PRIMBUFFLEN> primBuffers[2];
+    eastl::array<psyqo::BumpAllocator<PRIMBUFFLEN>, 2> primBuffers;
 
-    uint16_t h = 300;
+    std::uint16_t h = 300; // "fov"
 };
 
 Game game;
@@ -174,47 +172,42 @@ void Game::prepare()
         .set(psyqo::GPU::ColorMode::C15BITS)
         .set(psyqo::GPU::Interlace::PROGRESSIVE);
     gpu().initialize(config);
-    m_cdrom.prepare();
+    cdrom.prepare();
 }
 
 psyqo::Coroutine<> loadCoroutine(Game* game)
 {
-    psyqo::Coroutine<>::Awaiter awaiter = game->m_coroutine.awaiter();
+    psyqo::Coroutine<>::Awaiter awaiter = game->cdLoadCoroutine.awaiter();
 
-    ramsyscall_printf("Loading LEVEL.BIN...\n");
-    game->m_cdromLoader.readFile(
-        "LEVEL.BIN;1", game->gpu(), game->m_isoParser, [game](eastl::vector<uint8_t>&& buffer) {
-            game->m_buffer = eastl::move(buffer);
-            game->levelModel.load(game->m_buffer);
-            game->m_coroutine.resume();
+    game->cdromLoader.readFile(
+        "LEVEL.BIN;1", game->gpu(), game->isoParser, [game](eastl::vector<uint8_t>&& buffer) {
+            game->cdReadBuffer = eastl::move(buffer);
+            game->levelModel.load(game->cdReadBuffer);
+            game->cdLoadCoroutine.resume();
         });
     co_await awaiter;
 
-    ramsyscall_printf("Loading CATO.BIN...\n");
-    game->m_cdromLoader.readFile(
-        "CATO.BIN;1", game->gpu(), game->m_isoParser, [game](eastl::vector<uint8_t>&& buffer) {
-            game->m_buffer = eastl::move(buffer);
-            game->catoModel.load(game->m_buffer);
-            game->m_coroutine.resume();
+    game->cdromLoader.readFile(
+        "CATO.BIN;1", game->gpu(), game->isoParser, [game](eastl::vector<uint8_t>&& buffer) {
+            game->cdReadBuffer = eastl::move(buffer);
+            game->catoModel.load(game->cdReadBuffer);
+            game->cdLoadCoroutine.resume();
         });
     co_await awaiter;
 
-    ramsyscall_printf("Loading BRICKS.TIM...\n");
-    game->m_cdromLoader.readFile(
-        "BRICKS.TIM;1", game->gpu(), game->m_isoParser, [game](eastl::vector<uint8_t>&& buffer) {
-            ramsyscall_printf("Loading BRICKS.TIM... bytes: %d\n", buffer.size());
-            game->m_buffer = eastl::move(buffer);
+    game->cdromLoader.readFile(
+        "BRICKS.TIM;1", game->gpu(), game->isoParser, [game](eastl::vector<uint8_t>&& buffer) {
+            game->cdReadBuffer = eastl::move(buffer);
             game->bricksTexture = game->uploadTIM();
-            game->m_coroutine.resume();
+            game->cdLoadCoroutine.resume();
         });
     co_await awaiter;
 
-    ramsyscall_printf("Loading CATO.TIM...\n");
-    game->m_cdromLoader.readFile(
-        "CATO.TIM;1", game->gpu(), game->m_isoParser, [game](eastl::vector<uint8_t>&& buffer) {
-            game->m_buffer = eastl::move(buffer);
+    game->cdromLoader.readFile(
+        "CATO.TIM;1", game->gpu(), game->isoParser, [game](eastl::vector<uint8_t>&& buffer) {
+            game->cdReadBuffer = eastl::move(buffer);
             game->catoTexture = game->uploadTIM();
-            game->m_coroutine.resume();
+            game->cdLoadCoroutine.resume();
         });
     co_await awaiter;
 
@@ -223,21 +216,20 @@ psyqo::Coroutine<> loadCoroutine(Game* game)
 
 void Game::createScene()
 {
-    m_systemFont.uploadSystemFont(gpu());
-    m_romFont.uploadKromFont(gpu(), {{.x = 960, .y = int16_t(512 - 48 - 90)}});
+    romFont.uploadSystemFont(gpu(), {{.x = 960, .y = int16_t(512 - 48 - 90)}});
 
     // TODO: check if it's possible to call it in game init?
-    m_input.initialize();
+    pad.initialize();
 
     pushScene(&gameplayScene);
 
-    m_coroutine = loadCoroutine(this);
-    m_coroutine.resume();
+    cdLoadCoroutine = loadCoroutine(this);
+    cdLoadCoroutine.resume();
 }
 
 TextureInfo Game::uploadTIM()
 {
-    TimFile tim = readTimFile(m_buffer);
+    TimFile tim = readTimFile(cdReadBuffer);
     psyqo::Rect region =
         {.pos = {{.x = (std::int16_t)tim.pixDX, .y = (std::int16_t)tim.pixDY}},
          .size = {{.w = (std::int16_t)tim.pixW, .h = (std::int16_t)tim.pixH}}};
@@ -269,7 +261,6 @@ TextureInfo Game::uploadTIM()
         return psyqo::Prim::TPageAttr::Tex16Bits;
     }(tim.pmode);
 
-    ramsyscall_printf("dx: %d, dy: %d\n", tim.pixDX, tim.pixDY);
     info.tpage.setPageX((std::uint8_t)(tim.pixDX / 64))
         .setPageY((std::uint8_t)(tim.pixDY / 128))
         .setDithering(true)
@@ -290,7 +281,7 @@ void GameplayScene::frame()
     angleY.value = (camRot.y.value / 2) >> 12;
 
     { // input
-        const auto& pad = game.m_input;
+        const auto& pad = game.pad;
         const auto walkSpeed = 64;
         const auto rotateSpeed = 16;
 
@@ -302,12 +293,12 @@ void GameplayScene::frame()
         }
 
         if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Up)) {
-            camPos.x += game.m_trig.sin(angleY) * walkSpeed;
-            camPos.z += game.m_trig.cos(angleY) * walkSpeed;
+            camPos.x += game.trig.sin(angleY) * walkSpeed;
+            camPos.z += game.trig.cos(angleY) * walkSpeed;
         }
         if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Down)) {
-            camPos.x -= game.m_trig.sin(angleY) * walkSpeed;
-            camPos.z -= game.m_trig.cos(angleY) * walkSpeed;
+            camPos.x -= game.trig.sin(angleY) * walkSpeed;
+            camPos.z -= game.trig.cos(angleY) * walkSpeed;
         }
 
         if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::L2)) {
@@ -323,9 +314,9 @@ void GameplayScene::frame()
     angleX.value = (camRot.x.value / 2) >> 12;
     angleY.value = (camRot.y.value / 2) >> 12;
     auto rotX =
-        psyqo::SoftMath::generateRotationMatrix33(angleX, psyqo::SoftMath::Axis::X, game.m_trig);
+        psyqo::SoftMath::generateRotationMatrix33(angleX, psyqo::SoftMath::Axis::X, game.trig);
     const auto rotY =
-        psyqo::SoftMath::generateRotationMatrix33(angleY, psyqo::SoftMath::Axis::Y, game.m_trig);
+        psyqo::SoftMath::generateRotationMatrix33(angleY, psyqo::SoftMath::Axis::Y, game.trig);
     psyqo::SoftMath::multiplyMatrix33(rotY, rotX, &rotX);
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(rotX);
 
@@ -395,18 +386,18 @@ void GameplayScene::frame()
     gpu().chain(ot);
 
     // debug
-    psyqo::Color c = {{.r = 255, .g = 255, .b = 255}};
-    game.m_systemFont.chainprintf(
+    static const psyqo::Color textCol = {{.r = 255, .g = 255, .b = 255}};
+    game.romFont.chainprintf(
         game.gpu(),
         {{.x = 16, .y = 16}},
-        c,
+        textCol,
         "TRX: %d, TRY: %d, TRZ: %d",
         camTrans.x.raw(),
         camTrans.y.raw(),
         camTrans.z.raw());
 
-    game.m_systemFont
-        .chainprintf(game.gpu(), {{.x = 16, .y = 32}}, c, "RX: %d, RY: %d", angleX, angleY);
+    game.romFont
+        .chainprintf(game.gpu(), {{.x = 16, .y = 32}}, textCol, "RX: %d, RY: %d", angleX, angleY);
 }
 
 void GameplayScene::drawModel(const Model& model, const TextureInfo& texture)
@@ -445,7 +436,6 @@ int GameplayScene::drawTris(
         const auto& v1 = mesh.vertices[vertexIdx + 1];
         const auto& v2 = mesh.vertices[vertexIdx + 2];
 
-        // draw quad
         psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
         psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
@@ -512,7 +502,6 @@ int GameplayScene::drawQuads(
         const auto& v2 = mesh.vertices[vertexIdx + 2];
         const auto& v3 = mesh.vertices[vertexIdx + 3];
 
-        // draw quad
         psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
         psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
