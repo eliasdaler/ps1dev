@@ -18,6 +18,7 @@ layout horizontal-asm
 # b Renderer.cpp:363
 # b Model.cpp:27
 # b main.cpp:482
-b main.cpp:546
+# b main.cpp:546
+b drawTris
 # b alloc.c:90
 c

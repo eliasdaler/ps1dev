@@ -55,10 +55,12 @@ psyqo::Color interpColor(const psyqo::Color& c)
     return col;
 };
 
-eastl::array<psyqo::Color, 3> interpColor3(
+template<typename PrimType>
+void interpColor3(
     const psyqo::Color& c0,
     const psyqo::Color& c1,
-    const psyqo::Color& c2)
+    const psyqo::Color& c2,
+    PrimType& prim)
 {
     psyqo::GTE::write<psyqo::GTE::Register::RGB0, psyqo::GTE::Unsafe>(&c0.packed);
     psyqo::GTE::write<psyqo::GTE::Register::RGB1, psyqo::GTE::Unsafe>(&c1.packed);
@@ -66,13 +68,16 @@ eastl::array<psyqo::Color, 3> interpColor3(
 
     psyqo::GTE::Kernels::dpct();
 
-    eastl::array<psyqo::Color, 3> cols;
-    cols[0].packed = (uint32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::RGB0, psyqo::GTE::Safe>();
-    cols[1].packed =
-        (uint32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::RGB1, psyqo::GTE::Unsafe>();
-    cols[2].packed =
-        (uint32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2, psyqo::GTE::Unsafe>();
-    return cols;
+    psyqo::Color col;
+
+    col.packed = (uint32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::RGB0, psyqo::GTE::Safe>();
+    prim.setColorA(col);
+
+    col.packed = (uint32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::RGB1, psyqo::GTE::Unsafe>();
+    prim.setColorB(col);
+
+    col.packed = (uint32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2, psyqo::GTE::Unsafe>();
+    prim.setColorC(col);
 }
 
 struct TextureInfo {
@@ -462,10 +467,7 @@ int GameplayScene::drawTris(
             continue;
         }
 
-        const auto cols = interpColor3(v0.col, v1.col, v2.col);
-        tri2d.setColorA(cols[0]);
-        tri2d.setColorB(cols[1]);
-        tri2d.setColorC(cols[2]);
+        interpColor3(v0.col, v1.col, v2.col, tri2d);
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedTriangle>) {
             tri2d.uvA.u = v0.uv.vx;
@@ -532,10 +534,7 @@ int GameplayScene::drawQuads(
             continue;
         }
 
-        const auto cols = interpColor3(v0.col, v1.col, v2.col);
-        quad2d.setColorA(cols[0]);
-        quad2d.setColorB(cols[1]);
-        quad2d.setColorC(cols[2]);
+        interpColor3(v0.col, v1.col, v2.col, quad2d);
         quad2d.setColorD(interpColor(v3.col));
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedQuad>) {
