@@ -2,7 +2,7 @@
 
 PS1 development experiments.
 
-Done with PsyQO, in C++20.
+Done with psyqo, in C++20.
 
 See also: [psxtools](https://github.com/eliasdaler/psxtools) (to be incorporated into build process).
 
