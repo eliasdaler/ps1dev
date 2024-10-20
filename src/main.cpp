@@ -30,7 +30,8 @@ using namespace psyqo::trig_literals;
 namespace
 {
 
-void SetFogNearFar(int a, int b, int h) {
+void SetFogNearFar(int a, int b, int h)
+{
     // TODO: check params + add asserts?
     const auto dqa = ((-a * b / (b - a)) << 8) / h;
     const auto dqaF = eastl::clamp(dqa, -32767, 32767);
@@ -40,16 +41,36 @@ void SetFogNearFar(int a, int b, int h) {
     psyqo::GTE::write<psyqo::GTE::Register::DQB, psyqo::GTE::Safe>(dqbF);
 };
 
-// FIXME: use dpct + dpcs for efficiency
-psyqo::Color interpColor (const psyqo::Color& c) {
+psyqo::Color interpColor(const psyqo::Color& c)
+{
     psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(&c.packed);
+
     psyqo::GTE::Kernels::dpcs();
 
     psyqo::Color col;
-    col.packed =
-        (uint32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2, psyqo::GTE::Safe>();
+    col.packed = (uint32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2, psyqo::GTE::Safe>();
     return col;
 };
+
+eastl::array<psyqo::Color, 3> interpColor3(
+    const psyqo::Color& c0,
+    const psyqo::Color& c1,
+    const psyqo::Color& c2)
+{
+    psyqo::GTE::write<psyqo::GTE::Register::RGB0, psyqo::GTE::Unsafe>(&c0.packed);
+    psyqo::GTE::write<psyqo::GTE::Register::RGB1, psyqo::GTE::Unsafe>(&c1.packed);
+    psyqo::GTE::write<psyqo::GTE::Register::RGB2, psyqo::GTE::Safe>(&c2.packed);
+
+    psyqo::GTE::Kernels::dpct();
+
+    eastl::array<psyqo::Color, 3> cols;
+    cols[0].packed = (uint32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::RGB0, psyqo::GTE::Safe>();
+    cols[1].packed =
+        (uint32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::RGB1, psyqo::GTE::Unsafe>();
+    cols[2].packed =
+        (uint32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2, psyqo::GTE::Unsafe>();
+    return cols;
+}
 
 struct TextureInfo {
     psyqo::PrimPieces::TPageAttr tpage;
@@ -111,7 +132,6 @@ class GameplayScene final : public psyqo::Scene {
         psyqo::GTE::write<psyqo::GTE::Register::RFC, psyqo::GTE::Unsafe>(farColor.r);
         psyqo::GTE::write<psyqo::GTE::Register::GFC, psyqo::GTE::Unsafe>(farColor.g);
         psyqo::GTE::write<psyqo::GTE::Register::BFC, psyqo::GTE::Unsafe>(farColor.b);
-
 
         cato.position.y = 0.88;
     }
@@ -385,8 +405,8 @@ void GameplayScene::frame()
         camTrans.y.raw(),
         camTrans.z.raw());
 
-     game.m_systemFont
-        .chainprintf(game.gpu(), {{.x = 16, .y = 32}}, c, "RX: %d, RY: %d", angleX, angleY); 
+    game.m_systemFont
+        .chainprintf(game.gpu(), {{.x = 16, .y = 32}}, c, "RX: %d, RY: %d", angleX, angleY);
 }
 
 void GameplayScene::drawModel(const Model& model, const TextureInfo& texture)
@@ -452,15 +472,10 @@ int GameplayScene::drawTris(
             continue;
         }
 
-#if 1
-        tri2d.setColorA(interpColor(v0.col));
-        tri2d.setColorB(interpColor(v1.col));
-        tri2d.setColorC(interpColor(v2.col));
-#else
-        tri2d.setColorA(v0.col);
-        tri2d.setColorB(v1.col);
-        tri2d.setColorC(v2.col);
-#endif
+        const auto cols = interpColor3(v0.col, v1.col, v2.col);
+        tri2d.setColorA(cols[0]);
+        tri2d.setColorB(cols[1]);
+        tri2d.setColorC(cols[2]);
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedTriangle>) {
             tri2d.uvA.u = v0.uv.vx;
@@ -528,17 +543,11 @@ int GameplayScene::drawQuads(
             continue;
         }
 
-#if 1
-        quad2d.setColorA(interpColor(v0.col));
-        quad2d.setColorB(interpColor(v1.col));
-        quad2d.setColorC(interpColor(v2.col));
+        const auto cols = interpColor3(v0.col, v1.col, v2.col);
+        quad2d.setColorA(cols[0]);
+        quad2d.setColorB(cols[1]);
+        quad2d.setColorC(cols[2]);
         quad2d.setColorD(interpColor(v3.col));
-#else
-        quad2d.setColorA(v0.col);
-        quad2d.setColorB(v1.col);
-        quad2d.setColorC(v2.col);
-        quad2d.setColorD(v3.col);
-#endif
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedQuad>) {
             quad2d.uvA.u = v0.uv.vx;
@@ -564,4 +573,3 @@ int main()
 {
     return game.run();
 }
-
