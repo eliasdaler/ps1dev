@@ -49,7 +49,7 @@ psyqo::Color interpColor(const psyqo::Color& c)
     psyqo::GTE::Kernels::dpcs();
 
     psyqo::Color col;
-    col.packed = (uint32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2, psyqo::GTE::Safe>();
+    psyqo::GTE::read<psyqo::GTE::Register::RGB2>(&col.packed);
     return col;
 };
 
@@ -68,13 +68,13 @@ void interpColor3(
 
     psyqo::Color col;
 
-    col.packed = (uint32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::RGB0, psyqo::GTE::Safe>();
+    psyqo::GTE::read<psyqo::GTE::Register::RGB0>(&col.packed);
     prim.setColorA(col);
 
-    col.packed = (uint32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::RGB1, psyqo::GTE::Unsafe>();
+    psyqo::GTE::read<psyqo::GTE::Register::RGB1>(&col.packed);
     prim.setColorB(col);
 
-    col.packed = (uint32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2, psyqo::GTE::Unsafe>();
+    psyqo::GTE::read<psyqo::GTE::Register::RGB2>(&col.packed);
     prim.setColorC(col);
 }
 
