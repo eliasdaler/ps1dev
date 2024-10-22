@@ -1,28 +1,26 @@
+#include <psyqo-paths/cdrom-loader.hh>
 #include <psyqo/application.hh>
+#include <psyqo/bump-allocator.h>
+#include <psyqo/cdrom-device.hh>
+#include <psyqo/coroutine.hh>
 #include <psyqo/font.hh>
 #include <psyqo/gpu.hh>
-#include <psyqo/scene.hh>
+#include <psyqo/gte-kernels.hh>
+#include <psyqo/gte-registers.hh>
+#include <psyqo/iso9660-parser.hh>
 #include <psyqo/primitives/quads.hh>
 #include <psyqo/primitives/triangles.hh>
-#include <psyqo/gte-registers.hh>
-#include <psyqo/gte-kernels.hh>
-#include <psyqo/soft-math.hh>
-#include <psyqo/coroutine.hh>
+#include <psyqo/scene.hh>
 #include <psyqo/simplepad.hh>
-
-#include <psyqo/cdrom-device.hh>
-#include <psyqo/iso9660-parser.hh>
-#include <psyqo-paths/cdrom-loader.hh>
-
-#include <psyqo/bump-allocator.h>
+#include <psyqo/soft-math.hh>
 
 #include <common/syscalls/syscalls.h>
 
 #include <cstdint>
 
-#include "TimFile.h"
 #include "Model.h"
 #include "Object.h"
+#include "TimFile.h"
 
 using namespace psyqo::fixed_point_literals;
 using namespace psyqo::trig_literals;
@@ -86,8 +84,8 @@ struct TextureInfo {
 };
 
 struct Camera {
-    psyqo::Vec3 position{3588.f, -1507.f, -10259.f};
-    psyqo::Vec3 rotation{-75.f, -150.f, 0.f};
+    psyqo::Vec3 position{};
+    psyqo::Vector<2, 10> rotation{};
 
     psyqo::Vec3 translation{};
     psyqo::Matrix33 viewRot;
@@ -125,43 +123,19 @@ public:
     bool resourcesLoaded{false};
 };
 
-using Short = psyqo::GTE::Short;
-
-class GameplayScene final : public psyqo::Scene {
-    void start(StartReason reason) override
-    {
-        // screen "center" (screenWidth / 2, screenHeight / 2)
-        psyqo::GTE::write<psyqo::GTE::Register::OFX, psyqo::GTE::Unsafe>(
-            psyqo::FixedPoint<16>(SCREEN_WIDTH / 2.0).raw());
-        psyqo::GTE::write<psyqo::GTE::Register::OFY, psyqo::GTE::Unsafe>(
-            psyqo::FixedPoint<16>(SCREEN_HEIGHT / 2.0).raw());
-
-        // projection plane distance
-        psyqo::GTE::write<psyqo::GTE::Register::H, psyqo::GTE::Unsafe>(h);
-
-        // FIXME: use OT_SIZE here somehow?
-        psyqo::GTE::write<psyqo::GTE::Register::ZSF3, psyqo::GTE::Unsafe>(1024 / 3);
-        psyqo::GTE::write<psyqo::GTE::Register::ZSF4, psyqo::GTE::Unsafe>(1024 / 4);
-
-        SetFogNearFar(5000, 20800, SCREEN_WIDTH / 2);
-        // far color
-        const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
-        psyqo::GTE::write<psyqo::GTE::Register::RFC, psyqo::GTE::Unsafe>(farColor.r);
-        psyqo::GTE::write<psyqo::GTE::Register::GFC, psyqo::GTE::Unsafe>(farColor.g);
-        psyqo::GTE::write<psyqo::GTE::Register::BFC, psyqo::GTE::Unsafe>(farColor.b);
-
-        cato.position = {0.0, 0.88, 0.8};
-    }
+class GameplayScene : public psyqo::Scene {
+    void start(StartReason reason) override;
 
     void onResourcesLoaded();
 
     void frame() override;
 
     void processInput();
-    void update(); // gameplay logic
+    void update();
     void updateCamera();
 
     void draw();
+    void drawDebugInfo();
     void drawLoadingScreen();
 
     void drawModelObject(
@@ -180,14 +154,13 @@ class GameplayScene final : public psyqo::Scene {
     static constexpr auto OT_SIZE = 4096 * 2;
     eastl::array<psyqo::OrderingTable<OT_SIZE>, 2> ots;
 
-    ModelObject cato;
-
     static constexpr int PRIMBUFFLEN = 32768 * 8;
     eastl::array<psyqo::BumpAllocator<PRIMBUFFLEN>, 2> primBuffers;
 
-    std::uint16_t h = 300; // changes "fov"
-
     bool calledOnResourcesLoaded{false};
+
+    // game objects
+    ModelObject cato;
 };
 
 Game game;
@@ -300,9 +273,36 @@ TextureInfo Game::uploadTIM(const TimFile& tim)
     return info;
 }
 
+void GameplayScene::start(StartReason reason)
+{
+    // screen "center" (screenWidth / 2, screenHeight / 2)
+    psyqo::GTE::write<psyqo::GTE::Register::OFX, psyqo::GTE::Unsafe>(
+        psyqo::FixedPoint<16>(SCREEN_WIDTH / 2.0).raw());
+    psyqo::GTE::write<psyqo::GTE::Register::OFY, psyqo::GTE::Unsafe>(
+        psyqo::FixedPoint<16>(SCREEN_HEIGHT / 2.0).raw());
+
+    // projection plane distance
+    psyqo::GTE::write<psyqo::GTE::Register::H, psyqo::GTE::Unsafe>(300);
+
+    // FIXME: use OT_SIZE here somehow?
+    psyqo::GTE::write<psyqo::GTE::Register::ZSF3, psyqo::GTE::Unsafe>(1024 / 3);
+    psyqo::GTE::write<psyqo::GTE::Register::ZSF4, psyqo::GTE::Unsafe>(1024 / 4);
+
+    SetFogNearFar(5000, 20800, SCREEN_WIDTH / 2);
+    // far color
+    const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
+    psyqo::GTE::write<psyqo::GTE::Register::RFC, psyqo::GTE::Unsafe>(farColor.r);
+    psyqo::GTE::write<psyqo::GTE::Register::GFC, psyqo::GTE::Unsafe>(farColor.g);
+    psyqo::GTE::write<psyqo::GTE::Register::BFC, psyqo::GTE::Unsafe>(farColor.b);
+}
+
 void GameplayScene::onResourcesLoaded()
 {
     cato.model = &game.catoModel;
+    cato.position = {0.0, 0.88, 0.8};
+
+    game.camera.position = {3588.f, -1507.f, -10259.f};
+    game.camera.rotation = {-0.1f, -0.1f};
 }
 
 void GameplayScene::frame()
@@ -324,16 +324,13 @@ void GameplayScene::frame()
 
 void GameplayScene::processInput()
 {
-    psyqo::Angle angleX;
-    psyqo::Angle angleY;
     auto& camera = game.camera;
-    angleX.value = camera.rotation.x.value >> 12;
-    angleY.value = camera.rotation.y.value >> 12;
 
     const auto& pad = game.pad;
-    const auto walkSpeed = 64;
-    const auto rotateSpeed = 16;
+    constexpr auto walkSpeed = 64;
+    constexpr auto rotateSpeed = 0.01;
 
+    // yaw
     if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Left)) {
         camera.rotation.y -= rotateSpeed;
     }
@@ -341,39 +338,45 @@ void GameplayScene::processInput()
         camera.rotation.y += rotateSpeed;
     }
 
-    if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Up)) {
-        camera.position.x += game.trig.sin(angleY) * walkSpeed;
-        camera.position.z += game.trig.cos(angleY) * walkSpeed;
-    }
-    if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Down)) {
-        camera.position.x -= game.trig.sin(angleY) * walkSpeed;
-        camera.position.z -= game.trig.cos(angleY) * walkSpeed;
-    }
-
+    // pitch
     if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::L2)) {
-        camera.position.x += rotateSpeed;
+        camera.rotation.x += rotateSpeed;
     }
     if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::R2)) {
-        camera.position.x -= rotateSpeed;
+        camera.rotation.x -= rotateSpeed;
+    }
+
+    // go up/down
+    if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::L1)) {
+        camera.position.y += walkSpeed;
+    }
+    if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::R1)) {
+        camera.position.y -= walkSpeed;
+    }
+
+    // go forward/backward
+    if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Up)) {
+        camera.position.x += game.trig.sin(camera.rotation.y) * walkSpeed;
+        camera.position.z += game.trig.cos(camera.rotation.y) * walkSpeed;
+    }
+    if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Down)) {
+        camera.position.x -= game.trig.sin(camera.rotation.y) * walkSpeed;
+        camera.position.z -= game.trig.cos(camera.rotation.y) * walkSpeed;
     }
 }
 
 void GameplayScene::updateCamera()
 {
     // calculate camera rotation matrix
-    // input might have changed the values
-    psyqo::Angle angleX;
-    psyqo::Angle angleY;
     auto& camera = game.camera;
-    angleX.value = camera.rotation.x.value >> 12;
-    angleY.value = camera.rotation.y.value >> 12;
-    camera.viewRot =
-        psyqo::SoftMath::generateRotationMatrix33(angleX, psyqo::SoftMath::Axis::X, game.trig);
-    const auto viewRotY =
-        psyqo::SoftMath::generateRotationMatrix33(angleY, psyqo::SoftMath::Axis::Y, game.trig);
+
+    camera.viewRot = psyqo::SoftMath::
+        generateRotationMatrix33(camera.rotation.x, psyqo::SoftMath::Axis::X, game.trig);
+    const auto viewRotY = psyqo::SoftMath::
+        generateRotationMatrix33(camera.rotation.y, psyqo::SoftMath::Axis::Y, game.trig);
     psyqo::SoftMath::multiplyMatrix33(viewRotY, camera.viewRot, &camera.viewRot);
 
-    // calculate and upload camera translation
+    // calculate camera translation vector
     camera.translation.x = -camera.position.x >> 12;
     camera.translation.y = -camera.position.y >> 12;
     camera.translation.z = -camera.position.z >> 12;
@@ -384,10 +387,9 @@ void GameplayScene::updateCamera()
 void GameplayScene::update()
 {
     updateCamera();
-    // catoYaw = -0.5;
+
+    // spin the cat
     cato.rotation.y += 0.01;
-    // catoPitch += 0.01;
-    // cato.position.z -= 0.01;
 }
 
 void GameplayScene::drawLoadingScreen()
@@ -426,36 +428,46 @@ void GameplayScene::draw()
     gpu().getNextClear(fill.primitive, bg);
     gpu().chain(fill);
 
-    auto& camera = game.camera;
+    const auto& camera = game.camera;
 
+    // draw static objects
     {
-        // draw static objects
         psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.viewRot);
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(camera.translation);
         drawModel(game.levelModel, game.bricksTexture);
     }
 
+    // draw dynamic objects
     {
-        // draw dynamic objects
         drawModelObject(gameplayScene.cato, camera, game.catoTexture);
     }
 
     gpu().chain(ot);
 
-    // debug
+    drawDebugInfo();
+}
+
+void GameplayScene::drawDebugInfo()
+{
+    const auto& camera = game.camera;
+
     static const psyqo::Color textCol = {{.r = 255, .g = 255, .b = 255}};
     game.romFont.chainprintf(
         game.gpu(),
         {{.x = 16, .y = 16}},
         textCol,
-        "TRX: %d, TRY: %d, TRZ: %d",
-        camera.translation.x.raw(),
-        camera.translation.y.raw(),
-        camera.translation.z.raw());
+        "cam pos=(%d, %d, %d)",
+        camera.position.x.raw() >> 12,
+        camera.position.y.raw() >> 12,
+        camera.position.z.raw() >> 12);
 
-    /* game.romFont
-        .chainprintf(game.gpu(), {{.x = 16, .y = 32}}, textCol, "RX: %d, RY: %d", angleX, angleY);
-     */
+    game.romFont.chainprintf(
+        game.gpu(),
+        {{.x = 16, .y = 32}},
+        textCol,
+        "cam rot=(%d, %d)",
+        camera.rotation.x.raw(),
+        camera.rotation.y.raw());
 }
 
 void GameplayScene::drawModelObject(
@@ -466,13 +478,14 @@ void GameplayScene::drawModelObject(
     if (object.rotation.x == 0.0 && object.rotation.y == 0.0) {
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(camera.viewRot);
     } else {
+        // yaw
         auto objectRotMat = psyqo::SoftMath::
             generateRotationMatrix33(object.rotation.y, psyqo::SoftMath::Axis::Y, game.trig);
 
-        if (cato.rotation.x != 0.0) {
-            auto objectRotMat2 = psyqo::SoftMath::
+        if (cato.rotation.x != 0.0) { // pitch
+            const auto rotX = psyqo::SoftMath::
                 generateRotationMatrix33(object.rotation.x, psyqo::SoftMath::Axis::X, game.trig);
-            psyqo::SoftMath::multiplyMatrix33(objectRotMat2, objectRotMat, &objectRotMat);
+            psyqo::SoftMath::multiplyMatrix33(rotX, objectRotMat, &objectRotMat);
         }
 
         psyqo::SoftMath::multiplyMatrix33(objectRotMat, camera.viewRot, &objectRotMat);
@@ -529,13 +542,6 @@ int GameplayScene::drawTris(
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
         psyqo::GTE::Kernels::rtpt();
 
-        auto& triFrag = primBuffer.allocate<PrimType>();
-        auto& tri2d = triFrag.primitive;
-
-        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&tri2d.pointA.packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&tri2d.pointB.packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&tri2d.pointC.packed);
-
         psyqo::GTE::Kernels::nclip();
         const auto dot =
             (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
@@ -549,6 +555,13 @@ int GameplayScene::drawTris(
         if (avgZ < 0 || avgZ >= OT_SIZE) {
             continue;
         }
+
+        auto& triFrag = primBuffer.allocate<PrimType>();
+        auto& tri2d = triFrag.primitive;
+
+        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&tri2d.pointA.packed);
+        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&tri2d.pointB.packed);
+        psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&tri2d.pointC.packed);
 
         interpColor3(v0.col, v1.col, v2.col, tri2d);
 
@@ -592,13 +605,6 @@ int GameplayScene::drawQuads(
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
         psyqo::GTE::Kernels::rtpt();
 
-        auto& quadFrag = primBuffer.allocate<PrimType>();
-        auto& quad2d = quadFrag.primitive;
-
-        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointA.packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointB.packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointC.packed);
-
         psyqo::GTE::Kernels::nclip();
         const auto dot =
             (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
@@ -606,16 +612,24 @@ int GameplayScene::drawQuads(
             continue;
         }
 
+        auto& quadFrag = primBuffer.allocate<PrimType>();
+        auto& quad2d = quadFrag.primitive;
+
+        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointA.packed);
+
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v3.pos);
         psyqo::GTE::Kernels::rtps();
 
-        psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
         psyqo::GTE::Kernels::avsz4();
         const auto avgZ =
             (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
         if (avgZ < 0 || avgZ >= OT_SIZE) {
             continue;
         }
+
+        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointB.packed);
+        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointC.packed);
+        psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
 
         interpColor3(v0.col, v1.col, v2.col, quad2d);
         quad2d.setColorD(interpColor(v3.col));
