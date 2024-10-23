@@ -19,6 +19,8 @@ layout horizontal-asm
 # b Model.cpp:27
 # b main.cpp:482
 # b main.cpp:546
-b drawTris
+# b drawTris
+# b multiplyMatrix33
+b main.cpp:210
 # b alloc.c:90
 c

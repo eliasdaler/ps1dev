@@ -22,6 +22,8 @@
 #include "Object.h"
 #include "TimFile.h"
 
+#include <psyqo/xprintf.h>
+
 using namespace psyqo::fixed_point_literals;
 using namespace psyqo::trig_literals;
 
@@ -173,6 +175,55 @@ void Game::createScene()
     // load resources
     cdLoadCoroutine = loadCoroutine(this);
     cdLoadCoroutine.resume();
+
+    // matrix tests
+    eastl::fixed_string<char, 128> str;
+    auto printMatrix = [&str](eastl::string_view matrixName, const psyqo::Matrix33& m) {
+        str.clear();
+        sprintf(
+            str.data(),
+            "%s=\n\t(%f, %f, %f)\n\t(%f, %f, %f)\n\t(%f, %f, %f)",
+            matrixName.data(),
+            m.vs[0].x,
+            m.vs[1].x,
+            m.vs[2].x,
+            m.vs[0].y,
+            m.vs[1].y,
+            m.vs[2].y,
+            m.vs[0].z,
+            m.vs[1].z,
+            m.vs[2].z);
+        ramsyscall_printf("%s\n", str.c_str());
+    };
+
+    const auto mA = psyqo::Matrix33{{{0.75, 0.25, 0.5}, {1.25, 0.5, 0.75}, {0.25, 0.5, 0.75}}};
+    const auto mB = psyqo::Matrix33{{{0.25, 0.25, 0.5}, {0.5, 0.25, 0.25}, {0.5, 0.25, 0.25}}};
+
+    auto res = psyqo::Matrix33{};
+
+    psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(mB);
+
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(
+        psyqo::Vec3{mA.vs[0].x, mA.vs[1].x, mA.vs[2].x});
+    psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0>();
+    res.vs[0] = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
+
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(
+        psyqo::Vec3{mA.vs[0].y, mA.vs[1].y, mA.vs[2].y});
+    psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0>();
+    res.vs[1] = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
+
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(
+        psyqo::Vec3{mA.vs[0].z, mA.vs[1].z, mA.vs[2].z});
+    psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0>();
+    res.vs[2] = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
+
+    printMatrix("mA", mA);
+    printMatrix("mB", mB);
+    printMatrix("res", res);
+
+    psyqo::SoftMath::multiplyMatrix33(mA, mB, &res);
+    printMatrix("res2", res);
 }
 
 void Game::loadTIM(eastl::string_view filename, TextureInfo& textureInfo)
