@@ -42,42 +42,6 @@ void SetFogNearFar(int a, int b, int h)
     psyqo::GTE::write<psyqo::GTE::Register::DQB, psyqo::GTE::Safe>(dqbF);
 };
 
-psyqo::Color interpColor(const psyqo::Color& c)
-{
-    psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(&c.packed);
-
-    psyqo::GTE::Kernels::dpcs();
-
-    psyqo::Color col;
-    psyqo::GTE::read<psyqo::GTE::Register::RGB2>(&col.packed);
-    return col;
-};
-
-template<typename PrimType>
-void interpColor3(
-    const psyqo::Color& c0,
-    const psyqo::Color& c1,
-    const psyqo::Color& c2,
-    PrimType& prim)
-{
-    psyqo::GTE::write<psyqo::GTE::Register::RGB0, psyqo::GTE::Unsafe>(&c0.packed);
-    psyqo::GTE::write<psyqo::GTE::Register::RGB1, psyqo::GTE::Unsafe>(&c1.packed);
-    psyqo::GTE::write<psyqo::GTE::Register::RGB2, psyqo::GTE::Safe>(&c2.packed);
-
-    psyqo::GTE::Kernels::dpct();
-
-    psyqo::Color col;
-
-    psyqo::GTE::read<psyqo::GTE::Register::RGB0>(&col.packed);
-    prim.setColorA(col);
-
-    psyqo::GTE::read<psyqo::GTE::Register::RGB1>(&col.packed);
-    prim.setColorB(col);
-
-    psyqo::GTE::read<psyqo::GTE::Register::RGB2>(&col.packed);
-    prim.setColorC(col);
-}
-
 struct TextureInfo {
     psyqo::PrimPieces::TPageAttr tpage;
     psyqo::PrimPieces::ClutIndex clut;
@@ -401,7 +365,7 @@ void GameplayScene::drawLoadingScreen()
     primBuffer.reset();
     // fill bg
     psyqo::Color bg{{.r = 0, .g = 0, .b = 0}};
-    auto& fill = primBuffer.allocate<psyqo::Prim::FastFill>();
+    auto& fill = primBuffer.allocateFragment<psyqo::Prim::FastFill>();
     gpu().getNextClear(fill.primitive, bg);
     gpu().chain(fill);
     // text
@@ -418,13 +382,13 @@ void GameplayScene::draw()
     primBuffer.reset();
 
     // set dithering ON globally
-    auto& tpage = primBuffer.allocate<psyqo::Prim::TPage>();
+    auto& tpage = primBuffer.allocateFragment<psyqo::Prim::TPage>();
     tpage.primitive.attr.setDithering(true);
     gpu().chain(tpage);
 
     // clear
     psyqo::Color bg{{.r = 0, .g = 64, .b = 91}};
-    auto& fill = primBuffer.allocate<psyqo::Prim::FastFill>();
+    auto& fill = primBuffer.allocateFragment<psyqo::Prim::FastFill>();
     gpu().getNextClear(fill.primitive, bg);
     gpu().chain(fill);
 
@@ -556,14 +520,14 @@ int GameplayScene::drawTris(
             continue;
         }
 
-        auto& triFrag = primBuffer.allocate<PrimType>();
+        auto& triFrag = primBuffer.allocateFragment<PrimType>();
         auto& tri2d = triFrag.primitive;
 
         psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&tri2d.pointA.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&tri2d.pointB.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&tri2d.pointC.packed);
 
-        interpColor3(v0.col, v1.col, v2.col, tri2d);
+        tri2d.interpolateColors(&v0.col, &v1.col, &v2.col);
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedTriangle>) {
             tri2d.uvA.u = v0.uv.vx;
@@ -612,7 +576,7 @@ int GameplayScene::drawQuads(
             continue;
         }
 
-        auto& quadFrag = primBuffer.allocate<PrimType>();
+        auto& quadFrag = primBuffer.allocateFragment<PrimType>();
         auto& quad2d = quadFrag.primitive;
 
         psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointA.packed);
@@ -631,8 +595,7 @@ int GameplayScene::drawQuads(
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointC.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
 
-        interpColor3(v0.col, v1.col, v2.col, quad2d);
-        quad2d.setColorD(interpColor(v3.col));
+        quad2d.interpolateColors(&v0.col, &v1.col, &v2.col, &v3.col);
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedQuad>) {
             quad2d.uvA.u = v0.uv.vx;
