@@ -29,8 +29,6 @@
 using namespace psyqo::fixed_point_literals;
 using namespace psyqo::trig_literals;
 
-#define COLUMN_MAJOR
-
 namespace
 {
 
@@ -239,6 +237,41 @@ namespace {
         eastl::swap(m.vs[1].z, m.vs[2].y);
     }
 
+    void gteMatrixVecMul3(const psyqo::Matrix33& m, const psyqo::Vec3& v, psyqo::Vec3* out) {
+        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(m);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v);
+        psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0>();
+        *out = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
+    }
+
+    void gteMultiplyMatrix33(const psyqo::Matrix33& m1, const psyqo::Matrix33& m2, psyqo::Matrix33* out) {
+        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(m1);
+
+        psyqo::Vec3 t;
+
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(psyqo::Vec3{m2.vs[0].x, m2.vs[1].x, m2.vs[2].x});
+        psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0>();
+        t = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
+        out->vs[0].x = t.x;
+        out->vs[1].x = t.y;
+        out->vs[2].x = t.z;
+
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(psyqo::Vec3{m2.vs[0].y, m2.vs[1].y, m2.vs[2].y});
+        psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0>();
+        t = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
+        out->vs[0].y = t.x;
+        out->vs[1].y = t.y;
+        out->vs[2].y = t.z;
+
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(psyqo::Vec3{m2.vs[0].z, m2.vs[1].z, m2.vs[2].z});
+        psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0>();
+        t = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
+        out->vs[0].z = t.x;
+        out->vs[1].z = t.y;
+        out->vs[2].z = t.z;
+    }
+
+
 #define ASSERT_EQFP(expected, actual, msg) \
     assertF(expected == actual, std::source_location::current(), "comparison failed: %s\n\t%s != %s\n\t%f != %f", msg, #expected, #actual, expected, actual);
 
@@ -308,22 +341,30 @@ namespace {
             {0.5, 0.25, 0.25},
         }};
         const auto expectedRes = psyqo::Matrix33{{
-            {0.5625, 0.9375, 0.6875},
-            {0.375, 0.625, 0.375},
-            {0.5625, 0.9375, 0.4375},
+            {0.625, 0.75, 0.75},
+            {0.4375, 0.375, 0.375},
+            {0.6875, 0.625, 0.625},
         }};
 #endif
 
+#ifdef COLUMN_MAJOR
+        ramsyscall_printf("matrix order: COLUMN MAJOR\n");
+#else
+        ramsyscall_printf("matrix order: ROW MAJOR\n");
+#endif
+
+#define USE_GTE_MATH
+
         psyqo::Matrix33 res;
+#ifdef USE_GTE_MATH
+        gteMultiplyMatrix33(mA, mB, &res);
+#else
         psyqo::SoftMath::multiplyMatrix33(mA, mB, &res);
+#endif
 
         printMatrix("mA", mA);
         printMatrix("mB", mB);
-#ifdef COLUMN_MAJOR
         printMatrix("mA * mB", res);
-#else
-        printMatrix("mB * mA", res);
-#endif
         printSeparatorLine();
 
         assertMatrixEqual(expectedRes, res);
@@ -335,7 +376,11 @@ namespace {
         const auto vB = psyqo::Vec3{0.25, 0.5, 0.5};
         psyqo::Vec3 vRes;
         psyqo::Vec3 expectedVRes = psyqo::Vec3{0.9375, 0.5625, 0.875};
+#ifdef USE_GTE_MATH
+        gteMatrixVecMul3(mA, vB, &vRes);
+#else
         psyqo::SoftMath::matrixVecMul3(mA, vB, &vRes);
+#endif
         assertVec3Equal(expectedVRes, vRes);
 
         // I * vB
@@ -376,7 +421,7 @@ namespace {
 
 void Game::createScene()
 {
-    // testMatrix();
+    testMatrix();
     romFont.uploadSystemFont(gpu(), {{.x = 960, .y = int16_t(512 - 48 - 90)}});
 
     pad.initialize();
@@ -538,7 +583,6 @@ void GameplayScene::processInput()
     }
 
     // go forward/backward
-#ifdef COLUMN_MAJOR
     if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Up)) {
         camera.position.x += game.trig.sin(camera.rotation.y) * walkSpeed;
         camera.position.z += game.trig.cos(camera.rotation.y) * walkSpeed;
@@ -547,16 +591,6 @@ void GameplayScene::processInput()
         camera.position.x -= game.trig.sin(camera.rotation.y) * walkSpeed;
         camera.position.z -= game.trig.cos(camera.rotation.y) * walkSpeed;
     } 
-#else
-    if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Up)) {
-        camera.position.x += game.trig.sin(camera.rotation.y) * walkSpeed;
-        camera.position.z += game.trig.cos(camera.rotation.y) * walkSpeed;
-    }
-    if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Down)) {
-        camera.position.x += game.trig.sin(camera.rotation.y) * walkSpeed;
-        camera.position.z += game.trig.cos(camera.rotation.y) * walkSpeed;
-    } 
-#endif
 }
 
 void GameplayScene::updateCamera()
@@ -570,13 +604,7 @@ void GameplayScene::updateCamera()
         generateRotationMatrix33(camera.rotation.x, psyqo::SoftMath::Axis::X, game.trig);
     // printMatrix("rY", camera.viewRot);
     // printMatrix("rX", viewRotX);
-#ifdef COLUMN_MAJOR
     psyqo::SoftMath::multiplyMatrix33(viewRotX, camera.viewRot, &camera.viewRot);
-    // psyqo::SoftMath::multiplyMatrix33(camera.viewRot, viewRotX, &camera.viewRot);
-    // printMatrix("rX * rY", camera.viewRot);
-#else
-    psyqo::SoftMath::multiplyMatrix33(camera.viewRot, viewRotX, &camera.viewRot);
-#endif
 
     // calculate camera translation vector
     camera.translation.x = -camera.position.x >> 12;
@@ -592,7 +620,7 @@ void GameplayScene::update()
 
     // spin the cat
     cato.rotation.y += 0.01;
-    // cato.rotation.x -= 0.001;
+    cato.rotation.x = 0.25;
 }
 
 void GameplayScene::drawLoadingScreen()
@@ -691,11 +719,7 @@ void GameplayScene::drawModelObject(
             psyqo::SoftMath::multiplyMatrix33(objectRotMat, rotX, &objectRotMat);
         }
 
-#ifdef COLUMN_MAJOR
         psyqo::SoftMath::multiplyMatrix33(camera.viewRot, objectRotMat, &objectRotMat);
-#else
-        psyqo::SoftMath::multiplyMatrix33(objectRotMat, camera.viewRot, &objectRotMat);
-#endif
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(objectRotMat);
     }
 

@@ -88,6 +88,8 @@ target_include_directories(psyqo_paths PUBLIC
   ${PSYQO_DIR}/../psyqo_paths
 )
 
+# target_compile_definitions(psyqo PUBLIC COLUMN_MAJOR)
+
 target_link_libraries(psyqo_paths PUBLIC psyqo::psyqo)
 
 target_link_libraries(psyqo
