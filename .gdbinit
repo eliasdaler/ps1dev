@@ -21,6 +21,6 @@ layout horizontal-asm
 # b main.cpp:546
 # b drawTris
 # b multiplyMatrix33
-b main.cpp:210
+b main.cpp:247
 # b alloc.c:90
 c

@@ -24,6 +24,8 @@
 
 #include <psyqo/xprintf.h>
 
+#include <psyqo/kernel.hh>
+
 using namespace psyqo::fixed_point_literals;
 using namespace psyqo::trig_literals;
 
@@ -164,8 +166,152 @@ psyqo::Coroutine<> loadCoroutine(Game* game)
     game->resourcesLoaded = true;
 }
 
+namespace {
+    void printMatrix(eastl::string_view matrixName, const psyqo::Matrix33& m) {
+        eastl::fixed_string<char, 128> str;
+        str.clear();
+        sprintf(
+            str.data(),
+            "%s =\n\t(%f, %f, %f)\n\t(%f, %f, %f)\n\t(%f, %f, %f)",
+            matrixName.data(),
+            m.vs[0].x,
+            m.vs[0].y,
+            m.vs[0].z,
+            m.vs[1].x,
+            m.vs[1].y,
+            m.vs[1].z,
+            m.vs[2].x,
+            m.vs[2].y,
+            m.vs[2].z); 
+        ramsyscall_printf("%s\n", str.c_str());
+    };
+
+    void printSeparatorLine() {
+        ramsyscall_printf("---------------------------\n");
+    }
+
+    void printVec3(eastl::string_view vecName, const psyqo::Vec3& v) {
+        eastl::fixed_string<char, 128> str;
+        str.clear();
+        sprintf(
+            str.data(),
+            "%s =\n\t(%f, %f, %f)",
+            vecName.data(),
+            v.x,
+            v.y,
+            v.z);
+        ramsyscall_printf("%s\n", str.c_str());
+    }
+
+    void assertF(bool condition, std::source_location loc, const char* fmt, ...) {
+        static constexpr auto MSG_LENGTH_MAX = 512;
+        static eastl::fixed_string<char, MSG_LENGTH_MAX> msgString;
+        if (!condition) {
+            va_list args;
+            va_start(args, fmt);
+            vsnprintf(msgString.data(), MSG_LENGTH_MAX, fmt, args);
+            va_end(args);
+            psyqo::Kernel::abort(msgString.data(), loc);
+        }
+    }
+
+    void transposeMatrix(psyqo::Matrix33& m) {
+        eastl::swap(m.vs[0].y, m.vs[1].x);
+        eastl::swap(m.vs[0].z, m.vs[2].x);
+        eastl::swap(m.vs[1].z, m.vs[2].y);
+    }
+
+#define ASSERT_EQFP(expected, actual, msg) \
+    assertF(expected == actual, std::source_location::current(), "comparison failed: %s\n\t%s != %s\n\t%f != %f", msg, #expected, #actual, expected, actual);
+
+    void assertMatrixEqual(const psyqo::Matrix33& expected, const psyqo::Matrix33& actual) {
+        using namespace psyqo::Kernel;
+        ASSERT_EQFP(expected.vs[0].x, actual.vs[0].x, "e_11 != a_11");
+        ASSERT_EQFP(expected.vs[1].x, actual.vs[1].x, "e_12 != a_12");
+        ASSERT_EQFP(expected.vs[2].x, actual.vs[2].x, "e_13 != a_13");
+        ASSERT_EQFP(expected.vs[0].y, actual.vs[0].y, "e_21 != a_21");
+        ASSERT_EQFP(expected.vs[1].y, actual.vs[1].y, "e_22 != a_22");
+        ASSERT_EQFP(expected.vs[2].y, actual.vs[2].y, "e_23 != a_23");
+        ASSERT_EQFP(expected.vs[0].z, actual.vs[0].z, "e_31 != a_31");
+        ASSERT_EQFP(expected.vs[1].z, actual.vs[1].z, "e_32 != a_32");
+        ASSERT_EQFP(expected.vs[2].z, actual.vs[2].z, "e_33 != a_33");
+    };
+
+    void assertVec3Equal(const psyqo::Vec3& expected, const psyqo::Vec3& actual) {
+        using namespace psyqo::Kernel;
+        ASSERT_EQFP(expected.x, actual.x, "e.x != a.x");
+        ASSERT_EQFP(expected.y, actual.y, "e.y != a.y");
+        ASSERT_EQFP(expected.z, actual.z, "e.z != a.z");
+    }
+
+    void testMatrix() {
+        const auto mA = psyqo::Matrix33{{
+            {0.75, 1.25, 0.25}, 
+            {0.25, 0.5, 0.5}, 
+            {0.5, 0.75, 0.75},
+        }};
+        const auto mB = psyqo::Matrix33{{
+            {0.25, 0.5, 0.5}, 
+            {0.25, 0.25, 0.25}, 
+            {0.5, 0.25, 0.25},
+        }};
+        const auto expectedRes = psyqo::Matrix33{{
+            {0.5625, 0.9375, 0.6875},
+            {0.375, 0.625, 0.375},
+            {0.5625, 0.9375, 0.4375},
+        }};
+
+        psyqo::Matrix33 res;
+        psyqo::SoftMath::multiplyMatrix33(mA, mB, &res);
+        assertMatrixEqual(expectedRes, res);
+
+        printMatrix("mA", mA);
+        printMatrix("mB", mB);
+        printMatrix("mB * mA", res);
+        printSeparatorLine();
+
+        res = psyqo::SoftMath::multiplyMatrix33(mA, mB);
+        assertMatrixEqual(expectedRes, res);
+
+        const auto vB = psyqo::Vec3{0.25, 0.5, 0.5};
+        psyqo::Vec3 vRes;
+        psyqo::Vec3 expectedVRes = psyqo::Vec3{0.9375, 0.5625, 0.875};
+        psyqo::SoftMath::matrixVecMul3(mA, vB, &vRes);
+        assertVec3Equal(expectedVRes, vRes);
+
+        printMatrix("mA", mA);
+        printVec3("vB", vB);
+        printVec3("mA * vB", vRes);
+        printSeparatorLine();
+
+        psyqo::Trig<> trig;
+        psyqo::Angle a = 0.25_pi; // pi/4 = 45 degrees
+        auto rmX = psyqo::SoftMath::generateRotationMatrix33(a, psyqo::SoftMath::Axis::X, trig);
+        printMatrix("rotation matrix (45 deg around X)", rmX);
+
+        auto s = trig.sin(a);
+        auto c = trig.cos(a);
+
+        // https://butterflyofdream.wordpress.com/2016/07/05/converting-rotation-matrices-of-left-handed-coordinate-system/
+        auto expectedRMX = psyqo::Matrix33{{
+             { 1.0_fp, 0.0_fp, 0.0_fp },
+             { 0.0_fp, c, s },
+             { 0.0_fp, -s, c }}};
+
+        assertMatrixEqual(expectedRMX, rmX);
+    }
+}
+
+
 void Game::createScene()
 {
+    testMatrix();
+
+    auto a1 = psyqo::SoftMath::generateRotationMatrix33({}, psyqo::SoftMath::Axis::Y, trig);
+    psyqo::Matrix33 a2;
+    psyqo::SoftMath::generateRotationMatrix33(&a2, {}, psyqo::SoftMath::Axis::Y, trig);
+    assertMatrixEqual(a2, a1);
+
     romFont.uploadSystemFont(gpu(), {{.x = 960, .y = int16_t(512 - 48 - 90)}});
 
     pad.initialize();
@@ -175,55 +321,6 @@ void Game::createScene()
     // load resources
     cdLoadCoroutine = loadCoroutine(this);
     cdLoadCoroutine.resume();
-
-    // matrix tests
-    eastl::fixed_string<char, 128> str;
-    auto printMatrix = [&str](eastl::string_view matrixName, const psyqo::Matrix33& m) {
-        str.clear();
-        sprintf(
-            str.data(),
-            "%s=\n\t(%f, %f, %f)\n\t(%f, %f, %f)\n\t(%f, %f, %f)",
-            matrixName.data(),
-            m.vs[0].x,
-            m.vs[1].x,
-            m.vs[2].x,
-            m.vs[0].y,
-            m.vs[1].y,
-            m.vs[2].y,
-            m.vs[0].z,
-            m.vs[1].z,
-            m.vs[2].z);
-        ramsyscall_printf("%s\n", str.c_str());
-    };
-
-    const auto mA = psyqo::Matrix33{{{0.75, 0.25, 0.5}, {1.25, 0.5, 0.75}, {0.25, 0.5, 0.75}}};
-    const auto mB = psyqo::Matrix33{{{0.25, 0.25, 0.5}, {0.5, 0.25, 0.25}, {0.5, 0.25, 0.25}}};
-
-    auto res = psyqo::Matrix33{};
-
-    psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(mB);
-
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(
-        psyqo::Vec3{mA.vs[0].x, mA.vs[1].x, mA.vs[2].x});
-    psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0>();
-    res.vs[0] = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
-
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(
-        psyqo::Vec3{mA.vs[0].y, mA.vs[1].y, mA.vs[2].y});
-    psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0>();
-    res.vs[1] = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
-
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(
-        psyqo::Vec3{mA.vs[0].z, mA.vs[1].z, mA.vs[2].z});
-    psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0>();
-    res.vs[2] = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
-
-    printMatrix("mA", mA);
-    printMatrix("mB", mB);
-    printMatrix("res", res);
-
-    psyqo::SoftMath::multiplyMatrix33(mA, mB, &res);
-    printMatrix("res2", res);
 }
 
 void Game::loadTIM(eastl::string_view filename, TextureInfo& textureInfo)
@@ -318,6 +415,10 @@ void GameplayScene::onResourcesLoaded()
 
     game.camera.position = {3588.f, -1507.f, -10259.f};
     game.camera.rotation = {-0.1f, -0.1f};
+
+    // game.camera.position = cato.position;
+    // game.camera.position = {};
+    // game.camera.rotation = {};
 }
 
 void GameplayScene::frame()
@@ -355,10 +456,10 @@ void GameplayScene::processInput()
 
     // pitch
     if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::L2)) {
-        camera.rotation.x += rotateSpeed;
+        camera.rotation.x -= rotateSpeed;
     }
     if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::R2)) {
-        camera.rotation.x -= rotateSpeed;
+        camera.rotation.x += rotateSpeed;
     }
 
     // go up/down
@@ -375,8 +476,8 @@ void GameplayScene::processInput()
         camera.position.z += game.trig.cos(camera.rotation.y) * walkSpeed;
     }
     if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Down)) {
-        camera.position.x -= game.trig.sin(camera.rotation.y) * walkSpeed;
-        camera.position.z -= game.trig.cos(camera.rotation.y) * walkSpeed;
+        camera.position.x += game.trig.sin(camera.rotation.y) * walkSpeed;
+        camera.position.z += game.trig.cos(camera.rotation.y) * walkSpeed;
     }
 }
 
@@ -386,10 +487,10 @@ void GameplayScene::updateCamera()
     auto& camera = game.camera;
 
     camera.viewRot = psyqo::SoftMath::
-        generateRotationMatrix33(camera.rotation.x, psyqo::SoftMath::Axis::X, game.trig);
-    const auto viewRotY = psyqo::SoftMath::
         generateRotationMatrix33(camera.rotation.y, psyqo::SoftMath::Axis::Y, game.trig);
-    psyqo::SoftMath::multiplyMatrix33(viewRotY, camera.viewRot, &camera.viewRot);
+    const auto viewRotX = psyqo::SoftMath::
+        generateRotationMatrix33(camera.rotation.x, psyqo::SoftMath::Axis::X, game.trig);
+    psyqo::SoftMath::multiplyMatrix33(camera.viewRot, viewRotX, &camera.viewRot);
 
     // calculate camera translation vector
     camera.translation.x = -camera.position.x >> 12;
@@ -397,6 +498,9 @@ void GameplayScene::updateCamera()
     camera.translation.z = -camera.position.z >> 12;
 
     psyqo::SoftMath::matrixVecMul3(camera.viewRot, camera.translation, &camera.translation);
+    // auto vrT = camera.viewRot;
+    // transposeMatrix(vrT);
+    // psyqo::SoftMath::matrixVecMul3(vrT, camera.translation, &camera.translation);
 }
 
 void GameplayScene::update()
@@ -405,6 +509,7 @@ void GameplayScene::update()
 
     // spin the cat
     cato.rotation.y += 0.01;
+    // cato.rotation.x -= 0.001;
 }
 
 void GameplayScene::drawLoadingScreen()
@@ -480,9 +585,18 @@ void GameplayScene::drawDebugInfo()
         game.gpu(),
         {{.x = 16, .y = 32}},
         textCol,
+        "cam trans=(%d, %d, %d)",
+        camera.translation.x.raw(),
+        camera.translation.y.raw(),
+        camera.translation.z.raw());
+
+    /* game.romFont.chainprintf(
+        game.gpu(),
+        {{.x = 16, .y = 32}},
+        textCol,
         "cam rot=(%d, %d)",
         camera.rotation.x.raw(),
-        camera.rotation.y.raw());
+        camera.rotation.y.raw()); */
 }
 
 void GameplayScene::drawModelObject(
@@ -500,10 +614,11 @@ void GameplayScene::drawModelObject(
         if (cato.rotation.x != 0.0) { // pitch
             const auto rotX = psyqo::SoftMath::
                 generateRotationMatrix33(object.rotation.x, psyqo::SoftMath::Axis::X, game.trig);
-            psyqo::SoftMath::multiplyMatrix33(rotX, objectRotMat, &objectRotMat);
+            psyqo::SoftMath::multiplyMatrix33(objectRotMat, rotX, &objectRotMat);
         }
 
         psyqo::SoftMath::multiplyMatrix33(objectRotMat, camera.viewRot, &objectRotMat);
+        // psyqo::SoftMath::multiplyMatrix33(camera.viewRot, objectRotMat, &objectRotMat);
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(objectRotMat);
     }
 
