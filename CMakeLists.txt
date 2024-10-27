@@ -24,6 +24,8 @@ set(PSXTOOLS_BIN_DIR "${CMAKE_CURRENT_LIST_DIR}/../psxtools/build" CACHE PATH "L
 add_subdirectory(third_party)
 
 add_executable(game
+  src/matrix_test.cpp
+
   src/Model.cpp
   src/TimFile.cpp
   src/main.cpp
