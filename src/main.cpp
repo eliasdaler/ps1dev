@@ -14,6 +14,8 @@
 #include <psyqo/simplepad.hh>
 #include <psyqo/soft-math.hh>
 
+#include "gte-math.h"
+
 #include <common/syscalls/syscalls.h>
 
 #include <cstdint>
@@ -237,41 +239,6 @@ namespace {
         eastl::swap(m.vs[1].z, m.vs[2].y);
     }
 
-    void gteMatrixVecMul3(const psyqo::Matrix33& m, const psyqo::Vec3& v, psyqo::Vec3* out) {
-        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(m);
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v);
-        psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0>();
-        *out = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
-    }
-
-    void gteMultiplyMatrix33(const psyqo::Matrix33& m1, const psyqo::Matrix33& m2, psyqo::Matrix33* out) {
-        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(m1);
-
-        psyqo::Vec3 t;
-
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(psyqo::Vec3{m2.vs[0].x, m2.vs[1].x, m2.vs[2].x});
-        psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0>();
-        t = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
-        out->vs[0].x = t.x;
-        out->vs[1].x = t.y;
-        out->vs[2].x = t.z;
-
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(psyqo::Vec3{m2.vs[0].y, m2.vs[1].y, m2.vs[2].y});
-        psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0>();
-        t = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
-        out->vs[0].y = t.x;
-        out->vs[1].y = t.y;
-        out->vs[2].y = t.z;
-
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(psyqo::Vec3{m2.vs[0].z, m2.vs[1].z, m2.vs[2].z});
-        psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0>();
-        t = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
-        out->vs[0].z = t.x;
-        out->vs[1].z = t.y;
-        out->vs[2].z = t.z;
-    }
-
-
 #define ASSERT_EQFP(expected, actual, msg) \
     assertF(expected == actual, std::source_location::current(), "comparison failed: %s\n\t%s != %s\n\t%f != %f", msg, #expected, #actual, expected, actual);
 
@@ -354,10 +321,12 @@ namespace {
 #endif
 
 #define USE_GTE_MATH
+        using namespace psyqo::GTE;
+        using namespace psyqo::GTE::Kernels;
 
         psyqo::Matrix33 res;
 #ifdef USE_GTE_MATH
-        gteMultiplyMatrix33(mA, mB, &res);
+        psyqo::GTE::Math::multiplyMatrix33<PseudoRegister::Rotation, PseudoRegister::V0>(mA, mB, &res);
 #else
         psyqo::SoftMath::multiplyMatrix33(mA, mB, &res);
 #endif
@@ -369,7 +338,13 @@ namespace {
 
         assertMatrixEqual(expectedRes, res);
 
+// check another overload
+#ifdef USE_GTE_MATH
+        psyqo::GTE::Math::multiplyMatrix33<PseudoRegister::Rotation, PseudoRegister::V0>(mB, &res);
+        assertMatrixEqual(expectedRes, res);
+#else
         res = psyqo::SoftMath::multiplyMatrix33(mA, mB);
+#endif
         assertMatrixEqual(expectedRes, res);
 
         // mA * vB
@@ -377,20 +352,34 @@ namespace {
         psyqo::Vec3 vRes;
         psyqo::Vec3 expectedVRes = psyqo::Vec3{0.9375, 0.5625, 0.875};
 #ifdef USE_GTE_MATH
-        gteMatrixVecMul3(mA, vB, &vRes);
+        psyqo::GTE::Math::matrixVecMul3<PseudoRegister::Rotation, PseudoRegister::V0>(mA, vB, &vRes);
 #else
         psyqo::SoftMath::matrixVecMul3(mA, vB, &vRes);
 #endif
         assertVec3Equal(expectedVRes, vRes);
 
-        // I * vB
-        psyqo::SoftMath::matrixVecMul3(mI, vB, &vRes);
-        expectedVRes = vB;
-        assertVec3Equal(expectedVRes, vRes);
-
         printMatrix("mA", mA);
         printVec3("vB", vB);
         printVec3("mA * vB", vRes);
+        printSeparatorLine();
+
+#ifdef USE_GTE_MATH
+        // check another overload
+        psyqo::GTE::Math::matrixVecMul3<PseudoRegister::Rotation, PseudoRegister::V0>(vB, &vRes);
+        assertVec3Equal(expectedVRes, vRes);
+#endif
+
+        // I * vB
+#ifdef USE_GTE_MATH
+        psyqo::GTE::Math::matrixVecMul3<PseudoRegister::Rotation, PseudoRegister::V0>(mI, vB, &vRes);
+#else
+        psyqo::SoftMath::matrixVecMul3(mI, vB, &vRes);
+#endif
+        expectedVRes = vB;
+        assertVec3Equal(expectedVRes, vRes);
+
+        printVec3("vB", vB);
+        printVec3("I * vB", vRes);
         printSeparatorLine();
 
         psyqo::Trig<> trig;
