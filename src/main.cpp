@@ -347,14 +347,21 @@ void GameplayScene::updateCamera()
         generateRotationMatrix33(camera.rotation.y, psyqo::SoftMath::Axis::Y, game.trig);
     const auto viewRotX = psyqo::SoftMath::
         generateRotationMatrix33(camera.rotation.x, psyqo::SoftMath::Axis::X, game.trig);
-    psyqo::SoftMath::multiplyMatrix33(viewRotX, camera.viewRot, &camera.viewRot);
+
+    // psyqo::SoftMath::multiplyMatrix33(viewRotX, camera.viewRot, &camera.viewRot);
+    psyqo::GTE::Math::multiplyMatrix33<
+        psyqo::GTE::PseudoRegister::Rotation,
+        psyqo::GTE::PseudoRegister::V0>(viewRotX, camera.viewRot, &camera.viewRot);
 
     // calculate camera translation vector
     camera.translation.x = -camera.position.x >> 12;
     camera.translation.y = -camera.position.y >> 12;
     camera.translation.z = -camera.position.z >> 12;
 
-    psyqo::SoftMath::matrixVecMul3(camera.viewRot, camera.translation, &camera.translation);
+    // psyqo::SoftMath::matrixVecMul3(camera.viewRot, camera.translation, &camera.translation);
+    psyqo::GTE::Math::matrixVecMul3<
+        psyqo::GTE::PseudoRegister::Rotation,
+        psyqo::GTE::PseudoRegister::V0>(camera.viewRot, camera.translation, &camera.translation);
 }
 
 void GameplayScene::update()
@@ -413,6 +420,8 @@ void GameplayScene::draw()
 
     // draw dynamic objects
     {
+        // TODO: first draw objects without rotation
+        // (won't have to upload camera.viewRot and change PseudoRegister::Rotation then)
         drawModelObject(gameplayScene.cato, camera, game.catoTexture);
     }
 
@@ -459,15 +468,26 @@ void GameplayScene::drawModelObject(
         if (cato.rotation.x != 0.0) { // pitch
             const auto rotX = psyqo::SoftMath::
                 generateRotationMatrix33(object.rotation.x, psyqo::SoftMath::Axis::X, game.trig);
-            psyqo::SoftMath::multiplyMatrix33(objectRotMat, rotX, &objectRotMat);
+            // psyqo::SoftMath::multiplyMatrix33(objectRotMat, rotX, &objectRotMat);
+            psyqo::GTE::Math::multiplyMatrix33<
+                psyqo::GTE::PseudoRegister::Rotation,
+                psyqo::GTE::PseudoRegister::V0>(objectRotMat, rotX, &objectRotMat);
         }
 
-        psyqo::SoftMath::multiplyMatrix33(camera.viewRot, objectRotMat, &objectRotMat);
+        // psyqo::SoftMath::multiplyMatrix33(camera.viewRot, objectRotMat, &objectRotMat);
+        psyqo::GTE::Math::multiplyMatrix33<
+            psyqo::GTE::PseudoRegister::Rotation,
+            psyqo::GTE::PseudoRegister::V0>(camera.viewRot, objectRotMat, &objectRotMat);
+
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(objectRotMat);
     }
 
     auto posCamSpace = object.position;
-    psyqo::SoftMath::matrixVecMul3(camera.viewRot, posCamSpace, &posCamSpace);
+    // Note: can't use Rotation matrix here as objectRotMat is currently uploaded there
+    // psyqo::SoftMath::matrixVecMul3(camera.viewRot, posCamSpace, &posCamSpace);
+    psyqo::GTE::Math::matrixVecMul3<
+        psyqo::GTE::PseudoRegister::Light,
+        psyqo::GTE::PseudoRegister::V0>(camera.viewRot, posCamSpace, &posCamSpace);
     posCamSpace += camera.translation;
 
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(posCamSpace);
