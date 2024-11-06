@@ -91,13 +91,19 @@ public:
 
     Camera camera;
 
-    bool resourcesLoaded{false};
+    static constexpr auto OT_SIZE = 4096 * 2;
+    eastl::array<psyqo::OrderingTable<OT_SIZE>, 2> ots;
+
+    static constexpr int PRIMBUFFLEN = 32768 * 8;
+    eastl::array<psyqo::BumpAllocator<PRIMBUFFLEN>, 2> primBuffers;
 };
 
 class GameplayScene : public psyqo::Scene {
-    void start(StartReason reason) override;
-
+public:
     void onResourcesLoaded();
+
+private:
+    void start(StartReason reason) override;
 
     void frame() override;
 
@@ -107,7 +113,6 @@ class GameplayScene : public psyqo::Scene {
 
     void draw();
     void drawDebugInfo();
-    void drawLoadingScreen();
 
     void drawModelObject(
         const ModelObject& object,
@@ -122,20 +127,21 @@ class GameplayScene : public psyqo::Scene {
     template<typename PrimType>
     int drawQuads(const Mesh& mesh, const TextureInfo& texture, int numFaces, int vertexIdx);
 
-    static constexpr auto OT_SIZE = 4096 * 2;
-    eastl::array<psyqo::OrderingTable<OT_SIZE>, 2> ots;
-
-    static constexpr int PRIMBUFFLEN = 32768 * 8;
-    eastl::array<psyqo::BumpAllocator<PRIMBUFFLEN>, 2> primBuffers;
-
-    bool calledOnResourcesLoaded{false};
-
     // game objects
     ModelObject cato;
 };
 
+class LoadingScene : public psyqo::Scene {
+    void start(StartReason reason) override;
+
+    void frame() override;
+
+    void draw();
+};
+
 Game game;
 GameplayScene gameplayScene;
+LoadingScene loadingScene;
 
 } // namespace
 
@@ -166,7 +172,10 @@ psyqo::Coroutine<> loadCoroutine(Game* game)
     game->loadTIM("CATO.TIM;1", game->catoTexture);
     co_await awaiter;
 
-    game->resourcesLoaded = true;
+    game->popScene();
+
+    gameplayScene.onResourcesLoaded();
+    game->pushScene(&gameplayScene);
 }
 
 void Game::createScene()
@@ -176,7 +185,8 @@ void Game::createScene()
 
     pad.initialize();
 
-    pushScene(&gameplayScene);
+    // pushScene(&gameplayScene);
+    pushScene(&loadingScene);
 
     // load resources
     cdLoadCoroutine = loadCoroutine(this);
@@ -280,16 +290,6 @@ void GameplayScene::onResourcesLoaded()
 
 void GameplayScene::frame()
 {
-    if (!game.resourcesLoaded) {
-        drawLoadingScreen();
-        return;
-    }
-
-    if (!calledOnResourcesLoaded) {
-        onResourcesLoaded();
-        calledOnResourcesLoaded = true;
-    }
-
     processInput();
     update();
     draw();
@@ -373,29 +373,12 @@ void GameplayScene::update()
     cato.rotation.x = 0.25;
 }
 
-void GameplayScene::drawLoadingScreen()
-{
-    const auto parity = gpu().getParity();
-    auto& ot = ots[parity];
-
-    auto& primBuffer = primBuffers[parity];
-    primBuffer.reset();
-    // fill bg
-    psyqo::Color bg{{.r = 0, .g = 0, .b = 0}};
-    auto& fill = primBuffer.allocateFragment<psyqo::Prim::FastFill>();
-    gpu().getNextClear(fill.primitive, bg);
-    gpu().chain(fill);
-    // text
-    static const psyqo::Color textCol = {{.r = 255, .g = 255, .b = 255}};
-    game.romFont.chainprintf(game.gpu(), {{.x = 16, .y = 32}}, textCol, "Loading...");
-}
-
 void GameplayScene::draw()
 {
     const auto parity = gpu().getParity();
 
-    auto& ot = ots[parity];
-    auto& primBuffer = primBuffers[parity];
+    auto& ot = game.ots[parity];
+    auto& primBuffer = game.primBuffers[parity];
     primBuffer.reset();
 
     // set dithering ON globally
@@ -523,8 +506,8 @@ int GameplayScene::drawTris(
     int vertexIdx)
 {
     const auto parity = gpu().getParity();
-    auto& ot = ots[parity];
-    auto& primBuffer = primBuffers[parity];
+    auto& ot = game.ots[parity];
+    auto& primBuffer = game.primBuffers[parity];
 
     for (int i = 0; i < numFaces; ++i, vertexIdx += 3) {
         const auto& v0 = mesh.vertices[vertexIdx + 0];
@@ -546,7 +529,7 @@ int GameplayScene::drawTris(
         psyqo::GTE::Kernels::avsz3();
         const auto avgZ =
             (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
-        if (avgZ < 0 || avgZ >= OT_SIZE) {
+        if (avgZ < 0 || avgZ >= Game::OT_SIZE) {
             continue;
         }
 
@@ -585,8 +568,8 @@ int GameplayScene::drawQuads(
     int vertexIdx)
 {
     const auto parity = gpu().getParity();
-    auto& ot = ots[parity];
-    auto& primBuffer = primBuffers[parity];
+    auto& ot = game.ots[parity];
+    auto& primBuffer = game.primBuffers[parity];
 
     for (int i = 0; i < numFaces; ++i, vertexIdx += 4) {
         const auto& v0 = mesh.vertices[vertexIdx + 0];
@@ -617,7 +600,7 @@ int GameplayScene::drawQuads(
         psyqo::GTE::Kernels::avsz4();
         const auto avgZ =
             (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
-        if (avgZ < 0 || avgZ >= OT_SIZE) {
+        if (avgZ < 0 || avgZ >= Game::OT_SIZE) {
             continue;
         }
 
@@ -645,6 +628,31 @@ int GameplayScene::drawQuads(
     }
 
     return vertexIdx;
+}
+
+void LoadingScene::start(StartReason reason)
+{}
+
+void LoadingScene::frame()
+{
+    draw();
+}
+
+void LoadingScene::draw()
+{
+    const auto parity = gpu().getParity();
+    auto& ot = game.ots[parity];
+
+    auto& primBuffer = game.primBuffers[parity];
+    primBuffer.reset();
+    // fill bg
+    psyqo::Color bg{{.r = 0, .g = 0, .b = 0}};
+    auto& fill = primBuffer.allocateFragment<psyqo::Prim::FastFill>();
+    gpu().getNextClear(fill.primitive, bg);
+    gpu().chain(fill);
+    // text
+    static const psyqo::Color textCol = {{.r = 255, .g = 255, .b = 255}};
+    game.romFont.chainprintf(game.gpu(), {{.x = 16, .y = 32}}, textCol, "Loading...");
 }
 
 int main()
