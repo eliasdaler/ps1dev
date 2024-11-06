@@ -1,6 +1,5 @@
 #include <psyqo-paths/cdrom-loader.hh>
 #include <psyqo/application.hh>
-#include <psyqo/bump-allocator.h>
 #include <psyqo/cdrom-device.hh>
 #include <psyqo/coroutine.hh>
 #include <psyqo/font.hh>
@@ -14,6 +13,8 @@
 #include <psyqo/simplepad.hh>
 #include <psyqo/soft-math.hh>
 
+#include "Renderer.h"
+#include "TextureInfo.h"
 #include "gte-math.h"
 #include "matrix_test.h"
 
@@ -21,6 +22,7 @@
 
 #include <cstdint>
 
+#include "Camera.h"
 #include "Model.h"
 #include "Object.h"
 #include "TimFile.h"
@@ -47,19 +49,6 @@ void SetFogNearFar(int a, int b, int h)
 
     psyqo::GTE::write<psyqo::GTE::Register::DQA, psyqo::GTE::Unsafe>(dqaF);
     psyqo::GTE::write<psyqo::GTE::Register::DQB, psyqo::GTE::Safe>(dqbF);
-};
-
-struct TextureInfo {
-    psyqo::PrimPieces::TPageAttr tpage;
-    psyqo::PrimPieces::ClutIndex clut;
-};
-
-struct Camera {
-    psyqo::Vec3 position{};
-    psyqo::Vector<2, 10> rotation{};
-
-    psyqo::Vec3 translation{};
-    psyqo::Matrix33 viewRot;
 };
 
 class Game : public psyqo::Application {
@@ -90,12 +79,6 @@ public:
     TextureInfo catoTexture;
 
     Camera camera;
-
-    static constexpr auto OT_SIZE = 4096 * 2;
-    eastl::array<psyqo::OrderingTable<OT_SIZE>, 2> ots;
-
-    static constexpr int PRIMBUFFLEN = 32768 * 8;
-    eastl::array<psyqo::BumpAllocator<PRIMBUFFLEN>, 2> primBuffers;
 };
 
 class GameplayScene : public psyqo::Scene {
@@ -114,19 +97,6 @@ private:
     void draw();
     void drawDebugInfo();
 
-    void drawModelObject(
-        const ModelObject& object,
-        const Camera& camera,
-        const TextureInfo& texture);
-    void drawModel(const Model& model, const TextureInfo& texture);
-    void drawMesh(const Mesh& mesh, const TextureInfo& texture);
-
-    template<typename PrimType>
-    int drawTris(const Mesh& mesh, const TextureInfo& texture, int numFaces, int vertexIdx);
-
-    template<typename PrimType>
-    int drawQuads(const Mesh& mesh, const TextureInfo& texture, int numFaces, int vertexIdx);
-
     // game objects
     ModelObject cato;
 };
@@ -140,6 +110,7 @@ class LoadingScene : public psyqo::Scene {
 };
 
 Game game;
+Renderer renderer;
 GameplayScene gameplayScene;
 LoadingScene loadingScene;
 
@@ -377,8 +348,8 @@ void GameplayScene::draw()
 {
     const auto parity = gpu().getParity();
 
-    auto& ot = game.ots[parity];
-    auto& primBuffer = game.primBuffers[parity];
+    auto& ot = renderer.ots[parity];
+    auto& primBuffer = renderer.primBuffers[parity];
     primBuffer.reset();
 
     // set dithering ON globally
@@ -394,18 +365,19 @@ void GameplayScene::draw()
 
     const auto& camera = game.camera;
 
+    const auto& gp = gpu();
     // draw static objects
     {
         psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.viewRot);
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(camera.translation);
-        drawModel(game.levelModel, game.bricksTexture);
+        renderer.drawModel(gp, game.levelModel, game.bricksTexture);
     }
 
     // draw dynamic objects
     {
         // TODO: first draw objects without rotation
         // (won't have to upload camera.viewRot and change PseudoRegister::Rotation then)
-        drawModelObject(gameplayScene.cato, camera, game.catoTexture);
+        renderer.drawModelObject(gp, gameplayScene.cato, camera, game.catoTexture);
     }
 
     gpu().chain(ot);
@@ -436,200 +408,6 @@ void GameplayScene::drawDebugInfo()
         camera.rotation.y.raw());
 }
 
-void GameplayScene::drawModelObject(
-    const ModelObject& object,
-    const Camera& camera,
-    const TextureInfo& texture)
-{
-    if (object.rotation.x == 0.0 && object.rotation.y == 0.0) {
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(camera.viewRot);
-    } else {
-        // yaw
-        auto objectRotMat = psyqo::SoftMath::
-            generateRotationMatrix33(object.rotation.y, psyqo::SoftMath::Axis::Y, game.trig);
-
-        if (cato.rotation.x != 0.0) { // pitch
-            const auto rotX = psyqo::SoftMath::
-                generateRotationMatrix33(object.rotation.x, psyqo::SoftMath::Axis::X, game.trig);
-            // psyqo::SoftMath::multiplyMatrix33(objectRotMat, rotX, &objectRotMat);
-            psyqo::GTE::Math::multiplyMatrix33<
-                psyqo::GTE::PseudoRegister::Rotation,
-                psyqo::GTE::PseudoRegister::V0>(objectRotMat, rotX, &objectRotMat);
-        }
-
-        // psyqo::SoftMath::multiplyMatrix33(camera.viewRot, objectRotMat, &objectRotMat);
-        psyqo::GTE::Math::multiplyMatrix33<
-            psyqo::GTE::PseudoRegister::Rotation,
-            psyqo::GTE::PseudoRegister::V0>(camera.viewRot, objectRotMat, &objectRotMat);
-
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(objectRotMat);
-    }
-
-    auto posCamSpace = object.position;
-    // Note: can't use Rotation matrix here as objectRotMat is currently uploaded there
-    // psyqo::SoftMath::matrixVecMul3(camera.viewRot, posCamSpace, &posCamSpace);
-    psyqo::GTE::Math::matrixVecMul3<
-        psyqo::GTE::PseudoRegister::Light,
-        psyqo::GTE::PseudoRegister::V0>(camera.viewRot, posCamSpace, &posCamSpace);
-    posCamSpace += camera.translation;
-
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(posCamSpace);
-
-    drawModel(*object.model, texture);
-}
-
-void GameplayScene::drawModel(const Model& model, const TextureInfo& texture)
-{
-    for (const auto& mesh : model.meshes) {
-        drawMesh(mesh, texture);
-    }
-}
-
-void GameplayScene::drawMesh(const Mesh& mesh, const TextureInfo& texture)
-{
-    std::size_t vertexIdx = 0;
-    vertexIdx =
-        drawTris<psyqo::Prim::GouraudTriangle>(mesh, texture, mesh.numUntexturedTris, vertexIdx);
-    vertexIdx =
-        drawQuads<psyqo::Prim::GouraudQuad>(mesh, texture, mesh.numUntexturedQuads, vertexIdx);
-    vertexIdx =
-        drawTris<psyqo::Prim::GouraudTexturedTriangle>(mesh, texture, mesh.numTris, vertexIdx);
-    vertexIdx =
-        drawQuads<psyqo::Prim::GouraudTexturedQuad>(mesh, texture, mesh.numQuads, vertexIdx);
-}
-
-template<typename PrimType>
-int GameplayScene::drawTris(
-    const Mesh& mesh,
-    const TextureInfo& texture,
-    int numFaces,
-    int vertexIdx)
-{
-    const auto parity = gpu().getParity();
-    auto& ot = game.ots[parity];
-    auto& primBuffer = game.primBuffers[parity];
-
-    for (int i = 0; i < numFaces; ++i, vertexIdx += 3) {
-        const auto& v0 = mesh.vertices[vertexIdx + 0];
-        const auto& v1 = mesh.vertices[vertexIdx + 1];
-        const auto& v2 = mesh.vertices[vertexIdx + 2];
-
-        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
-        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
-        psyqo::GTE::Kernels::rtpt();
-
-        psyqo::GTE::Kernels::nclip();
-        const auto dot =
-            (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
-        if (dot < 0) {
-            continue;
-        }
-
-        psyqo::GTE::Kernels::avsz3();
-        const auto avgZ =
-            (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
-        if (avgZ < 0 || avgZ >= Game::OT_SIZE) {
-            continue;
-        }
-
-        auto& triFrag = primBuffer.allocateFragment<PrimType>();
-        auto& tri2d = triFrag.primitive;
-
-        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&tri2d.pointA.packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&tri2d.pointB.packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&tri2d.pointC.packed);
-
-        tri2d.interpolateColors(&v0.col, &v1.col, &v2.col);
-
-        if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedTriangle>) {
-            tri2d.uvA.u = v0.uv.vx;
-            tri2d.uvA.v = v0.uv.vy;
-            tri2d.uvB.u = v1.uv.vx;
-            tri2d.uvB.v = v1.uv.vy;
-            tri2d.uvC.u = v2.uv.vx;
-            tri2d.uvC.v = v2.uv.vy;
-
-            tri2d.tpage = texture.tpage;
-            tri2d.clutIndex = texture.clut;
-        }
-
-        ot.insert(triFrag, avgZ);
-    }
-
-    return vertexIdx;
-}
-
-template<typename PrimType>
-int GameplayScene::drawQuads(
-    const Mesh& mesh,
-    const TextureInfo& texture,
-    int numFaces,
-    int vertexIdx)
-{
-    const auto parity = gpu().getParity();
-    auto& ot = game.ots[parity];
-    auto& primBuffer = game.primBuffers[parity];
-
-    for (int i = 0; i < numFaces; ++i, vertexIdx += 4) {
-        const auto& v0 = mesh.vertices[vertexIdx + 0];
-        const auto& v1 = mesh.vertices[vertexIdx + 1];
-        const auto& v2 = mesh.vertices[vertexIdx + 2];
-        const auto& v3 = mesh.vertices[vertexIdx + 3];
-
-        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
-        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
-        psyqo::GTE::Kernels::rtpt();
-
-        psyqo::GTE::Kernels::nclip();
-        const auto dot =
-            (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
-        if (dot < 0) {
-            continue;
-        }
-
-        auto& quadFrag = primBuffer.allocateFragment<PrimType>();
-        auto& quad2d = quadFrag.primitive;
-
-        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointA.packed);
-
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v3.pos);
-        psyqo::GTE::Kernels::rtps();
-
-        psyqo::GTE::Kernels::avsz4();
-        const auto avgZ =
-            (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
-        if (avgZ < 0 || avgZ >= Game::OT_SIZE) {
-            continue;
-        }
-
-        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointB.packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointC.packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
-
-        quad2d.interpolateColors(&v0.col, &v1.col, &v2.col, &v3.col);
-
-        if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedQuad>) {
-            quad2d.uvA.u = v0.uv.vx;
-            quad2d.uvA.v = v0.uv.vy;
-            quad2d.uvB.u = v1.uv.vx;
-            quad2d.uvB.v = v1.uv.vy;
-            quad2d.uvC.u = v2.uv.vx;
-            quad2d.uvC.v = v2.uv.vy;
-            quad2d.uvD.u = v3.uv.vx;
-            quad2d.uvD.v = v3.uv.vy;
-
-            quad2d.tpage = texture.tpage;
-            quad2d.clutIndex = texture.clut;
-        }
-
-        ot.insert(quadFrag, avgZ);
-    }
-
-    return vertexIdx;
-}
-
 void LoadingScene::start(StartReason reason)
 {}
 
@@ -641,9 +419,9 @@ void LoadingScene::frame()
 void LoadingScene::draw()
 {
     const auto parity = gpu().getParity();
-    auto& ot = game.ots[parity];
+    auto& ot = renderer.ots[parity];
 
-    auto& primBuffer = game.primBuffers[parity];
+    auto& primBuffer = renderer.primBuffers[parity];
     primBuffer.reset();
     // fill bg
     psyqo::Color bg{{.r = 0, .g = 0, .b = 0}};
