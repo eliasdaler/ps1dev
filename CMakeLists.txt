@@ -29,6 +29,12 @@ add_executable(game
   src/Model.cpp
   src/TimFile.cpp
   src/Renderer.cpp
+
+  src/Game.cpp
+
+  src/GameplayScene.cpp
+  src/LoadingScene.cpp
+
   src/main.cpp
 )
 
