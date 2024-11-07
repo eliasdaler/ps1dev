@@ -4,6 +4,9 @@
 #include <psyqo/simplepad.hh>
 #include <psyqo/soft-math.hh>
 
+#include <psyqo/primitives/rectangles.hh>
+#include <psyqo/primitives/sprites.hh>
+
 #include "Common.h"
 #include "Game.h"
 #include "Renderer.h"
@@ -176,6 +179,55 @@ void GameplayScene::draw()
     }
 
     gpu().chain(ot);
+
+    { // rect
+        auto& rectFrag = primBuffer.allocateFragment<psyqo::Prim::Rectangle8x8>();
+        auto& rect = rectFrag.primitive;
+        rect.position.x = 120;
+        rect.position.y = 64;
+
+        static const auto magenta = psyqo::Color{{255, 0, 255}};
+        rect.setColor(magenta);
+        gpu().chain(rectFrag);
+    }
+
+    { // sprites
+        auto& texture = game.catoTexture;
+
+        // set tpage
+        auto& tpage = primBuffer.allocateFragment<psyqo::Prim::TPage>();
+        tpage.primitive.attr = texture.tpage;
+        gpu().chain(tpage);
+
+        static const auto white = psyqo::Color{{128, 128, 128}};
+        static const auto red = psyqo::Color{{255, 0, 0}};
+
+        { // first
+            auto& spriteFrag = primBuffer.allocateFragment<psyqo::Prim::Sprite16x16>();
+            auto& sprite = spriteFrag.primitive;
+            sprite.texInfo.clut = game.catoTexture.clut;
+            sprite.position.x = 32;
+            sprite.position.y = 64;
+            sprite.texInfo.u = 0;
+            sprite.texInfo.v = 144;
+
+            sprite.setColor(white);
+            gpu().chain(spriteFrag);
+        }
+
+        { // second
+            auto& spriteFrag = primBuffer.allocateFragment<psyqo::Prim::Sprite16x16>();
+            auto& sprite = spriteFrag.primitive;
+            sprite.texInfo.clut = texture.clut;
+            sprite.position.x = 48;
+            sprite.position.y = 64;
+            sprite.texInfo.u = 16;
+            sprite.texInfo.v = 144;
+
+            sprite.setColor(red);
+            gpu().chain(spriteFrag);
+        }
+    }
 
     drawDebugInfo();
 }
