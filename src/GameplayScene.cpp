@@ -180,52 +180,112 @@ void GameplayScene::draw()
 
     gpu().chain(ot);
 
-    { // rect
-        auto& rectFrag = primBuffer.allocateFragment<psyqo::Prim::Rectangle8x8>();
-        auto& rect = rectFrag.primitive;
-        rect.position.x = 120;
-        rect.position.y = 64;
+    static constexpr auto dbX = 60;
+    static constexpr auto dbY = 140;
+    static constexpr auto dbW = 200;
+    static constexpr auto dbH = 64;
 
-        static const auto magenta = psyqo::Color{{255, 0, 255}};
-        rect.setColor(magenta);
+    { // bg rect
+        auto& rectFrag = primBuffer.allocateFragment<psyqo::Prim::Rectangle>();
+        auto& rect = rectFrag.primitive;
+        rect.position.x = dbX;
+        rect.position.y = dbY;
+        rect.size.x = dbW;
+        rect.size.y = dbH;
+
+        static const auto black = psyqo::Color{{0, 0, 0}};
+        rect.setColor(black);
+        rect.setSemiTrans();
         gpu().chain(rectFrag);
     }
 
+    static const eastl::fixed_string<char, 256> textString{"AAAAAAAAAAAA\nBB \2AA \1BB"};
+
+    struct GlyphInfo {
+        int u;
+        int v;
+    };
+
+    static GlyphInfo glyphInfos[255];
+    glyphInfos['A'] = GlyphInfo{0, 144};
+    glyphInfos['B'] = GlyphInfo{16, 144};
+
+    static const auto white = psyqo::Color{{128, 128, 128}};
+    static const auto red = psyqo::Color{{255, 0, 0}};
+
+    static constexpr auto textOffsetX = 0;
+    static constexpr auto textOffsetY = 0;
+    static const auto glyphW = 16;
+    static const auto glyphH = 16;
+    static const auto lineH = 16;
+
+    auto currColor = white;
+    auto glyphX = dbX + textOffsetX;
+    auto glyphY = dbY + textOffsetY;
+
+    static int numOfCharsToShow = 0;
+    static int timer = 0;
+
     { // sprites
-        auto& texture = game.catoTexture;
+        auto& fontAtlasTexture = game.catoTexture;
 
         // set tpage
         auto& tpage = primBuffer.allocateFragment<psyqo::Prim::TPage>();
-        tpage.primitive.attr = texture.tpage;
+        tpage.primitive.attr = fontAtlasTexture.tpage;
         gpu().chain(tpage);
 
-        static const auto white = psyqo::Color{{128, 128, 128}};
-        static const auto red = psyqo::Color{{255, 0, 0}};
-
-        { // first
-            auto& spriteFrag = primBuffer.allocateFragment<psyqo::Prim::Sprite16x16>();
-            auto& sprite = spriteFrag.primitive;
-            sprite.texInfo.clut = game.catoTexture.clut;
-            sprite.position.x = 32;
-            sprite.position.y = 64;
-            sprite.texInfo.u = 0;
-            sprite.texInfo.v = 144;
-
-            sprite.setColor(white);
-            gpu().chain(spriteFrag);
+        if (timer == 2) {
+            timer = 0;
+            ++numOfCharsToShow;
+        } else {
+            ++timer;
         }
 
-        { // second
+        if (game.pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Cross)) {
+            numOfCharsToShow = 0;
+        }
+
+        int numCharsShown = 0;
+        for (int i = 0; i < textString.size(); ++i) {
+            auto c = textString[i];
+
+            if (c == '\n') {
+                glyphX = dbX + textOffsetX;
+                glyphY += lineH;
+                continue;
+            }
+
+            if (c == ' ') {
+                glyphX += glyphW; // TODO: kern here
+                continue;
+            }
+
+            if (c == 1) {
+                currColor = white;
+                continue;
+            } else if (c == 2) {
+                currColor = red;
+                continue;
+            }
+
             auto& spriteFrag = primBuffer.allocateFragment<psyqo::Prim::Sprite16x16>();
             auto& sprite = spriteFrag.primitive;
-            sprite.texInfo.clut = texture.clut;
-            sprite.position.x = 48;
-            sprite.position.y = 64;
-            sprite.texInfo.u = 16;
-            sprite.texInfo.v = 144;
+            sprite.texInfo.clut = fontAtlasTexture.clut;
 
-            sprite.setColor(red);
+            sprite.position.x = glyphX;
+            sprite.position.y = glyphY;
+            auto& glyphInfo = glyphInfos[(int)c];
+            sprite.texInfo.u = glyphInfo.u;
+            sprite.texInfo.v = glyphInfo.v;
+
+            sprite.setColor(currColor);
             gpu().chain(spriteFrag);
+
+            glyphX += glyphW; // TODO: kern here
+            ++numCharsShown;
+            if (numCharsShown > numOfCharsToShow) {
+                break;
+            }
         }
     }
 
