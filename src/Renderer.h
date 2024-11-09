@@ -29,7 +29,13 @@ public:
     eastl::array<psyqo::OrderingTable<OT_SIZE>, 2> ots;
 
     static constexpr int PRIMBUFFLEN = 32768 * 8;
-    eastl::array<psyqo::BumpAllocator<PRIMBUFFLEN>, 2> primBuffers;
+    using PrimBufferAllocatorType = psyqo::BumpAllocator<PRIMBUFFLEN>;
+    eastl::array<PrimBufferAllocatorType, 2> primBuffers;
+
+    PrimBufferAllocatorType& getPrimBuffer(const psyqo::GPU& gpu)
+    {
+        return primBuffers[gpu.getParity()];
+    }
 
 private:
     psyqo::Trig<> trig;
