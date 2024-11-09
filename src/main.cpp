@@ -8,7 +8,7 @@
 namespace
 {
 Game game;
-Renderer renderer;
+Renderer renderer{game.gpu()};
 
 GameplayScene gameplayScene{game, renderer};
 LoadingScene loadingScene{game, renderer};

@@ -7,8 +7,10 @@
 
 #include "gte-math.h"
 
+Renderer::Renderer(psyqo::GPU& gpu) : gpu(gpu)
+{}
+
 void Renderer::drawModelObject(
-    const psyqo::GPU& gpu,
     const ModelObject& object,
     const Camera& camera,
     const TextureInfo& texture)
@@ -47,37 +49,34 @@ void Renderer::drawModelObject(
 
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(posCamSpace);
 
-    drawModel(gpu, *object.model, texture);
+    drawModel(*object.model, texture);
 }
 
-void Renderer::drawModel(const psyqo::GPU& gpu, const Model& model, const TextureInfo& texture)
+void Renderer::drawModel(const Model& model, const TextureInfo& texture)
 {
     for (const auto& mesh : model.meshes) {
-        drawMesh(gpu, mesh, texture);
+        drawMesh(mesh, texture);
     }
 }
 
-void Renderer::drawMesh(const psyqo::GPU& gpu, const Mesh& mesh, const TextureInfo& texture)
+void Renderer::drawMesh(const Mesh& mesh, const TextureInfo& texture)
 {
     std::size_t vertexIdx = 0;
-    drawTris<psyqo::Prim::GouraudTriangle>(gpu, mesh, texture, mesh.numUntexturedTris, vertexIdx);
-    drawQuads<psyqo::Prim::GouraudQuad>(gpu, mesh, texture, mesh.numUntexturedQuads, vertexIdx);
-    drawTris<psyqo::Prim::GouraudTexturedTriangle>(gpu, mesh, texture, mesh.numTris, vertexIdx);
-
-    drawQuads<psyqo::Prim::GouraudTexturedQuad>(gpu, mesh, texture, mesh.numQuads, vertexIdx);
+    drawTris<psyqo::Prim::GouraudTriangle>(mesh, texture, mesh.numUntexturedTris, vertexIdx);
+    drawQuads<psyqo::Prim::GouraudQuad>(mesh, texture, mesh.numUntexturedQuads, vertexIdx);
+    drawTris<psyqo::Prim::GouraudTexturedTriangle>(mesh, texture, mesh.numTris, vertexIdx);
+    drawQuads<psyqo::Prim::GouraudTexturedQuad>(mesh, texture, mesh.numQuads, vertexIdx);
 }
 
 template<typename PrimType>
 void Renderer::drawTris(
-    const psyqo::GPU& gpu,
     const Mesh& mesh,
     const TextureInfo& texture,
     int numFaces,
     std::size_t& outVertIdx)
 {
-    const auto parity = gpu.getParity();
-    auto& ot = ots[parity];
-    auto& primBuffer = primBuffers[parity];
+    auto& ot = getOrderingTable();
+    auto& primBuffer = getPrimBuffer();
     auto vertexIdx = outVertIdx;
 
     for (int i = 0; i < numFaces; ++i, vertexIdx += 3) {
@@ -133,15 +132,13 @@ void Renderer::drawTris(
 
 template<typename PrimType>
 void Renderer::drawQuads(
-    const psyqo::GPU& gpu,
     const Mesh& mesh,
     const TextureInfo& texture,
     int numFaces,
     std::size_t& outVertIdx)
 {
-    const auto parity = gpu.getParity();
-    auto& ot = ots[parity];
-    auto& primBuffer = primBuffers[parity];
+    auto& ot = getOrderingTable();
+    auto& primBuffer = getPrimBuffer();
     auto vertexIdx = outVertIdx;
 
     for (int i = 0; i < numFaces; ++i, vertexIdx += 4) {

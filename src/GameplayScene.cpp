@@ -151,10 +151,8 @@ void GameplayScene::update()
 
 void GameplayScene::draw()
 {
-    const auto parity = gpu().getParity();
-
-    auto& ot = renderer.ots[parity];
-    auto& primBuffer = renderer.primBuffers[parity];
+    auto& ot = renderer.getOrderingTable();
+    auto& primBuffer = renderer.getPrimBuffer();
     primBuffer.reset();
 
     // set dithering ON globally
@@ -173,19 +171,19 @@ void GameplayScene::draw()
     {
         psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.viewRot);
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(camera.translation);
-        renderer.drawModel(gp, game.levelModel, game.bricksTexture);
+        renderer.drawModel(game.levelModel, game.bricksTexture);
     }
 
     // draw dynamic objects
     {
         // TODO: first draw objects without rotation
         // (won't have to upload camera.viewRot and change PseudoRegister::Rotation then)
-        renderer.drawModelObject(gp, cato, camera, game.catoTexture);
+        renderer.drawModelObject(cato, camera, game.catoTexture);
     }
 
     gpu().chain(ot);
 
-    dialogueBox.draw(renderer, gpu(), game.catoTexture);
+    dialogueBox.draw(renderer, game.catoTexture);
 
     // drawDebugInfo();
 }

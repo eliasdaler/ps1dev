@@ -17,32 +17,34 @@ struct Camera;
 
 class Renderer {
 public:
+    Renderer(psyqo::GPU& gpu);
+
     void drawModelObject(
-        const psyqo::GPU& gpu,
         const ModelObject& object,
         const Camera& camera,
         const TextureInfo& texture);
-    void drawModel(const psyqo::GPU& gpu, const Model& model, const TextureInfo& texture);
-    void drawMesh(const psyqo::GPU& gpu, const Mesh& mesh, const TextureInfo& texture);
+    void drawModel(const Model& model, const TextureInfo& texture);
+    void drawMesh(const Mesh& mesh, const TextureInfo& texture);
 
     static constexpr auto OT_SIZE = 4096 * 2;
-    eastl::array<psyqo::OrderingTable<OT_SIZE>, 2> ots;
+    using OrderingTableType = psyqo::OrderingTable<OT_SIZE>;
+    eastl::array<OrderingTableType, 2> ots;
 
     static constexpr int PRIMBUFFLEN = 32768 * 8;
     using PrimBufferAllocatorType = psyqo::BumpAllocator<PRIMBUFFLEN>;
     eastl::array<PrimBufferAllocatorType, 2> primBuffers;
 
-    PrimBufferAllocatorType& getPrimBuffer(const psyqo::GPU& gpu)
-    {
-        return primBuffers[gpu.getParity()];
-    }
+    OrderingTableType& getOrderingTable() { return ots[gpu.getParity()]; }
+    PrimBufferAllocatorType& getPrimBuffer() { return primBuffers[gpu.getParity()]; }
+
+    psyqo::GPU& getGPU() { return gpu; }
 
 private:
+    psyqo::GPU& gpu;
     psyqo::Trig<> trig;
 
     template<typename PrimType>
     void drawTris(
-        const psyqo::GPU& gpu,
         const Mesh& mesh,
         const TextureInfo& texture,
         int numFaces,
@@ -50,7 +52,6 @@ private:
 
     template<typename PrimType>
     void drawQuads(
-        const psyqo::GPU& gpu,
         const Mesh& mesh,
         const TextureInfo& texture,
         int numFaces,

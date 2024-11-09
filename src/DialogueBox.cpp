@@ -25,32 +25,34 @@ void DialogueBox::handleInput(const psyqo::SimplePad& pad)
 
 void DialogueBox::update()
 {
-    static int timer = 0;
-    if (timer == 2) {
-        timer = 0;
+    letterIncrementTimer.update();
+    if (letterIncrementTimer.tick()) {
         ++numOfCharsToShow;
-    } else {
-        ++timer;
+    }
+    if (allTextShown) {
+        moreTextBouncer.update();
     }
 }
 
-void DialogueBox::draw(Renderer& renderer, psyqo::GPU& gpu, const TextureInfo& fontAtlasTexture)
+void DialogueBox::draw(Renderer& renderer, const TextureInfo& fontAtlasTexture)
 {
-    auto& primBuffer = renderer.getPrimBuffer(gpu);
+    auto& primBuffer = renderer.getPrimBuffer();
+    auto& gpu = renderer.getGPU();
 
     // set tpage
     auto& tpage = primBuffer.allocateFragment<psyqo::Prim::TPage>();
     tpage.primitive.attr = fontAtlasTexture.tpage;
     gpu.chain(tpage);
 
-    drawBG(renderer, gpu, fontAtlasTexture);
-    drawText(renderer, gpu, fontAtlasTexture);
-    drawMoreTextIndicator(renderer, gpu, fontAtlasTexture);
+    drawBG(renderer, fontAtlasTexture);
+    drawText(renderer, fontAtlasTexture);
+    drawMoreTextIndicator(renderer, fontAtlasTexture);
 }
 
-void DialogueBox::drawBG(Renderer& renderer, psyqo::GPU& gpu, const TextureInfo& fontAtlasTexture)
+void DialogueBox::drawBG(Renderer& renderer, const TextureInfo& fontAtlasTexture)
 {
-    auto& primBuffer = renderer.getPrimBuffer(gpu);
+    auto& primBuffer = renderer.getPrimBuffer();
+    auto& gpu = renderer.getGPU();
 
     { // bg rect
         auto& rectFrag = primBuffer.allocateFragment<psyqo::Prim::Rectangle>();
@@ -184,9 +186,10 @@ void DialogueBox::drawBG(Renderer& renderer, psyqo::GPU& gpu, const TextureInfo&
     }
 }
 
-void DialogueBox::drawText(Renderer& renderer, psyqo::GPU& gpu, const TextureInfo& fontAtlasTexture)
+void DialogueBox::drawText(Renderer& renderer, const TextureInfo& fontAtlasTexture)
 {
-    auto& primBuffer = renderer.getPrimBuffer(gpu);
+    auto& primBuffer = renderer.getPrimBuffer();
+    auto& gpu = renderer.getGPU();
 
     static const auto textWhite = psyqo::Color{{128, 128, 128}};
     static const auto textRed = psyqo::Color{{255, 0, 0}};
@@ -248,41 +251,18 @@ void DialogueBox::drawText(Renderer& renderer, psyqo::GPU& gpu, const TextureInf
     }
 }
 
-void DialogueBox::drawMoreTextIndicator(
-    Renderer& renderer,
-    psyqo::GPU& gpu,
-    const TextureInfo& fontAtlasTexture)
+void DialogueBox::drawMoreTextIndicator(Renderer& renderer, const TextureInfo& fontAtlasTexture)
 {
-    const auto parity = gpu.getParity();
-    auto& primBuffer = renderer.primBuffers[parity];
-
-    static bool moveDown = false;
-    static int moveOffset = 0;
-    static int moveOffsetMax = 1;
-    static int timer2 = 0;
-    if (timer2 == 3) {
-        timer2 = 0;
-        if (moveDown) {
-            ++moveOffset;
-        } else {
-            --moveOffset;
-        }
-    } else {
-        ++timer2;
-    }
-    if (moveOffset > moveOffsetMax) {
-        moveDown = false;
-    } else if (moveOffset < -moveOffsetMax) {
-        moveDown = true;
-    }
+    auto& primBuffer = renderer.getPrimBuffer();
+    auto& gpu = renderer.getGPU();
 
     if (allTextShown) { // more text
         auto& spriteFrag = primBuffer.allocateFragment<psyqo::Prim::Sprite8x8>();
         auto& sprite = spriteFrag.primitive;
         sprite.texInfo.clut = fontAtlasTexture.clut;
 
-        sprite.position.x = position.x + size.x - 14;
-        sprite.position.y = position.y + size.y - 10 + moveOffset;
+        sprite.position.x = position.x + size.x - moreTextOffset.x;
+        sprite.position.y = position.y + size.y - moreTextOffset.y + moreTextBouncer.getOffset();
         sprite.texInfo.u = 48;
         sprite.texInfo.v = 144;
 

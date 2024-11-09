@@ -26,6 +26,9 @@ add_subdirectory(third_party)
 add_executable(game
   src/matrix_test.cpp
 
+  src/Timer.cpp
+  src/Bouncer.cpp
+
   src/Model.cpp
   src/TimFile.cpp
   src/Renderer.cpp
