@@ -4,6 +4,7 @@
 #include <psyqo/simplepad.hh>
 #include <psyqo/soft-math.hh>
 
+#include <psyqo/primitives/lines.hh>
 #include <psyqo/primitives/rectangles.hh>
 #include <psyqo/primitives/sprites.hh>
 
@@ -109,6 +110,8 @@ void GameplayScene::processInput()
         camera.position.x -= trig.sin(camera.rotation.y) * walkSpeed;
         camera.position.z -= trig.cos(camera.rotation.y) * walkSpeed;
     }
+
+    dialogueBox.handleInput(game.pad);
 }
 
 void GameplayScene::updateCamera()
@@ -142,6 +145,8 @@ void GameplayScene::update()
     // spin the cat
     cato.rotation.y += 0.01;
     cato.rotation.x = 0.25;
+
+    dialogueBox.update();
 }
 
 void GameplayScene::draw()
@@ -180,116 +185,9 @@ void GameplayScene::draw()
 
     gpu().chain(ot);
 
-    static constexpr auto dbX = 60;
-    static constexpr auto dbY = 140;
-    static constexpr auto dbW = 200;
-    static constexpr auto dbH = 64;
+    dialogueBox.draw(renderer, gpu(), game.catoTexture);
 
-    { // bg rect
-        auto& rectFrag = primBuffer.allocateFragment<psyqo::Prim::Rectangle>();
-        auto& rect = rectFrag.primitive;
-        rect.position.x = dbX;
-        rect.position.y = dbY;
-        rect.size.x = dbW;
-        rect.size.y = dbH;
-
-        static const auto black = psyqo::Color{{0, 0, 0}};
-        rect.setColor(black);
-        rect.setSemiTrans();
-        gpu().chain(rectFrag);
-    }
-
-    static const eastl::fixed_string<char, 256> textString{"AAAAAAAAAAAA\nBB \2AA \1BB"};
-
-    struct GlyphInfo {
-        int u;
-        int v;
-    };
-
-    static GlyphInfo glyphInfos[255];
-    glyphInfos['A'] = GlyphInfo{0, 144};
-    glyphInfos['B'] = GlyphInfo{16, 144};
-
-    static const auto white = psyqo::Color{{128, 128, 128}};
-    static const auto red = psyqo::Color{{255, 0, 0}};
-
-    static constexpr auto textOffsetX = 0;
-    static constexpr auto textOffsetY = 0;
-    static const auto glyphW = 16;
-    static const auto glyphH = 16;
-    static const auto lineH = 16;
-
-    auto currColor = white;
-    auto glyphX = dbX + textOffsetX;
-    auto glyphY = dbY + textOffsetY;
-
-    static int numOfCharsToShow = 0;
-    static int timer = 0;
-
-    { // sprites
-        auto& fontAtlasTexture = game.catoTexture;
-
-        // set tpage
-        auto& tpage = primBuffer.allocateFragment<psyqo::Prim::TPage>();
-        tpage.primitive.attr = fontAtlasTexture.tpage;
-        gpu().chain(tpage);
-
-        if (timer == 2) {
-            timer = 0;
-            ++numOfCharsToShow;
-        } else {
-            ++timer;
-        }
-
-        if (game.pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Cross)) {
-            numOfCharsToShow = 0;
-        }
-
-        int numCharsShown = 0;
-        for (int i = 0; i < textString.size(); ++i) {
-            auto c = textString[i];
-
-            if (c == '\n') {
-                glyphX = dbX + textOffsetX;
-                glyphY += lineH;
-                continue;
-            }
-
-            if (c == ' ') {
-                glyphX += glyphW; // TODO: kern here
-                continue;
-            }
-
-            if (c == 1) {
-                currColor = white;
-                continue;
-            } else if (c == 2) {
-                currColor = red;
-                continue;
-            }
-
-            auto& spriteFrag = primBuffer.allocateFragment<psyqo::Prim::Sprite16x16>();
-            auto& sprite = spriteFrag.primitive;
-            sprite.texInfo.clut = fontAtlasTexture.clut;
-
-            sprite.position.x = glyphX;
-            sprite.position.y = glyphY;
-            auto& glyphInfo = glyphInfos[(int)c];
-            sprite.texInfo.u = glyphInfo.u;
-            sprite.texInfo.v = glyphInfo.v;
-
-            sprite.setColor(currColor);
-            gpu().chain(spriteFrag);
-
-            glyphX += glyphW; // TODO: kern here
-            ++numCharsShown;
-            if (numCharsShown > numOfCharsToShow) {
-                break;
-            }
-        }
-    }
-
-    drawDebugInfo();
+    // drawDebugInfo();
 }
 
 void GameplayScene::drawDebugInfo()

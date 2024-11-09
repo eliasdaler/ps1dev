@@ -3,6 +3,7 @@
 #include <psyqo/scene.hh>
 
 #include "Camera.h"
+#include "DialogueBox.h"
 #include "Object.h"
 
 class Game;
@@ -31,4 +32,6 @@ private:
 
     Game& game;
     Renderer& renderer;
+
+    DialogueBox dialogueBox;
 };
