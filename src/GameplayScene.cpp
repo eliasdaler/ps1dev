@@ -183,7 +183,7 @@ void GameplayScene::draw()
 
     gpu().chain(ot);
 
-    dialogueBox.draw(renderer, game.catoTexture);
+    dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
 
     // drawDebugInfo();
 }

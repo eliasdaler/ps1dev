@@ -14,23 +14,23 @@ struct SimplePad;
 };
 
 struct TextureInfo;
-
-struct GlyphInfo {
-    int u;
-    int v;
-};
+struct Font;
 
 class DialogueBox {
 public:
     DialogueBox();
     void handleInput(const psyqo::SimplePad& pad);
     void update();
-    void draw(Renderer& renderer, const TextureInfo& fontAtlasTexture);
+    void draw(
+        Renderer& renderer,
+        const Font& font,
+        const TextureInfo& fontAtlasTexture,
+        const TextureInfo& borderTexture);
 
 private:
-    void drawBG(Renderer& renderer, const TextureInfo& fontAtlasTexture);
-    void drawText(Renderer& renderer, const TextureInfo& fontAtlasTexture);
-    void drawMoreTextIndicator(Renderer& renderer, const TextureInfo& fontAtlasTexture);
+    void drawBG(Renderer& renderer, const TextureInfo& borderTexture);
+    void drawText(Renderer& renderer, const Font& font, const TextureInfo& fontAtlasTexture);
+    void drawMoreTextIndicator(Renderer& renderer, const TextureInfo& borderTexture);
 
     void drawLine(
         Renderer::PrimBufferAllocatorType& primBuffer,
@@ -42,18 +42,26 @@ private:
         const psyqo::Color& color);
 
     psyqo::Vertex position{{.x = 60, .y = 140}};
-    psyqo::Vertex size{{.x = 200, .y = 64}};
+    psyqo::Vertex size{{.x = 200, .y = 72}};
 
-    eastl::fixed_string<char, 256> textString{"AAAAAAAAAAAA\nBB \2AA \1BB"};
+    eastl::fixed_string<char, 256> textString{
+        "Hello, \3world\3!\nFonts now \2work\1!\n\3\4Amazing!"};
     int numOfCharsToShow{0};
-    psyqo::Vertex textOffset{{.x = 0, .y = 0}};
-    psyqo::Vertex glyphSize{{.x = 16, .y = 16}};
+    psyqo::Vertex textOffset{{.x = 2, .y = 0}};
 
-    GlyphInfo glyphInfos[255];
     bool allTextShown{false};
 
     Timer letterIncrementTimer{2};
     Bouncer moreTextBouncer{4, 2};
     // offset from the bottom-right corner of dialogue box
     psyqo::Vertex moreTextOffset{{.x = 14, .y = 10}};
+
+    // wavy text
+    Timer waveTimer{6};
+    int wavePhase{0};
+    int waveMax{5};
+    int waveOffsets[6] = {-2, -1, 0, 1, 0, -1};
+
+    // rainbow text
+    eastl::array<psyqo::Color, 8> rainbowColors;
 };

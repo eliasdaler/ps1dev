@@ -8,6 +8,7 @@
 #include <psyqo/simplepad.hh>
 #include <psyqo/trigonometry.hh>
 
+#include "Font.h"
 #include "Model.h"
 #include "TextureInfo.h"
 #include "TimFile.h"
@@ -18,6 +19,7 @@ class Game : public psyqo::Application {
 
 public:
     void loadTIM(eastl::string_view filename, TextureInfo& textureInfo);
+    void loadFont(eastl::string_view filename, Font& font);
     void loadModel(eastl::string_view filename, Model& model);
 
     [[nodiscard]] TextureInfo uploadTIM(const TimFile& tim);
@@ -38,4 +40,6 @@ public:
 
     TextureInfo bricksTexture;
     TextureInfo catoTexture;
+    TextureInfo fontTexture;
+    Font font;
 };

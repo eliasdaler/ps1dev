@@ -1,5 +1,6 @@
 #include "DialogueBox.h"
 
+#include "Font.h"
 #include "Renderer.h"
 
 #include <psyqo/primitives/lines.hh>
@@ -9,8 +10,14 @@
 
 DialogueBox::DialogueBox()
 {
-    glyphInfos['A'] = GlyphInfo{0, 144};
-    glyphInfos['B'] = GlyphInfo{16, 144};
+    rainbowColors[0] = psyqo::Color{{251, 242, 54}};
+    rainbowColors[1] = psyqo::Color{{255, 80, 32}};
+    rainbowColors[2] = psyqo::Color{{255, 67, 67}};
+    rainbowColors[3] = psyqo::Color{{50, 255, 80}};
+    rainbowColors[4] = psyqo::Color{{90, 126, 207}};
+    rainbowColors[5] = psyqo::Color{{100, 80, 128}};
+    rainbowColors[6] = psyqo::Color{{255, 67, 170}};
+    rainbowColors[7] = psyqo::Color{{255, 255, 255}};
 }
 
 void DialogueBox::handleInput(const psyqo::SimplePad& pad)
@@ -32,24 +39,47 @@ void DialogueBox::update()
     if (allTextShown) {
         moreTextBouncer.update();
     }
+
+    // wavy text
+    waveTimer.update();
+    if (waveTimer.tick()) {
+        ++wavePhase;
+        if (wavePhase > waveMax) {
+            wavePhase = 0;
+        }
+    }
 }
 
-void DialogueBox::draw(Renderer& renderer, const TextureInfo& fontAtlasTexture)
+void DialogueBox::draw(
+    Renderer& renderer,
+    const Font& font,
+    const TextureInfo& fontAtlasTexture,
+    const TextureInfo& borderTexture)
 {
     auto& primBuffer = renderer.getPrimBuffer();
     auto& gpu = renderer.getGPU();
 
     // set tpage
-    auto& tpage = primBuffer.allocateFragment<psyqo::Prim::TPage>();
-    tpage.primitive.attr = fontAtlasTexture.tpage;
-    gpu.chain(tpage);
+    {
+        auto& tpage = primBuffer.allocateFragment<psyqo::Prim::TPage>();
+        tpage.primitive.attr = borderTexture.tpage;
+        gpu.chain(tpage);
+    }
 
-    drawBG(renderer, fontAtlasTexture);
-    drawText(renderer, fontAtlasTexture);
-    drawMoreTextIndicator(renderer, fontAtlasTexture);
+    drawBG(renderer, borderTexture);
+    drawMoreTextIndicator(renderer, borderTexture);
+
+    // set tpage
+    {
+        auto& tpage = primBuffer.allocateFragment<psyqo::Prim::TPage>();
+        tpage.primitive.attr = fontAtlasTexture.tpage;
+        gpu.chain(tpage);
+    }
+
+    drawText(renderer, font, fontAtlasTexture);
 }
 
-void DialogueBox::drawBG(Renderer& renderer, const TextureInfo& fontAtlasTexture)
+void DialogueBox::drawBG(Renderer& renderer, const TextureInfo& borderTexture)
 {
     auto& primBuffer = renderer.getPrimBuffer();
     auto& gpu = renderer.getGPU();
@@ -76,7 +106,7 @@ void DialogueBox::drawBG(Renderer& renderer, const TextureInfo& fontAtlasTexture
     { // top left
         auto& spriteFrag = primBuffer.allocateFragment<psyqo::Prim::Sprite>();
         auto& sprite = spriteFrag.primitive;
-        sprite.texInfo.clut = fontAtlasTexture.clut;
+        sprite.texInfo.clut = borderTexture.clut;
 
         sprite.position.x = position.x - 5;
         sprite.position.y = position.y - 5;
@@ -104,7 +134,7 @@ void DialogueBox::drawBG(Renderer& renderer, const TextureInfo& fontAtlasTexture
     { // top right
         auto& spriteFrag = primBuffer.allocateFragment<psyqo::Prim::Sprite>();
         auto& sprite = spriteFrag.primitive;
-        sprite.texInfo.clut = fontAtlasTexture.clut;
+        sprite.texInfo.clut = borderTexture.clut;
 
         sprite.position.x = position.x + size.x;
         sprite.position.y = position.y - 5;
@@ -145,7 +175,7 @@ void DialogueBox::drawBG(Renderer& renderer, const TextureInfo& fontAtlasTexture
     { // bottom left
         auto& spriteFrag = primBuffer.allocateFragment<psyqo::Prim::Sprite>();
         auto& sprite = spriteFrag.primitive;
-        sprite.texInfo.clut = fontAtlasTexture.clut;
+        sprite.texInfo.clut = borderTexture.clut;
 
         sprite.position.x = position.x - 5;
         sprite.position.y = position.y + size.y;
@@ -173,7 +203,7 @@ void DialogueBox::drawBG(Renderer& renderer, const TextureInfo& fontAtlasTexture
     { // bottom right
         auto& spriteFrag = primBuffer.allocateFragment<psyqo::Prim::Sprite>();
         auto& sprite = spriteFrag.primitive;
-        sprite.texInfo.clut = fontAtlasTexture.clut;
+        sprite.texInfo.clut = borderTexture.clut;
 
         sprite.position.x = position.x + size.x;
         sprite.position.y = position.y + size.y;
@@ -186,18 +216,16 @@ void DialogueBox::drawBG(Renderer& renderer, const TextureInfo& fontAtlasTexture
     }
 }
 
-void DialogueBox::drawText(Renderer& renderer, const TextureInfo& fontAtlasTexture)
+void DialogueBox::drawText(
+    Renderer& renderer,
+    const Font& font,
+    const TextureInfo& fontAtlasTexture)
 {
     auto& primBuffer = renderer.getPrimBuffer();
     auto& gpu = renderer.getGPU();
 
-    static const auto textWhite = psyqo::Color{{128, 128, 128}};
-    static const auto textRed = psyqo::Color{{255, 0, 0}};
-
-    static const auto lineH = 16;
-
-    auto currTextColor = textWhite;
-    psyqo::Vertex glyphPos{{
+    auto currTextColor = rainbowColors[7];
+    const psyqo::Vertex glyphPos{{
         .x = static_cast<int16_t>(position.x + textOffset.x),
         .y = static_cast<int16_t>(position.y + textOffset.y),
     }};
@@ -205,43 +233,66 @@ void DialogueBox::drawText(Renderer& renderer, const TextureInfo& fontAtlasTextu
     int numCharsShown = 0;
     allTextShown = true;
 
+    int lineNum = 0;
+    int lineX = 0; // current line X offset
+
+    const auto lineSpacing = font.lineSpacing;
+    const auto ascenderPx = font.lineSpacing;
+    const auto& glyphs = font.glyphs;
+    const auto fontClut = fontAtlasTexture.clut;
+
+    bool wavyText = false;
+    bool rainbowText = false;
     for (int i = 0; i < textString.size(); ++i) {
-        auto c = textString[i];
+        const auto c = textString[i];
 
         // newline
         if (c == '\n') {
-            glyphPos.x = position.x + textOffset.x;
-            glyphPos.y += lineH;
+            ++lineNum;
+            lineX = 0;
             continue;
         }
 
-        if (c == ' ') {
-            glyphPos.x += glyphSize.x; // TODO: kern here
+        // text control
+        if (c == 1) { // white
+            currTextColor = rainbowColors[7];
+            continue;
+        } else if (c == 2) { // yellow
+            currTextColor = rainbowColors[0];
+            continue;
+        } else if (c == 3) { // wavy
+            wavyText = !wavyText;
+            continue;
+        } else if (c == 4) { // rainbow
+            rainbowText = !rainbowText;
             continue;
         }
 
-        // text color control
-        if (c == 1) {
-            currTextColor = textWhite;
-            continue;
-        } else if (c == 2) {
-            currTextColor = textRed;
-            continue;
-        }
-
-        auto& spriteFrag = primBuffer.allocateFragment<psyqo::Prim::Sprite16x16>();
+        auto& spriteFrag = primBuffer.allocateFragment<psyqo::Prim::Sprite>();
         auto& sprite = spriteFrag.primitive;
-        sprite.texInfo.clut = fontAtlasTexture.clut;
+        sprite.texInfo.clut = fontClut;
 
-        sprite.position = glyphPos;
-        auto& glyphInfo = glyphInfos[(int)c];
-        sprite.texInfo.u = glyphInfo.u;
-        sprite.texInfo.v = glyphInfo.v;
+        auto& glyphInfo = glyphs[(int)c];
+        sprite.position.x = glyphPos.x + lineX + glyphInfo.bearing.x;
+        sprite.position.y = glyphPos.y + (ascenderPx - glyphInfo.bearing.y) + lineNum * lineSpacing;
+        sprite.texInfo.u = glyphInfo.uv0.x;
+        sprite.texInfo.v = glyphInfo.uv0.y;
+        sprite.size.x = glyphInfo.size.x;
+        sprite.size.y = glyphInfo.size.y;
 
-        sprite.setColor(currTextColor);
+        if (wavyText) {
+            sprite.position.y += waveOffsets[(numCharsShown + wavePhase) % (waveMax + 1)];
+        }
+
+        if (rainbowText) {
+            sprite.setColor(rainbowColors[numCharsShown % rainbowColors.size()]);
+        } else {
+            sprite.setColor(currTextColor);
+        }
+
         gpu.chain(spriteFrag);
 
-        glyphPos.x += glyphSize.w; // TODO: kern here
+        lineX += glyphInfo.advance;
 
         ++numCharsShown;
         if (numCharsShown > numOfCharsToShow) {
@@ -251,7 +302,7 @@ void DialogueBox::drawText(Renderer& renderer, const TextureInfo& fontAtlasTextu
     }
 }
 
-void DialogueBox::drawMoreTextIndicator(Renderer& renderer, const TextureInfo& fontAtlasTexture)
+void DialogueBox::drawMoreTextIndicator(Renderer& renderer, const TextureInfo& borderTexture)
 {
     auto& primBuffer = renderer.getPrimBuffer();
     auto& gpu = renderer.getGPU();
@@ -259,7 +310,7 @@ void DialogueBox::drawMoreTextIndicator(Renderer& renderer, const TextureInfo& f
     if (allTextShown) { // more text
         auto& spriteFrag = primBuffer.allocateFragment<psyqo::Prim::Sprite8x8>();
         auto& sprite = spriteFrag.primitive;
-        sprite.texInfo.clut = fontAtlasTexture.clut;
+        sprite.texInfo.clut = borderTexture.clut;
 
         sprite.position.x = position.x + size.x - moreTextOffset.x;
         sprite.position.y = position.y + size.y - moreTextOffset.y + moreTextBouncer.getOffset();

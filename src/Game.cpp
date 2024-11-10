@@ -1,5 +1,7 @@
 #include "Game.h"
 
+#include <common/syscalls/syscalls.h>
+
 void Game::prepare()
 {
     psyqo::GPU::Configuration config;
@@ -18,6 +20,16 @@ void Game::loadTIM(eastl::string_view filename, TextureInfo& textureInfo)
             cdReadBuffer = eastl::move(buffer);
             const auto tim = readTimFile(cdReadBuffer);
             textureInfo = uploadTIM(tim);
+            cdLoadCoroutine.resume();
+        });
+}
+
+void Game::loadFont(eastl::string_view filename, Font& font)
+{
+    cdromLoader
+        .readFile(filename, gpu(), isoParser, [this, &font](eastl::vector<uint8_t>&& buffer) {
+            cdReadBuffer = eastl::move(buffer);
+            font.loadFromFile(cdReadBuffer);
             cdLoadCoroutine.resume();
         });
 }
@@ -48,6 +60,8 @@ TextureInfo Game::uploadTIM(const TimFile& tim)
 
     TextureInfo info;
     info.clut = {{.x = tim.clutDX, .y = tim.clutDY}};
+
+    ramsyscall_printf("tim pixDX: %d, pixDY: %d\n", tim.pixDX, tim.pixDY);
 
     const auto colorMode = [](TimFile::PMode pmode) {
         switch (pmode) {

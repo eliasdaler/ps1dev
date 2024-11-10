@@ -30,6 +30,12 @@ psyqo::Coroutine<> loadCoroutine(Game* game)
     game->loadTIM("CATO.TIM;1", game->catoTexture);
     co_await awaiter;
 
+    game->loadTIM("FONT.TIM;1", game->fontTexture);
+    co_await awaiter;
+
+    game->loadFont("FONT.FNT;1", game->font);
+    co_await awaiter;
+
     game->popScene();
 
     gameplayScene.onResourcesLoaded();
