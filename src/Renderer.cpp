@@ -7,6 +7,37 @@
 
 #include "gte-math.h"
 
+namespace
+{
+psyqo::Color interpColor(const psyqo::Color& c)
+{
+    psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(&c.packed);
+    psyqo::GTE::Kernels::dpcs();
+    psyqo::Color col;
+    psyqo::GTE::read<psyqo::GTE::Register::RGB2>(&col.packed);
+    return col;
+};
+template<typename PrimType>
+void interpColor3(
+    const psyqo::Color& c0,
+    const psyqo::Color& c1,
+    const psyqo::Color& c2,
+    PrimType& prim)
+{
+    psyqo::GTE::write<psyqo::GTE::Register::RGB0, psyqo::GTE::Unsafe>(&c0.packed);
+    psyqo::GTE::write<psyqo::GTE::Register::RGB1, psyqo::GTE::Unsafe>(&c1.packed);
+    psyqo::GTE::write<psyqo::GTE::Register::RGB2, psyqo::GTE::Safe>(&c2.packed);
+    psyqo::GTE::Kernels::dpct();
+    psyqo::Color col;
+    psyqo::GTE::read<psyqo::GTE::Register::RGB0>(&col.packed);
+    prim.setColorA(col);
+    psyqo::GTE::read<psyqo::GTE::Register::RGB1>(&col.packed);
+    prim.setColorB(col);
+    psyqo::GTE::read<psyqo::GTE::Register::RGB2>(&col.packed);
+    prim.setColorC(col);
+}
+}
+
 Renderer::Renderer(psyqo::GPU& gpu) : gpu(gpu)
 {}
 
@@ -178,7 +209,10 @@ void Renderer::drawQuads(
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointC.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
 
-        quad2d.interpolateColors(&v0.col, &v1.col, &v2.col, &v3.col);
+        // TEMP: psyqo's interpolateColors is broken
+        // quad2d.interpolateColors(&v0.col, &v1.col, &v2.col, &v3.col);
+        interpColor3(v0.col, v1.col, v2.col, quad2d);
+        quad2d.setColorD(interpColor(v3.col));
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedQuad>) {
             quad2d.uvA.u = v0.uv.vx;
