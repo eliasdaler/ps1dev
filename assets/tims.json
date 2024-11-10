@@ -1,14 +1,26 @@
-[
-  {
-    "input": "raw/atlas.png",
-    "output": "bricks.tim",
-    "clut": [0, 240],
-    "pix": [320, 0]
-  },
-  {
-    "input": "raw/cato.png",
-    "output": "cato.tim",
-    "clut": [0, 241],
-    "pix": [512, 0]
-  }
-]
+{
+  "images": [
+    {
+      "input": "raw/atlas.png",
+      "output": "bricks.tim",
+      "clut": [0, 240],
+      "pix": [320, 0]
+    },
+    {
+      "input": "raw/cato.png",
+      "output": "cato.tim",
+      "clut": [0, 241],
+      "pix": [512, 0]
+    }
+  ],
+  "fonts": [
+    {
+      "input": "raw/fonts/DejaVuSerif.ttf",
+      "size": 20,
+      "output": "font.tim",
+      "glyph_output": "font.fnt",
+      "clut": [0, 242],
+      "pix": [576, 0]
+    }
+  ]
+}

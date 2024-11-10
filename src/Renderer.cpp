@@ -9,6 +9,7 @@
 
 namespace
 {
+
 psyqo::Color interpColor(const psyqo::Color& c)
 {
     psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(&c.packed);
@@ -17,6 +18,7 @@ psyqo::Color interpColor(const psyqo::Color& c)
     psyqo::GTE::read<psyqo::GTE::Register::RGB2>(&col.packed);
     return col;
 };
+
 template<typename PrimType>
 void interpColor3(
     const psyqo::Color& c0,
