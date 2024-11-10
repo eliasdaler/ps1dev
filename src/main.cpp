@@ -31,6 +31,38 @@ namespace
 static constexpr auto SCREEN_WIDTH = 320;
 static constexpr auto SCREEN_HEIGHT = 240;
 
+bool interpolateNew = false;
+bool buttonWasPressed = false;
+psyqo::Color interpColorRes;
+
+psyqo::Color interpColor(const psyqo::Color& c)
+{
+    psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(&c.packed);
+    psyqo::GTE::Kernels::dpcs();
+    psyqo::Color col;
+    psyqo::GTE::read<psyqo::GTE::Register::RGB2>(&col.packed);
+    return col;
+};
+template<typename PrimType>
+void interpColor3(
+    const psyqo::Color& c0,
+    const psyqo::Color& c1,
+    const psyqo::Color& c2,
+    PrimType& prim)
+{
+    psyqo::GTE::write<psyqo::GTE::Register::RGB0, psyqo::GTE::Unsafe>(&c0.packed);
+    psyqo::GTE::write<psyqo::GTE::Register::RGB1, psyqo::GTE::Unsafe>(&c1.packed);
+    psyqo::GTE::write<psyqo::GTE::Register::RGB2, psyqo::GTE::Safe>(&c2.packed);
+    psyqo::GTE::Kernels::dpct();
+    psyqo::Color col;
+    psyqo::GTE::read<psyqo::GTE::Register::RGB0>(&col.packed);
+    prim.setColorA(col);
+    psyqo::GTE::read<psyqo::GTE::Register::RGB1>(&col.packed);
+    prim.setColorB(col);
+    psyqo::GTE::read<psyqo::GTE::Register::RGB2>(&col.packed);
+    prim.setColorC(col);
+}
+
 void SetFogNearFar(int a, int b, int h)
 {
     // TODO: check params + add asserts?
@@ -327,6 +359,15 @@ void GameplayScene::processInput()
         camera.position.x -= game.trig.sin(camera.rotation.y) * walkSpeed;
         camera.position.z -= game.trig.cos(camera.rotation.y) * walkSpeed;
     }
+
+    if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Start)) {
+        if (!buttonWasPressed) {
+            interpolateNew = !interpolateNew;
+        }
+        buttonWasPressed = true;
+    } else {
+        buttonWasPressed = false;
+    }
 }
 
 void GameplayScene::updateCamera()
@@ -353,7 +394,7 @@ void GameplayScene::update()
     updateCamera();
 
     // spin the cat
-    cato.rotation.y += 0.01;
+    // cato.rotation.y += 0.01;
 }
 
 void GameplayScene::drawLoadingScreen()
@@ -425,13 +466,29 @@ void GameplayScene::drawDebugInfo()
         camera.position.y.raw() >> 12,
         camera.position.z.raw() >> 12);
 
-    game.romFont.chainprintf(
+    /* game.romFont.chainprintf(
         game.gpu(),
         {{.x = 16, .y = 32}},
         textCol,
         "cam rot=(%d, %d)",
         camera.rotation.x.raw(),
-        camera.rotation.y.raw());
+        camera.rotation.y.raw()); */
+
+    game.romFont.chainprintf(
+        game.gpu(),
+        {{.x = 16, .y = 32}},
+        textCol,
+        "interpolate: %s",
+        interpolateNew ? "psyqo" : "me");
+
+    game.romFont.chainprintf(
+        game.gpu(),
+        {{.x = 16, .y = 48}},
+        textCol,
+        "color: %d, %d, %d",
+        interpColorRes.r,
+        interpColorRes.g,
+        interpColorRes.b);
 }
 
 void GameplayScene::drawModelObject(
@@ -527,7 +584,11 @@ int GameplayScene::drawTris(
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&tri2d.pointB.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&tri2d.pointC.packed);
 
-        tri2d.interpolateColors(&v0.col, &v1.col, &v2.col);
+        if (interpolateNew) {
+            tri2d.interpolateColors(&v0.col, &v1.col, &v2.col);
+        } else {
+            interpColor3(v0.col, v1.col, v2.col, tri2d);
+        }
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedTriangle>) {
             tri2d.uvA.u = v0.uv.vx;
@@ -595,7 +656,14 @@ int GameplayScene::drawQuads(
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointC.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
 
-        quad2d.interpolateColors(&v0.col, &v1.col, &v2.col, &v3.col);
+        if (interpolateNew) {
+            quad2d.interpolateColors(&v0.col, &v1.col, &v2.col, &v3.col);
+            interpColorRes = quad2d.colorD;
+        } else {
+            interpColor3(v0.col, v1.col, v2.col, quad2d);
+            quad2d.setColorD(interpColor(v3.col));
+            interpColorRes = quad2d.colorD;
+        }
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedQuad>) {
             quad2d.uvA.u = v0.uv.vx;
