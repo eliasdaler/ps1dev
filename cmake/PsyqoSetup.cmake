@@ -1,8 +1,8 @@
 set(NUGGET_PATH "${CMAKE_CURRENT_LIST_DIR}/../third_party/nugget")
 
-set(PSYQO_DIR "${CMAKE_CURRENT_LIST_DIR}/nugget/psyqo")
+set(PSYQO_DIR "${NUGGET_PATH}/psyqo")
 # "mainline" dir inside pcsx-redux
-set(PSYQO_DIR "${CMAKE_CURRENT_LIST_DIR}/../../pcsx-redux/src/mips/psyqo")
+# set(PSYQO_DIR "${CMAKE_CURRENT_LIST_DIR}/../../pcsx-redux/src/mips/psyqo")
 
 add_library(nugget OBJECT
   "${NUGGET_PATH}/common/crt0/crt0cxx.s"
