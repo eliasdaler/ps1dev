@@ -80,8 +80,14 @@ target_link_libraries(timtool PRIVATE
 )
 
 # TODO: CMake 3.26 - use ImageMagick::Magick++
-find_package(ImageMagick COMPONENTS Magick++ REQUIRED)
-target_compile_definitions(timtool PRIVATE -DMAGICKCORE_QUANTUM_DEPTH=16 )
-target_compile_definitions(timtool PRIVATE -DMAGICKCORE_HDRI_ENABLE=0 )
-target_include_directories(timtool PRIVATE ${ImageMagick_INCLUDE_DIRS})
-target_link_libraries(timtool PRIVATE ${ImageMagick_LIBRARIES})
+
+find_package(ImageMagick COMPONENTS Magick++)
+if(ImageMagick_FOUND)
+  target_include_directories(timtool PRIVATE ${ImageMagick_INCLUDE_DIRS})
+  target_link_libraries(timtool PRIVATE ${ImageMagick_LIBRARIES})
+  target_compile_definitions(timtool 
+    -DMAGICKCORE_QUANTUM_DEPTH=16 
+    -DMAGICKCORE_HDRI_ENABLE=0 
+    -DQUANT_SUPPORT
+  )
+endif()
