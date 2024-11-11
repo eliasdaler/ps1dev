@@ -1,4 +1,8 @@
 #!/bin/sh
+
+# Everyone forgets to do that
+git submodule update --init --recursive
+
 set -ex
 rm -rf docker_out
 mkdir docker_out
