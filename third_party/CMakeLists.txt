@@ -1,5 +1,9 @@
 set(NUGGET_PATH "${CMAKE_CURRENT_LIST_DIR}/nugget")
 
+set(PSYQO_DIR "${CMAKE_CURRENT_LIST_DIR}/nugget/psyqo")
+# "mainline" dir inside pcsx-redux
+set(PSYQO_DIR "${CMAKE_CURRENT_LIST_DIR}/../../pcsx-redux/src/mips/psyqo")
+
 add_library(nugget OBJECT
   "${NUGGET_PATH}/common/crt0/crt0cxx.s"
   "${NUGGET_PATH}/common/crt0/cxxglue.c"
@@ -10,10 +14,13 @@ add_library(nugget OBJECT
 )
 
 target_include_directories(nugget PRIVATE
-  ${NUGGET_PATH}
+  "${NUGGET_PATH}"
 )
 
 target_include_directories(nugget INTERFACE
+  # HACK: when psyqo is not inside the nugget, this will prefer out of build psyqo version
+  "${PSYQO_DIR}/.." 
+
   "${NUGGET_PATH}"
   "${NUGGET_PATH}/include"
 )
@@ -37,7 +44,7 @@ target_include_directories(EASTL PUBLIC
 
 add_library(EASTL::EASTL ALIAS EASTL)
 
-set(PSYQO_DIR "${CMAKE_CURRENT_LIST_DIR}/nugget/psyqo")
+
 add_library(psyqo STATIC
   ${PSYQO_DIR}/src/hardware/cdrom.cpp
   ${PSYQO_DIR}/src/hardware/cpu.cpp
@@ -87,12 +94,7 @@ target_link_libraries(psyqo
   PUBLIC
     EASTL::EASTL
     psyqo::paths
-  PRIVATE
     nugget::nugget
-)
-
-target_include_directories(psyqo PUBLIC
-  ${NUGGET_PATH}
 )
 
 add_library(psyqo::psyqo ALIAS psyqo)
