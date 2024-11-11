@@ -78,8 +78,10 @@ set(models
   "${ASSETS_DIR_RAW}/cato.blend"
 )
 
-include(BuildAssets)
+if (BUILD_ASSETS) 
+  include(BuildAssets)
+  add_dependencies(build_iso assets)
+endif()
 
 add_dependencies(build_iso game)
-add_dependencies(build_iso assets)
 add_dependencies(build_iso make_symlinks)

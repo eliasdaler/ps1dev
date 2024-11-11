@@ -8,6 +8,16 @@ Done with psyqo, in C++20.
 
 ![progress](media/s6.png)
 
+# Building with Docker
+
+Building with Docker is extremely easy, just run:
+
+```sh
+./docker_build.sh
+```
+
+You'll find the resulting ISO(s) in `docker_out` directory.
+
 # Requirements
 
 1. [PCSX-Redux](https://github.com/grumpycoders/pcsx-redux)

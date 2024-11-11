@@ -1,0 +1,5 @@
+build/
+build_games/
+build_games_debug/
+.cache/
+.git/

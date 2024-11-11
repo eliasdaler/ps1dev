@@ -9,7 +9,9 @@
 
 #include <stb_image_write.h>
 
-#include <ImageMagick-6/Magick++.h>
+#ifdef QUANT_SUPPORT
+#include <Magick++.h>
+#endif
 
 namespace
 {
@@ -74,6 +76,7 @@ void quantizeImage(ImageData& data, size_t quantizeLimit)
         data.width * NUM_CHANNELS); */
 
     // copy to Magick::Image
+#ifdef QUANT_SUPPORT
     Magick::Image image(Magick::Geometry(data.width, data.height), "transparent");
     Magick::Pixels view(image);
     auto* pixels = view.get(0, 0, data.width, data.height);
@@ -114,6 +117,7 @@ void quantizeImage(ImageData& data, size_t quantizeLimit)
 
         ++packet;
     }
+#endif
 
     /* stbi_write_png(
         "/home/eliasdaler/quant_res.png",
@@ -165,7 +169,14 @@ TimFile createTimFile(const TimCreateConfig& config)
             if (data.width > 128) {
                 quantizeLimit = 16;
             }
+#ifndef QUANT_SUPPORT
+            throw std::runtime_error(std::format(
+                "Image {} has too many colors: {} and QUANT_SUPPORT is disabled",
+                config.inputImage.string(),
+                colors.size()));
+#else
             quantizeImage(data, quantizeLimit);
+#endif
             colors = findUniqueColors(data, config);
         }
 

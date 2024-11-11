@@ -21,6 +21,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(PSXTOOLS_BIN_DIR "${PS1DEV_REPO_ROOT}/build/tools" CACHE PATH "Location of built psxtools")
+option(BUILD_ASSETS "Build assets" ON)
 
 include(PsyqoSetup)
 

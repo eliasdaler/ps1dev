@@ -76,6 +76,7 @@ target_link_libraries(timtool PRIVATE
   nlohmann_json::nlohmann_json
   CLI11::CLI11
   freetype::freetype
+  glm::glm
 )
 
 # TODO: CMake 3.26 - use ImageMagick::Magick++

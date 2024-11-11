@@ -3,7 +3,7 @@ set -ex
 cd "$(dirname "$0")"
 
 # Everyone forgets to do that
-git submodule update --init --recursive
+# git submodule update --init --recursive
 
 if [ ! -d build ]; then
     cmake -B build -DCMAKE_BUILD_TYPE="RelWithDebInfo"
