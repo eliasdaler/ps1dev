@@ -1,5 +1,5 @@
 #!/bin/bash
 set -ex
 cd "$(dirname "$0")"
-cmake --build --preset=default
-duckstation -fastboot build/game.iso
+source build.sh
+duckstation -fastboot ${CAT_GAME_DIR}/game.iso

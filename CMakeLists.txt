@@ -1,120 +1,14 @@
 cmake_minimum_required(VERSION 3.25)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-
-set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/cmake/Toolchain.cmake")
-
 project(
-  ps1_game
+  ps1dev
   LANGUAGES C CXX ASM
   VERSION 1.0.0
 )
 
-set(CMAKE_C_STANDARD 17)
-set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_C_EXTENSIONS ON) # nugget uses "asm" GCC extension
-
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(PSXTOOLS_DIR "${CMAKE_CURRENT_LIST_DIR}/../psxtools" CACHE PATH "Location of psxtools")
-set(PSXTOOLS_BIN_DIR "${CMAKE_CURRENT_LIST_DIR}/../psxtools/build" CACHE PATH "Location of built psxtools")
-
 add_subdirectory(third_party)
-
-add_executable(game
-  src/matrix_test.cpp
-
-  src/Timer.cpp
-  src/Bouncer.cpp
-
-  src/Model.cpp
-  src/TimFile.cpp
-  src/Font.cpp
-  src/Renderer.cpp
-  src/DialogueBox.cpp
-
-  src/Game.cpp
-
-  src/GameplayScene.cpp
-  src/LoadingScene.cpp
-
-  src/main.cpp
-)
-
-target_compile_options(game PRIVATE
-  -Wall
-  -Wextra
-  # -pedantic - FIXME: libgpu.h gets annoying with this (anonymous struct usage)
-  -Wno-parentheses
-  -Wno-pointer-arith # psyqo alloc.c
-  -Wno-unused-parameter
-  -Wno-unused-variable
-  -Wno-unused-label
-  -Wno-missing-field-initializers
-  -Wno-sign-compare # TODO: enable
-  -Wno-attributes
-  # sadly GCC static analyzer is not yet very helpful
-  # -fanalyzer
-  # -Wno-analyzer-possible-null-dereference
-  # -Wno-analyzer-null-argument
-  # -Wno-analyzer-null-dereference
-  # -Wno-analyzer-possible-null-argument
-  # -Wno-unused-function
-)
-
-# TODO: try LTO and see how good it works
-# But it can make code much easier to debug, so only enable in Release build
-# set_target_properties(game PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
-
-# target_link_libraries(game PRIVATE
-#  -fanalyzer
-#  -Wno-analyzer-possible-null-dereference
-#  -Wno-analyzer-null-argument
-#  -Wno-analyzer-null-dereference
-#  -Wno-analyzer-possible-null-argument
-#  -Wno-analyzer-out-of-bounds
-#  -Wno-analyzer-allocation-size
-#)
-
-target_link_libraries(game PRIVATE
-  psyqo::psyqo
-)
-
-find_program (
-  MKPSXISO_EXECUTABLE
-  NAMES
-    mkpsxiso
-  HINTS
-    "${PROJECT_SOURCE_DIR}/tools/bin"
-  REQUIRED
-)
-
-add_custom_target(build_iso
-  ALL
-  BYPRODUCTS game.ps-exe game.iso game.cue
-  WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-  COMMENT "Building game.iso"
-  COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:game> "${CMAKE_CURRENT_BINARY_DIR}/game.ps-exe"
-  COMMAND "${MKPSXISO_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/cdlayout.xml" -y -q
-)
-
-set(ASSETS_DIR "${PROJECT_SOURCE_DIR}/assets")
-set(ASSETS_DIR_RAW "${PROJECT_SOURCE_DIR}/assets/raw")
-
-set(models
-  "${ASSETS_DIR}/raw/level.blend"
-  "${ASSETS_DIR}/raw/house_psx.blend"
-  "${ASSETS_DIR}/raw/human.blend"
-  "${ASSETS_DIR}/raw/cato.blend"
-)
-
-set(fast_models
-  "${ASSETS_DIR}/raw/roll.blend"
-)
-
-include(BuildAssets)
-
-add_dependencies(build_iso game)
-add_dependencies(build_iso assets)
+add_subdirectory(tools)

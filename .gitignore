@@ -12,6 +12,7 @@ offscreen.json
 pcsx.json
 
 build/
+build_games/
 .cache/
 
 .gdb_history

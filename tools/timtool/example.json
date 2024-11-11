@@ -1,0 +1,16 @@
+[
+  {
+    "input": "test.png",
+    "output": "test.tim",
+    "clut": [0, 483],
+    "pix": [512, 0],
+    "direct": true
+  },
+  {
+    "input": "test2.png",
+    "output": "test2.tim",
+    "clut": [0, 480],
+    "pix": [320, 0]
+  }
+]
+

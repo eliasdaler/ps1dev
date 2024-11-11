@@ -4,15 +4,12 @@ PS1 development experiments.
 
 Done with psyqo, in C++20.
 
-See also: [psxtools](https://github.com/eliasdaler/psxtools) (to be incorporated into build process).
-
 # Current progress
 
 ![progress](media/s5.png)
 
 # Requirements
 
-For now, only Linux build is supported.
 
 1. [PCSX-Redux](https://github.com/grumpycoders/pcsx-redux)
 2. CMake
@@ -23,24 +20,26 @@ For now, only Linux build is supported.
 6. Use [psxavenc](https://github.com/WonderfulToolchain/psxavenc) for encoding sound files from .wav
 
 ```sh
-sudo apt-get install gdb-multiarch gcc-mipsel-linux-gnu g++-mipsel-linux-gnu binutils-mipsel-linux-gnu
+sudo apt-get install gdb-multiarch gcc-mipsel-linux-gnu g++-mipsel-linux-gnu binutils-mipsel-linux-gnu libmagick++-dev
 ```
+
+For now, only Linux build is supported.
 
 # How to
 
 Build:
 
 ```sh
-cmake --preset=default
-cmake --build --preset=default
+./build.sh
 ```
 
-**Note**: if you're not using presets, your build dir should be named "build" or else mkpsxiso won't work properly.
+Sorry, out of source build is not supported yet for my sanity.
 
 Run:
 
 ```sh
-pcsx-redux -exe build/game.ps-exe -run
+./run.sh   # run in Redux
+./debug.sh # run in DuckStation
 ```
 
 Or just

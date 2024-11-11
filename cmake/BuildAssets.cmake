@@ -34,7 +34,7 @@ find_program (
   REQUIRED
 )
 
-set(MODEL_BLENDER_SCRIPT "${PSXTOOLS_DIR}/blender/json_export.py")
+set(MODEL_BLENDER_SCRIPT "${PS1DEV_REPO_ROOT}/tools/blender/json_export.py")
 set(MODELS_BUILD_DIR_JSON "${ASSETS_DIR}/models_json")
 file(MAKE_DIRECTORY "${MODELS_BUILD_DIR_JSON}")
 

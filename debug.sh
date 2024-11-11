@@ -2,13 +2,16 @@
 set -ex
 cd "$(dirname "$0")"
 
-# rebuild
-cmake --build --preset=default
+source build.sh
 
 # launch pcsx
-pcsx-redux -exe build/game.elf -iso build/game.iso -gdb -debugger -interpreter -run -fastboot -notrace &
+pcsx-redux \
+    -exe ${CAT_GAME_DIR}/game.elf \
+    -iso ${CAT_GAME_DIR}/game.iso \
+    -gdb -debugger -interpreter -run -fastboot -notrace &
+
 # start gdb
-gdb-multiarch
+gdb-multiarch --symbols="${CAT_GAME_DIR}/game.elf"
 
 # kill launched pcsx-redux
 if tty=$(tty 2>/dev/null); then

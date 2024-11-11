@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
     <iso_project
-        image_name="build/game.iso"
-        cue_sheet="build/game.cue"
+        image_name="game.iso"
+        cue_sheet="game.cue"
         no_xa="0"
     >
         <track type="data">
@@ -18,7 +18,7 @@
             <! license file="LICENSEJ.DAT"/>
             <directory_tree>
                 <file name="SYSTEM.CNF"	type="data" source="system.cnf"/>
-                <file name="GAME.EXE" type="data" source="build/game.ps-exe"/>
+                <file name="GAME.EXE" type="data" source="game.ps-exe"/>
                 <file name="BRICKS.TIM" type="data" source="assets/bricks.tim"/>
                 <file name="LEVEL.BIN" type="data" source="assets/house_psx.bin"/>
                 <file name="HUMAN.BIN" type="data" source="assets/human.bin"/>
