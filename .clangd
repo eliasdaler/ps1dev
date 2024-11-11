@@ -1,21 +1,31 @@
-# As clang/clangd's MIPS-I support is still experimental, some minor changes to
-# the GCC arguments it picks up from CMake are required in order to prevent it
-# from erroring out. Additionally, specifying the target architecture manually
-# fixes some edge cases (such as CMake emitting 8.3 format paths on Windows and
-# breaking clangd's target autodetection).
+If:
+  PathMatch: games/.*
 
 CompileFlags:
+  CompilationDatabase: build_games
   Add: [
     --target=mipsel-none-elf,
     -march=mips1,
     -I/usr/mipsel-linux-gnu/include/c++/12/,
     -I/usr/mipsel-linux-gnu/include/c++/12/mipsel-linux-gnu/,
     -I/usr/mipsel-linux-gnu/include/,
+
     # FIXME: for some reason clangd doesn't pick these up even though they're in compile_commands.json
     -I/home/eliasdaler/work/ps1dev/third_party/nugget/third_party/EASTL/include,
     -I/home/eliasdaler/work/ps1dev/third_party/nugget/third_party/EABase/include/Common
   ]
   Remove: [ -march, -mno-llsc, -mdivide-breaks, -fcoroutines-ts ]
+
+Diagnostics:
+  UnusedIncludes: None
+
+---
+
+If:
+  PathMatch: tools/.*
+  
+CompileFlags:
+    CompilationDatabase: build
 
 Diagnostics:
   UnusedIncludes: None

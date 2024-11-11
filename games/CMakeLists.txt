@@ -34,3 +34,4 @@ find_program (
 )
 
 add_subdirectory(cat_adventure)
+add_subdirectory(minimal)
