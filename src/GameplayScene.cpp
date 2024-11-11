@@ -144,7 +144,7 @@ void GameplayScene::update()
 
     // spin the cat
     cato.rotation.y += 0.01;
-    cato.rotation.x = 0.25;
+    // cato.rotation.x = 0.25;
 
     dialogueBox.update();
 }
