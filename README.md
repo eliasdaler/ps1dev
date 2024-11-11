@@ -31,7 +31,8 @@ Build:
 ./build.sh
 ```
 
-Sorry, out of source build is not supported yet for my sanity.
+* The tools are built in `build`. 
+* The games will be built in `build_games/` (e.g. `build_games/cat_adventure/game.iso`)
 
 Run:
 

@@ -2,17 +2,17 @@
 set -ex
 cd "$(dirname "$0")"
 
+# Everyone forgets to do that
+git submodule update --init --recursive
+
 if [ ! -d build ]; then
-    cmake -B build
+    cmake -B build -DCMAKE_BUILD_TYPE="RelWithDebInfo"
 fi
 cmake --build build
 
 GAMES_BUILD_DIR="build_games"
 GAMES_BUILD_TYPE="Release"
 
-# This is not perfect but will do for now
-# Basically, we build game with -O0 for debug, but have
-# to do it in a separate dir
 if [[ "$1" == "DEBUG" ]]; then
     GAMES_BUILD_DIR="build_games_debug"
     GAMES_BUILD_TYPE="Debug"
