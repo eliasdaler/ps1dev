@@ -2,7 +2,11 @@
 set -ex
 cd "$(dirname "$0")"
 
-source build.sh
+if [[ "$1" == "DEBUG" ]]; then
+    source build.sh DEBUG
+else
+    source build.sh
+fi
 
 # launch pcsx
 pcsx-redux \

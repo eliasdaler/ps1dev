@@ -27,6 +27,7 @@ add_executable(game
 )
 
 target_compile_options(game PRIVATE
+  -Os
   -Wall
   -Wextra
   # -pedantic - FIXME: libgpu.h gets annoying with this (anonymous struct usage)

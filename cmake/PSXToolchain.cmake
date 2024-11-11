@@ -101,6 +101,13 @@ set(CMAKE_EXECUTABLE_SUFFIX ".elf")
 set(CMAKE_EXECUTABLE_SUFFIX_C ".elf")
 set(CMAKE_EXECUTABLE_SUFFIX_CXX ".elf")
 
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+  set(OPT_FLAGS "-Os")
+else()
+  set(OPT_FLAGS "-O0")
+endif()
+
+
 # EDIT(eliasdaler): default flags
 # Note: if you change them, you need to remove your build dir and do generation again
 set(common_compiler_flags
@@ -122,8 +129,7 @@ set(common_compiler_flags
   -mno-llsc
   # TODO: maybe make it optional or config dependent?
   -g
-  # -O3
-  -Os
+  ${OPT_FLAGS}
   # link to libgcc (useful for some builtins)
   -static-libgcc
 )

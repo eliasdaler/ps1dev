@@ -13,6 +13,7 @@ pcsx.json
 
 build/
 build_games/
+build_games_debug/
 .cache/
 
 .gdb_history

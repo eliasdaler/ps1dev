@@ -37,7 +37,7 @@ Run:
 
 ```sh
 ./run.sh   # run in Redux
-./debug.sh # run in DuckStation
+./drun.sh # run in DuckStation
 ```
 
 Or just
@@ -51,6 +51,14 @@ Run game and debug in gdb (you will need to add repo's path to your GDB's `safe-
 ```sh
 ./debug.sh
 ```
+
+By default, the game is built with `-Os` which can be bad for debugging. In this case, run:
+
+```sh
+./debug.sh DEBUG
+```
+
+This will compile the game with `-O0` and debugging would be much pleasant.
 
 Example of encoding audio:
 
