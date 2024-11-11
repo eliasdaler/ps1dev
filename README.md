@@ -6,18 +6,16 @@ Done with psyqo, in C++20.
 
 # Current progress
 
-![progress](media/s5.png)
+![progress](media/s6.png)
 
 # Requirements
-
 
 1. [PCSX-Redux](https://github.com/grumpycoders/pcsx-redux)
 2. CMake
 3. gdb-multiarch
 3. GCC MIPS toolchain
 4. [mkpsxiso](https://github.com/Lameguy64/mkpsxiso) - included prebuilt in `tools/bin`
-5. Build [psxtools](https://github.com/eliasdaler/psxtools) and set `PSXTOOLS_BIN_DIR` to its location (`../psxtools/build` by default).
-6. Use [psxavenc](https://github.com/WonderfulToolchain/psxavenc) for encoding sound files from .wav
+5. Use [psxavenc](https://github.com/WonderfulToolchain/psxavenc) for encoding sound files from .wav
 
 ```sh
 sudo apt-get install gdb-multiarch gcc-mipsel-linux-gnu g++-mipsel-linux-gnu binutils-mipsel-linux-gnu libmagick++-dev
