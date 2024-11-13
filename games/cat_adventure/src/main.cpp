@@ -7,6 +7,19 @@
 
 namespace
 {
+const int startLevel = 1;
+
+const char* getLevelModelPath(int levelId)
+{
+    switch (levelId) {
+    case 0:
+        return "LEVEL1.BIN;1";
+    case 1:
+        return "LEVEL2.BIN;1";
+    }
+    return "";
+}
+
 Game game;
 Renderer renderer{game.gpu()};
 
@@ -16,9 +29,11 @@ LoadingScene loadingScene{game, renderer};
 
 psyqo::Coroutine<> loadCoroutine(Game* game)
 {
+    game->levelId = startLevel;
+
     psyqo::Coroutine<>::Awaiter awaiter = game->cdLoadCoroutine.awaiter();
 
-    game->loadModel("LEVEL.BIN;1", game->levelModel);
+    game->loadModel(getLevelModelPath(game->levelId), game->levelModel);
     co_await awaiter;
 
     game->loadModel("CATO.BIN;1", game->catoModel);

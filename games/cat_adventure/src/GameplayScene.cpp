@@ -13,6 +13,8 @@
 #include "Renderer.h"
 #include "gte-math.h"
 
+#include <common/syscalls/syscalls.h>
+
 namespace
 {
 void SetFogNearFar(int a, int b, int h)
@@ -51,16 +53,25 @@ void GameplayScene::start(StartReason reason)
     psyqo::GTE::write<psyqo::GTE::Register::RFC, psyqo::GTE::Unsafe>(farColor.r);
     psyqo::GTE::write<psyqo::GTE::Register::GFC, psyqo::GTE::Unsafe>(farColor.g);
     psyqo::GTE::write<psyqo::GTE::Register::BFC, psyqo::GTE::Unsafe>(farColor.b);
+
+    if (reason == StartReason::Create) {
+        cato.model = &game.catoModel;
+        if (game.levelId == 0) {
+            cato.position = {0.0, 0.88, 0.8};
+
+            camera.position = {3588.f, -1507.f, -10259.f};
+            camera.rotation = {-0.1f, -0.1f};
+        } else if (game.levelId == 1) {
+            cato.position = {0.0, 0.0, 0.0};
+
+            camera.position = {0.f, -1.f, -1.f};
+            camera.rotation = {0.0, 0.0};
+        }
+    }
 }
 
 void GameplayScene::onResourcesLoaded()
-{
-    cato.model = &game.catoModel;
-    cato.position = {0.0, 0.88, 0.8};
-
-    camera.position = {3588.f, -1507.f, -10259.f};
-    camera.rotation = {-0.1f, -0.1f};
-}
+{}
 
 void GameplayScene::frame()
 {
@@ -74,7 +85,8 @@ void GameplayScene::processInput()
     const auto& pad = game.pad;
     const auto& trig = game.trig;
 
-    constexpr auto walkSpeed = 64;
+    constexpr auto walkSpeed = 0.02;
+    // constexpr auto walkSpeed = 2.0;
     constexpr auto rotateSpeed = 0.01;
 
     // yaw
@@ -128,14 +140,14 @@ void GameplayScene::updateCamera()
         psyqo::GTE::PseudoRegister::V0>(viewRotX, camera.viewRot, &camera.viewRot);
 
     // calculate camera translation vector
-    camera.translation.x = -camera.position.x >> 12;
-    camera.translation.y = -camera.position.y >> 12;
-    camera.translation.z = -camera.position.z >> 12;
+    camera.translation.x.value = -camera.position.x.value;
+    camera.translation.y.value = -camera.position.y.value;
+    camera.translation.z.value = -camera.position.z.value;
 
-    // psyqo::SoftMath::matrixVecMul3(camera.viewRot, camera.translation, &camera.translation);
-    psyqo::GTE::Math::matrixVecMul3<
+    psyqo::SoftMath::matrixVecMul3(camera.viewRot, camera.translation, &camera.translation);
+    /* psyqo::GTE::Math::matrixVecMul3<
         psyqo::GTE::PseudoRegister::Rotation,
-        psyqo::GTE::PseudoRegister::V0>(camera.viewRot, camera.translation, &camera.translation);
+        psyqo::GTE::PseudoRegister::V0>(camera.viewRot, camera.translation, &camera.translation); */
 }
 
 void GameplayScene::update()
@@ -185,26 +197,56 @@ void GameplayScene::draw()
 
     dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
 
-    // drawDebugInfo();
+    drawDebugInfo();
 }
 
 void GameplayScene::drawDebugInfo()
 {
     static const psyqo::Color textCol = {{.r = 255, .g = 255, .b = 255}};
-    game.romFont.chainprintf(
+
+    /* game.romFont.chainprintf(
         game.gpu(),
         {{.x = 16, .y = 16}},
         textCol,
         "cam pos=(%.2f, %.2f, %.2f)",
         camera.position.x,
         camera.position.y,
-        camera.position.z);
+        camera.position.z); */
+
+    /* ramsyscall_printf("hmmm: %d, %d\n", camera.position.z.value, camera.translation.z.value);
+    if (camera.position.z.value != -camera.translation.z.value) {
+        ramsyscall_printf("WHAT: %d, %d\n", camera.position.z.value, camera.translation.z.value);
+    } */
+
+    /* psyqo::Vec3 test{};
+    psyqo::Vec3 test2{};
+    test.z.value = 32796;
+    test2.z.value = -test.z.value;
+    ramsyscall_printf("hmmm: %d, %d\n", test.z.value, test2.z.value); */
+
+    game.romFont.chainprintf(
+        game.gpu(),
+        {{.x = 16, .y = 16}},
+        textCol,
+        "cam pos=(%d, %d, %d)",
+        camera.position.x.raw(),
+        camera.position.y.raw(),
+        camera.position.z.raw());
 
     game.romFont.chainprintf(
         game.gpu(),
         {{.x = 16, .y = 32}},
         textCol,
+        "cam tr=(%d, %d, %d)",
+        camera.translation.x.raw(),
+        camera.translation.y.raw(),
+        camera.translation.z.raw());
+
+    /* game.romFont.chainprintf(
+        game.gpu(),
+        {{.x = 16, .y = 32}},
+        textCol,
         "cam rot=(%d, %d)",
         camera.rotation.x.raw(),
-        camera.rotation.y.raw());
+        camera.rotation.y.raw()); */
 }

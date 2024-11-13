@@ -42,4 +42,6 @@ public:
     TextureInfo catoTexture;
     TextureInfo fontTexture;
     Font font;
+
+    int levelId{0};
 };

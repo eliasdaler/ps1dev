@@ -21,6 +21,7 @@
                 <file name="GAME.EXE" type="data" source="game.ps-exe"/>
                 <file name="BRICKS.TIM" type="data" source="assets/bricks.tim"/>
                 <file name="LEVEL.BIN" type="data" source="assets/house_psx.bin"/>
+                <file name="LEVEL2.BIN" type="data" source="assets/level_new.bin"/>
                 <file name="HUMAN.BIN" type="data" source="assets/human.bin"/>
                 <file name="STEP1.VAG" type="data" source="assets/step1.vag"/>
                 <file name="CATO.BIN" type="data" source="assets/cato.bin"/>
