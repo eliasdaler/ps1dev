@@ -43,13 +43,19 @@ void interpColor3(
 Renderer::Renderer(psyqo::GPU& gpu) : gpu(gpu)
 {}
 
-void Renderer::drawModelObject(
-    const ModelObject& object,
+namespace
+{
+
+void calculateGTEMatrices(
+    const psyqo::Trig<> trig,
+    const Object& object,
     const Camera& camera,
-    const TextureInfo& texture)
+    bool setViewRot = true)
 {
     if (object.rotation.x == 0.0 && object.rotation.y == 0.0) {
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(camera.viewRot);
+        if (setViewRot) {
+            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(camera.viewRot);
+        }
     } else {
         // yaw
         auto objectRotMat = psyqo::SoftMath::
@@ -82,8 +88,25 @@ void Renderer::drawModelObject(
         psyqo::GTE::PseudoRegister::V0>(camera.viewRot, posCamSpace, &posCamSpace); */
 
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(posCamSpace);
+}
+}
 
+void Renderer::drawModelObject(
+    const ModelObject& object,
+    const Camera& camera,
+    const TextureInfo& texture)
+{
+    calculateGTEMatrices(trig, object, camera);
     drawModel(*object.model, texture);
+}
+
+void Renderer::drawMeshObject(
+    const MeshObject& object,
+    const Camera& camera,
+    const TextureInfo& texture)
+{
+    calculateGTEMatrices(trig, object, camera, false);
+    drawMesh(*object.mesh, texture);
 }
 
 void Renderer::drawModel(const Model& model, const TextureInfo& texture)
@@ -131,8 +154,8 @@ void Renderer::drawTris(
         }
 
         psyqo::GTE::Kernels::avsz3();
-        const auto avgZ =
-            (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
+        auto avgZ = (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
+        avgZ += bias;
         if (avgZ < 0 || avgZ >= Renderer::OT_SIZE) {
             continue;
         }
@@ -202,8 +225,8 @@ void Renderer::drawQuads(
         psyqo::GTE::Kernels::rtps();
 
         psyqo::GTE::Kernels::avsz4();
-        const auto avgZ =
-            (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
+        auto avgZ = (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
+        avgZ += bias;
         if (avgZ < 0 || avgZ >= Renderer::OT_SIZE) {
             continue;
         }

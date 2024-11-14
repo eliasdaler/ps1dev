@@ -13,6 +13,7 @@
 #include "TextureInfo.h"
 
 struct ModelObject;
+struct MeshObject;
 struct Camera;
 
 class Renderer {
@@ -23,10 +24,12 @@ public:
         const ModelObject& object,
         const Camera& camera,
         const TextureInfo& texture);
+    void drawMeshObject(const MeshObject& object, const Camera& camera, const TextureInfo& texture);
+
     void drawModel(const Model& model, const TextureInfo& texture);
     void drawMesh(const Mesh& mesh, const TextureInfo& texture);
 
-    static constexpr auto OT_SIZE = 4096 * 4;
+    static constexpr auto OT_SIZE = 4096 * 2;
     using OrderingTableType = psyqo::OrderingTable<OT_SIZE>;
     eastl::array<OrderingTableType, 2> ots;
 
@@ -38,6 +41,8 @@ public:
     PrimBufferAllocatorType& getPrimBuffer() { return primBuffers[gpu.getParity()]; }
 
     psyqo::GPU& getGPU() { return gpu; }
+
+    int bias{0};
 
 private:
     psyqo::GPU& gpu;

@@ -13,7 +13,7 @@ const char* getLevelModelPath(int levelId)
 {
     switch (levelId) {
     case 0:
-        return "LEVEL1.BIN;1";
+        return "LEVEL.BIN;1";
     case 1:
         return "LEVEL2.BIN;1";
     }

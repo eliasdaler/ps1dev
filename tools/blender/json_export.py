@@ -52,6 +52,11 @@ def collect_meshes(scene):
     mesh_list.sort(key=attrgetter("name"))
     return mesh_list
 
+def collect_objects(scene):
+    obj_set = set(o for o in scene.objects if o.type == 'MESH')
+    obj_list = list(obj_set)
+    obj_list.sort(key=attrgetter("name"))
+    return obj_list
 
 def collect_materials(scene):
     material_set = set()
@@ -121,6 +126,8 @@ def get_mesh_json(mesh, material_idx_map):
                     int(color[1] * 255),
                     int(color[2] * 255)
                 ]
+                if mesh.name == "5":
+                    print(vi, color[0], vertex_data["color"])
 
             vertices[vi] = vertex_data
 
@@ -163,9 +170,11 @@ def write_psxtools_json(context, filepath):
     for o in scene.objects:
         apply_modifiers(o)
 
+    obj_list = collect_objects(scene)
+
     data = {
         "objects": [get_object_data_json(obj, meshes_idx_map)
-                    for obj in scene.objects if obj.type == "MESH"],
+                    for obj in obj_list],
         "materials": [get_material_json(mat)
                       for mat in material_list],
         "meshes": [get_mesh_json(mesh, material_idx_map)

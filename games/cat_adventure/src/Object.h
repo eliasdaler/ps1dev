@@ -3,6 +3,7 @@
 #include <psyqo/vector.hh>
 
 struct Model;
+struct Mesh;
 
 struct Object {
     psyqo::Vec3 position{0.f, 0.f, 0.f};
@@ -12,4 +13,8 @@ struct Object {
 
 struct ModelObject : Object {
     Model* model{nullptr};
+};
+
+struct MeshObject : Object {
+    Mesh* mesh{nullptr};
 };

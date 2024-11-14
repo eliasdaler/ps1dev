@@ -13,6 +13,8 @@ target remote localhost:3333
 tui new-layout horizontal-asm {-horizontal src 1 asm 1} 2 status 0 cmd 1
 layout horizontal-asm
 
-b testMatrix
+# b testMatrix
+b Renderer.cpp:206
+b interpColor3
 
 c
