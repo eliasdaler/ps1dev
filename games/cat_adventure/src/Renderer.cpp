@@ -72,13 +72,14 @@ void Renderer::drawModelObject(
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(objectRotMat);
     }
 
-    auto posCamSpace = object.position;
+    auto posCamSpace = object.position - camera.position;
+    psyqo::SoftMath::matrixVecMul3(camera.viewRot, posCamSpace, &posCamSpace);
+
+    // TODO: make matrixVecMul3 take GTE::PackedVec3 to show that you'll have precision loss
     // Note: can't use Rotation matrix here as objectRotMat is currently uploaded there
-    // psyqo::SoftMath::matrixVecMul3(camera.viewRot, posCamSpace, &posCamSpace);
-    psyqo::GTE::Math::matrixVecMul3<
+    /* psyqo::GTE::Math::matrixVecMul3<
         psyqo::GTE::PseudoRegister::Light,
-        psyqo::GTE::PseudoRegister::V0>(camera.viewRot, posCamSpace, &posCamSpace);
-    posCamSpace += camera.translation;
+        psyqo::GTE::PseudoRegister::V0>(camera.viewRot, posCamSpace, &posCamSpace); */
 
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(posCamSpace);
 

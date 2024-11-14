@@ -26,7 +26,7 @@ public:
     void drawModel(const Model& model, const TextureInfo& texture);
     void drawMesh(const Mesh& mesh, const TextureInfo& texture);
 
-    static constexpr auto OT_SIZE = 4096 * 2;
+    static constexpr auto OT_SIZE = 4096 * 4;
     using OrderingTableType = psyqo::OrderingTable<OT_SIZE>;
     eastl::array<OrderingTableType, 2> ots;
 

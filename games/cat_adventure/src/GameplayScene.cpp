@@ -62,9 +62,12 @@ void GameplayScene::start(StartReason reason)
             camera.position = {3588.f, -1507.f, -10259.f};
             camera.rotation = {-0.1f, -0.1f};
         } else if (game.levelId == 1) {
-            cato.position = {0.0, 0.0, 0.0};
+            // psyqo::FixedPoint<> offset = -200000.0;
+            psyqo::FixedPoint<> offset = 0.0;
 
-            camera.position = {0.f, -1.f, -1.f};
+            cato.position = {0.0, 0.0, offset};
+
+            camera.position = {0.f, -1.f, offset - 1.f};
             camera.rotation = {0.0, 0.0};
         }
     }
@@ -134,20 +137,8 @@ void GameplayScene::updateCamera()
     const auto viewRotX = psyqo::SoftMath::
         generateRotationMatrix33(camera.rotation.x, psyqo::SoftMath::Axis::X, game.trig);
 
-    // psyqo::SoftMath::multiplyMatrix33(viewRotX, camera.viewRot, &camera.viewRot);
-    psyqo::GTE::Math::multiplyMatrix33<
-        psyqo::GTE::PseudoRegister::Rotation,
-        psyqo::GTE::PseudoRegister::V0>(viewRotX, camera.viewRot, &camera.viewRot);
-
-    // calculate camera translation vector
-    camera.translation.x.value = -camera.position.x.value;
-    camera.translation.y.value = -camera.position.y.value;
-    camera.translation.z.value = -camera.position.z.value;
-
-    psyqo::SoftMath::matrixVecMul3(camera.viewRot, camera.translation, &camera.translation);
-    /* psyqo::GTE::Math::matrixVecMul3<
-        psyqo::GTE::PseudoRegister::Rotation,
-        psyqo::GTE::PseudoRegister::V0>(camera.viewRot, camera.translation, &camera.translation); */
+    // only done once per frame - ok to do on CPU
+    psyqo::SoftMath::multiplyMatrix33(viewRotX, camera.viewRot, &camera.viewRot);
 }
 
 void GameplayScene::update()
@@ -179,10 +170,16 @@ void GameplayScene::draw()
     gpu().chain(fill);
 
     const auto& gp = gpu();
+
     // draw static objects
     {
+        // verts are stored in world coords (limited to approximately (-8.f;8.f) range)
+        auto posCamSpace = -camera.position;
+        psyqo::SoftMath::matrixVecMul3(camera.viewRot, posCamSpace, &posCamSpace);
+
         psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.viewRot);
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(camera.translation);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(posCamSpace);
+
         renderer.drawModel(game.levelModel, game.bricksTexture);
     }
 
@@ -204,43 +201,14 @@ void GameplayScene::drawDebugInfo()
 {
     static const psyqo::Color textCol = {{.r = 255, .g = 255, .b = 255}};
 
-    /* game.romFont.chainprintf(
+    game.romFont.chainprintf(
         game.gpu(),
         {{.x = 16, .y = 16}},
         textCol,
         "cam pos=(%.2f, %.2f, %.2f)",
         camera.position.x,
         camera.position.y,
-        camera.position.z); */
-
-    /* ramsyscall_printf("hmmm: %d, %d\n", camera.position.z.value, camera.translation.z.value);
-    if (camera.position.z.value != -camera.translation.z.value) {
-        ramsyscall_printf("WHAT: %d, %d\n", camera.position.z.value, camera.translation.z.value);
-    } */
-
-    /* psyqo::Vec3 test{};
-    psyqo::Vec3 test2{};
-    test.z.value = 32796;
-    test2.z.value = -test.z.value;
-    ramsyscall_printf("hmmm: %d, %d\n", test.z.value, test2.z.value); */
-
-    game.romFont.chainprintf(
-        game.gpu(),
-        {{.x = 16, .y = 16}},
-        textCol,
-        "cam pos=(%d, %d, %d)",
-        camera.position.x.raw(),
-        camera.position.y.raw(),
-        camera.position.z.raw());
-
-    game.romFont.chainprintf(
-        game.gpu(),
-        {{.x = 16, .y = 32}},
-        textCol,
-        "cam tr=(%d, %d, %d)",
-        camera.translation.x.raw(),
-        camera.translation.y.raw(),
-        camera.translation.z.raw());
+        camera.position.z);
 
     /* game.romFont.chainprintf(
         game.gpu(),
