@@ -7,16 +7,17 @@
 
 #include "gte-math.h"
 
+#include <common/syscalls/syscalls.h>
+
 namespace
 {
 
-psyqo::Color interpColor(const psyqo::Color& c)
+template<typename PrimType>
+void interpColorD(const psyqo::Color& c, PrimType& prim)
 {
     psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(&c.packed);
     psyqo::GTE::Kernels::dpcs();
-    psyqo::Color col;
-    psyqo::GTE::read<psyqo::GTE::Register::RGB2>(&col.packed);
-    return col;
+    psyqo::GTE::read<psyqo::GTE::Register::RGB2>(&prim.colorD.packed);
 };
 
 template<typename PrimType>
@@ -30,14 +31,16 @@ void interpColor3(
     psyqo::GTE::write<psyqo::GTE::Register::RGB1, psyqo::GTE::Unsafe>(&c1.packed);
     psyqo::GTE::write<psyqo::GTE::Register::RGB2, psyqo::GTE::Safe>(&c2.packed);
     psyqo::GTE::Kernels::dpct();
+
     psyqo::Color col;
     psyqo::GTE::read<psyqo::GTE::Register::RGB0>(&col.packed);
+    col.packed &= 0xffffff;
     prim.setColorA(col);
-    psyqo::GTE::read<psyqo::GTE::Register::RGB1>(&col.packed);
-    prim.setColorB(col);
-    psyqo::GTE::read<psyqo::GTE::Register::RGB2>(&col.packed);
-    prim.setColorC(col);
+
+    psyqo::GTE::read<psyqo::GTE::Register::RGB1>(&prim.colorB.packed);
+    psyqo::GTE::read<psyqo::GTE::Register::RGB2>(&prim.colorC.packed);
 }
+
 }
 
 Renderer::Renderer(psyqo::GPU& gpu) : gpu(gpu)
@@ -156,7 +159,7 @@ void Renderer::drawTris(
         psyqo::GTE::Kernels::avsz3();
         auto avgZ = (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
         avgZ += bias;
-        if (avgZ < 0 || avgZ >= Renderer::OT_SIZE) {
+        if (avgZ <= 0 || avgZ >= Renderer::OT_SIZE) {
             continue;
         }
 
@@ -167,6 +170,7 @@ void Renderer::drawTris(
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&tri2d.pointB.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&tri2d.pointC.packed);
 
+        // psyqo version - broken!
         tri2d.interpolateColors(&v0.col, &v1.col, &v2.col);
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedTriangle>) {
@@ -227,7 +231,7 @@ void Renderer::drawQuads(
         psyqo::GTE::Kernels::avsz4();
         auto avgZ = (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
         avgZ += bias;
-        if (avgZ < 0 || avgZ >= Renderer::OT_SIZE) {
+        if (avgZ <= 0 || avgZ >= Renderer::OT_SIZE) {
             continue;
         }
 
@@ -236,9 +240,9 @@ void Renderer::drawQuads(
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
 
         // TEMP: psyqo's interpolateColors is broken
-        // quad2d.interpolateColors(&v0.col, &v1.col, &v2.col, &v3.col);
         interpColor3(v0.col, v1.col, v2.col, quad2d);
-        quad2d.setColorD(interpColor(v3.col));
+        interpColorD(v3.col, quad2d);
+        // quad2d.interpolateColors(&v0.col, &v1.col, &v2.col, &v3.col);
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedQuad>) {
             quad2d.uvA.u = v0.uv.vx;

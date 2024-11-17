@@ -28,6 +28,7 @@ private:
 
     // game objects
     ModelObject cato;
+    ModelObject car;
     Camera camera;
 
     Game& game;

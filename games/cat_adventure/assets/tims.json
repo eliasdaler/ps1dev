@@ -11,6 +11,12 @@
       "output": "cato.tim",
       "clut": [0, 241],
       "pix": [512, 0]
+    },
+    {
+      "input": "raw/alpine1.png",
+      "output": "car.tim",
+      "clut": [0, 244],
+      "pix": [768, 0]
     }
   ],
   "fonts": [

@@ -27,7 +27,6 @@ add_executable(game
 )
 
 target_compile_options(game PRIVATE
-  -Os
   -Wall
   -Wextra
   # -pedantic - FIXME: libgpu.h gets annoying with this (anonymous struct usage)
@@ -77,6 +76,7 @@ set(models
   "${ASSETS_DIR_RAW}/level_new.blend"
   "${ASSETS_DIR_RAW}/human.blend"
   "${ASSETS_DIR_RAW}/cato.blend"
+  "${ASSETS_DIR_RAW}/car.blend"
 )
 
 if (BUILD_ASSETS) 

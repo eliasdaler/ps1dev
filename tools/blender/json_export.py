@@ -126,8 +126,6 @@ def get_mesh_json(mesh, material_idx_map):
                     int(color[1] * 255),
                     int(color[2] * 255)
                 ]
-                if mesh.name == "5":
-                    print(vi, color[0], vertex_data["color"])
 
             vertices[vi] = vertex_data
 

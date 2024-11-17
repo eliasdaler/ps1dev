@@ -104,9 +104,8 @@ set(CMAKE_EXECUTABLE_SUFFIX_CXX ".elf")
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
   set(OPT_FLAGS "-Os")
 else()
-  set(OPT_FLAGS "-O0")
+  set(OPT_FLAGS "-O1")
 endif()
-
 
 # EDIT(eliasdaler): default flags
 # Note: if you change them, you need to remove your build dir and do generation again

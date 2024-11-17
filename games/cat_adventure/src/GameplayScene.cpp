@@ -47,7 +47,7 @@ void GameplayScene::start(StartReason reason)
     psyqo::GTE::write<psyqo::GTE::Register::ZSF3, psyqo::GTE::Unsafe>(1024 / 3);
     psyqo::GTE::write<psyqo::GTE::Register::ZSF4, psyqo::GTE::Unsafe>(1024 / 4);
 
-    SetFogNearFar(5000, 20800, SCREEN_WIDTH / 2);
+    SetFogNearFar(1500, 12800, SCREEN_WIDTH / 2);
     // far color
     const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
     psyqo::GTE::write<psyqo::GTE::Register::RFC, psyqo::GTE::Unsafe>(farColor.r);
@@ -56,18 +56,23 @@ void GameplayScene::start(StartReason reason)
 
     if (reason == StartReason::Create) {
         cato.model = &game.catoModel;
+        car.model = &game.carModel;
+
         if (game.levelId == 0) {
-            cato.position = {0.0, 0.88, 0.8};
+            cato.position = {0.0, 0.22, -0.4};
+            cato.rotation = {0.0, 0.2};
+            camera.position = {0.59, 0, -0.84};
+            camera.rotation = {0.f, -0.25f};
 
-            camera.position = {1.69, 0, -2.6};
-            camera.rotation = {0.f, -0.17f};
+            car.position = {0.0, 0.0, 5.0};
+
         } else if (game.levelId == 1) {
-            // psyqo::FixedPoint<> offset = -200000.0;
-            psyqo::FixedPoint<> offset = 0.0;
+            cato.position = {0.0, 0.0, 0.0};
 
-            cato.position = {0.0, 0.0, offset};
+            car.position = {0.0, 0.0, 0.5};
+            car.rotation = {0.0, 0.2};
 
-            camera.position = {0.f, -0.25f, offset - 1.f};
+            camera.position = {0.f, -0.25f, -1.f};
             camera.rotation = {0.0, 0.0};
         }
     }
@@ -149,7 +154,7 @@ void GameplayScene::update()
     updateCamera();
 
     // spin the cat
-    cato.rotation.y += 0.01;
+    // cato.rotation.y += 0.01;
     // cato.rotation.x = 0.25;
 
     dialogueBox.update();
@@ -193,6 +198,7 @@ void GameplayScene::draw()
         MeshObject object;
         auto* meshA = &game.levelModel.meshes[0];
         auto* meshB = &game.levelModel.meshes[1];
+        renderer.bias = 1000;
         for (int x = 0; x < 10; ++x) {
             for (int z = -3; z < 3; ++z) {
                 if (z == 0) {
@@ -236,7 +242,14 @@ void GameplayScene::draw()
     {
         // TODO: first draw objects without rotation
         // (won't have to upload camera.viewRot and change PseudoRegister::Rotation then)
-        renderer.drawModelObject(cato, camera, game.catoTexture);
+
+        {
+            renderer.drawModelObject(cato, camera, game.catoTexture);
+        }
+
+        {
+            renderer.drawModelObject(car, camera, game.carTexture);
+        }
     }
 
     gpu().chain(ot);
@@ -255,9 +268,9 @@ void GameplayScene::drawDebugInfo()
         {{.x = 16, .y = 16}},
         textCol,
         "cam pos=(%.2f, %.2f, %.2f)",
-        camera.position.x,
-        camera.position.y,
-        camera.position.z);
+        cato.position.x,
+        cato.position.y,
+        cato.position.z);
 
     game.romFont.chainprintf(
         game.gpu(),

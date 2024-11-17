@@ -37,9 +37,11 @@ public:
 
     Model levelModel;
     Model catoModel;
+    Model carModel;
 
     TextureInfo bricksTexture;
     TextureInfo catoTexture;
+    TextureInfo carTexture;
     TextureInfo fontTexture;
     Font font;
 

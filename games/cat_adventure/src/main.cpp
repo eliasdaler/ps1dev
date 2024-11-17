@@ -7,7 +7,7 @@
 
 namespace
 {
-const int startLevel = 1;
+const int startLevel = 0;
 
 const char* getLevelModelPath(int levelId)
 {
@@ -39,10 +39,16 @@ psyqo::Coroutine<> loadCoroutine(Game* game)
     game->loadModel("CATO.BIN;1", game->catoModel);
     co_await awaiter;
 
+    game->loadModel("CAR.BIN;1", game->carModel);
+    co_await awaiter;
+
     game->loadTIM("BRICKS.TIM;1", game->bricksTexture);
     co_await awaiter;
 
     game->loadTIM("CATO.TIM;1", game->catoTexture);
+    co_await awaiter;
+
+    game->loadTIM("CAR.TIM;1", game->carTexture);
     co_await awaiter;
 
     game->loadTIM("FONT.TIM;1", game->fontTexture);

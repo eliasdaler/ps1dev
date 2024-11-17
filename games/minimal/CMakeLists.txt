@@ -31,3 +31,11 @@ target_link_libraries(minimal_game PRIVATE
   psyqo::psyqo
 )
 
+add_custom_target(build_psexe
+  ALL
+  BYPRODUCTS game.ps-exe
+  WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+  COMMENT "Building game.ps-exe"
+  COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:minimal_game> "${CMAKE_CURRENT_BINARY_DIR}/game.ps-exe"
+)
+
