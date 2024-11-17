@@ -237,7 +237,7 @@ void Scene::drawMesh(Mesh& mesh)
 
         psyqo::GTE::Kernels::avsz3();
         auto avgZ = (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
-        if (avgZ < 0 || avgZ >= Game::OT_SIZE) {
+        if (avgZ <= 0 || avgZ >= Game::OT_SIZE) {
             continue;
         }
 
@@ -248,16 +248,7 @@ void Scene::drawMesh(Mesh& mesh)
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&tri2d.pointB.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&tri2d.pointC.packed);
 
-        // psyqo version - broken!
         tri2d.interpolateColors(&v0.col, &v1.col, &v2.col);
-
-        // my version - ok
-        // interpColor3(v0.col, v1.col, v2.col, tri2d);
-
-        if (avgZ == 0) {
-            // notice how I don't even add it to OT when avgZ == 0
-            continue;
-        }
 
         ot.insert(triFrag, avgZ);
     }
@@ -283,7 +274,7 @@ void Scene::drawQuadMesh(Mesh& mesh)
         psyqo::GTE::Kernels::nclip();
         const auto dot =
             (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
-        if (dot < 0) {
+        if (dot <= 0) {
             continue;
         }
 
