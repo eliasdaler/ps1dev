@@ -138,7 +138,7 @@ void Scene::start(StartReason reason)
 
     SetFogNearFar(1500, 12800, SCREEN_WIDTH / 2);
     // far color
-    const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
+    const auto farColor = psyqo::Color{.r = 80, .g = 80, .b = 80};
     psyqo::GTE::write<psyqo::GTE::Register::RFC, psyqo::GTE::Unsafe>(farColor.r);
     psyqo::GTE::write<psyqo::GTE::Register::GFC, psyqo::GTE::Unsafe>(farColor.g);
     psyqo::GTE::write<psyqo::GTE::Register::BFC, psyqo::GTE::Unsafe>(farColor.b);

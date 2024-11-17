@@ -208,57 +208,82 @@ void Renderer::drawQuads(
         const auto& v2 = mesh.vertices[vertexIdx + 2];
         const auto& v3 = mesh.vertices[vertexIdx + 3];
 
-        /* psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
+        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
         psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
-        psyqo::GTE::Kernels::rtpt(); */
+        psyqo::GTE::Kernels::rtpt();
 
-        using namespace psyqo::GTE;
+        psyqo::GTE::Kernels::nclip();
+        const auto dot =
+            (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
+        if (dot < 0) {
+            continue;
+        }
 
         auto& quadFrag = primBuffer.allocateFragment<PrimType>();
         auto& quad2d = quadFrag.primitive;
 
-        writeSafe<PseudoRegister::V0>(v0.pos);
-        Kernels::rtps();
-        read<Register::SXY2>(&quad2d.pointA.packed);
-        auto z1 = (uint32_t)readRaw<Register::SZ3, Safe>();
+        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointA.packed);
 
-        psyqo::Color col;
-        write<Register::RGB, Safe>(&v0.col.packed);
-        Kernels::dpcs();
-        read<Register::RGB2>(&col.packed);
-        quad2d.setColorA(col);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v3.pos);
+        psyqo::GTE::Kernels::rtps();
 
-        writeSafe<PseudoRegister::V0>(v1.pos);
-        Kernels::rtps();
-        read<Register::SXY2>(&quad2d.pointB.packed);
-        auto z2 = (uint32_t)readRaw<Register::SZ3, Safe>();
-
-        write<Register::RGB, Safe>(&v1.col.packed);
-        Kernels::dpcs();
-        read<Register::RGB2>(&quad2d.colorB.packed);
-
-        writeSafe<PseudoRegister::V0>(v2.pos);
-        Kernels::rtps();
-        read<Register::SXY2>(&quad2d.pointC.packed);
-        auto z3 = (uint32_t)readRaw<Register::SZ3, Safe>();
-        write<Register::RGB, Safe>(&v2.col.packed);
-        Kernels::dpcs();
-        read<Register::RGB2>(&quad2d.colorC.packed);
-
-        writeSafe<PseudoRegister::V0>(v3.pos);
-        Kernels::rtps();
-        read<Register::SXY2>(&quad2d.pointD.packed);
-        auto z4 = (uint32_t)readRaw<Register::SZ3, Safe>();
-        write<Register::RGB, Safe>(&v3.col.packed);
-        Kernels::dpcs();
-        read<Register::RGB2>(&quad2d.colorD.packed);
-
-        auto avgZ = (z1 + z2 + z3 + z4) / 4;
+        psyqo::GTE::Kernels::avsz4();
+        auto avgZ = (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
         avgZ += bias;
         if (avgZ <= 0 || avgZ >= Renderer::OT_SIZE) {
             continue;
         }
+
+        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointB.packed);
+        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointC.packed);
+        psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
+
+        auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
+        auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
+        auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
+        auto sz3 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
+
+        const auto calcP = [](uint32_t sz) {
+            if (sz == 0) {
+                sz = 1;
+            }
+
+            const auto dqa = -2718;
+            const auto dqb = 1900134;
+            const auto h = 300;
+            const auto mac0 = (((h * 0x20000) / sz + 1) / 2) * dqa + dqb;
+            return mac0 / 0x1000;
+        };
+
+        auto p0 = calcP(sz0);
+        auto p1 = calcP(sz1);
+        auto p2 = calcP(sz2);
+        auto p3 = calcP(sz3);
+
+        auto interpColor = [](const psyqo::Color& input, uint32_t p, psyqo::Color* out) {
+            auto max = 0x1FFFF;
+            if (p > max) {
+                p = max;
+            }
+            psyqo::GTE::write<psyqo::GTE::Register::IR0>(&p);
+            psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(&input.packed);
+            psyqo::GTE::Kernels::dpcs();
+            psyqo::GTE::read<psyqo::GTE::Register::RGB2>(&out->packed);
+        };
+
+        psyqo::Color col;
+        interpColor(v0.col, p0, &col);
+        quad2d.setColorA(col);
+        interpColor(v1.col, p1, &quad2d.colorB);
+        interpColor(v2.col, p2, &quad2d.colorC);
+        interpColor(v3.col, p3, &quad2d.colorD);
+        // ramsyscall_printf("%d %d %d %d\n", p0, p1, p2, p3);
+
+        // TEMP: psyqo's interpolateColors is broken
+        // interpColor3(v0.col, v1.col, v2.col, quad2d);
+        // interpColorD(v3.col, quad2d);
+        // quad2d.interpolateColors(&v0.col, &v1.col, &v2.col, &v3.col);
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedQuad>) {
             quad2d.uvA.u = v0.uv.vx;

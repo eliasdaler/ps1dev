@@ -244,11 +244,11 @@ void GameplayScene::draw()
         // (won't have to upload camera.viewRot and change PseudoRegister::Rotation then)
 
         {
-            renderer.drawModelObject(cato, camera, game.catoTexture);
+            // renderer.drawModelObject(cato, camera, game.catoTexture);
         }
 
         {
-            renderer.drawModelObject(car, camera, game.carTexture);
+            // renderer.drawModelObject(car, camera, game.carTexture);
         }
     }
 
