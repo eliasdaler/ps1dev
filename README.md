@@ -6,6 +6,8 @@ Done with psyqo, in C++20.
 
 # Current progress
 
+![progress2](media/s7.png)
+
 ![progress](media/s6.png)
 
 # Building with Docker
