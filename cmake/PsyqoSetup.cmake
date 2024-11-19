@@ -35,6 +35,7 @@ add_library(nugget::nugget ALIAS nugget)
 # EASTL comes with nugget
 add_library(EASTL STATIC
   "${NUGGET_PATH}/third_party/EASTL/source/fixed_pool.cpp"
+  "${NUGGET_PATH}/third_party/EASTL/source/allocator_eastl.cpp"
 )
 
 target_include_directories(EASTL PUBLIC

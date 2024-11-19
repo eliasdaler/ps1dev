@@ -23,6 +23,8 @@ add_executable(game
   src/GameplayScene.cpp
   src/LoadingScene.cpp
 
+  src/SoundPlayer.cpp
+
   src/main.cpp
 )
 

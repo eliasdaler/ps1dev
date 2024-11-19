@@ -13,6 +13,8 @@
 #include "TextureInfo.h"
 #include "TimFile.h"
 
+#include "SoundPlayer.h"
+
 class Game : public psyqo::Application {
     void prepare() override;
     void createScene() override;
@@ -21,6 +23,7 @@ public:
     void loadTIM(eastl::string_view filename, TextureInfo& textureInfo);
     void loadFont(eastl::string_view filename, Font& font);
     void loadModel(eastl::string_view filename, Model& model);
+    void loadSound(eastl::string_view filename, Sound& sound);
 
     [[nodiscard]] TextureInfo uploadTIM(const TimFile& tim);
 
@@ -46,4 +49,7 @@ public:
     Font font;
 
     int levelId{0};
+
+    SoundPlayer soundPlayer;
+    Sound stepSound;
 };

@@ -57,6 +57,9 @@ psyqo::Coroutine<> loadCoroutine(Game* game)
     game->loadFont("FONT.FNT;1", game->font);
     co_await awaiter;
 
+    game->loadSound("STEP1.VAG;1", game->stepSound);
+    co_await awaiter;
+
     game->popScene();
 
     gameplayScene.onResourcesLoaded();
