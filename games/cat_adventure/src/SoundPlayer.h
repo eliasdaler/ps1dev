@@ -19,6 +19,7 @@
 struct Sound {
     eastl::vector<std::uint8_t> bytes;
     std::uint16_t sampleFreq{44100};
+    std::uint16_t dataSize{0};
 
     void load(eastl::string_view filename, const eastl::vector<uint8_t>& data);
 };
@@ -28,6 +29,10 @@ struct SpuVoiceAttr {};
 struct SpuReverbAttr {};
 
 using CdlLOC = uint16_t;
+
+void spuInit();
+void uploadSound(uint32_t SpuAddr, Sound& sound);
+void playLoop(Sound& sound, uint16_t pitch);
 
 struct SoundPlayer {
     SpuCommonAttr spucommonattr;

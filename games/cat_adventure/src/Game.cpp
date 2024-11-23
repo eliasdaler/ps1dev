@@ -11,6 +11,7 @@ void Game::prepare()
         .set(psyqo::GPU::Interlace::PROGRESSIVE);
     gpu().initialize(config);
     cdrom.prepare();
+    spuInit();
 }
 
 void Game::loadTIM(eastl::string_view filename, TextureInfo& textureInfo)
@@ -50,6 +51,7 @@ void Game::loadSound(eastl::string_view filename, Sound& sound)
         filename, gpu(), isoParser, [this, filename, &sound](eastl::vector<uint8_t>&& buffer) {
             cdReadBuffer = eastl::move(buffer);
             sound.load(filename, cdReadBuffer);
+            uploadSound(0x1010, sound);
             cdLoadCoroutine.resume();
         });
 }

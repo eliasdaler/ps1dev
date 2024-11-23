@@ -131,6 +131,47 @@ void GameplayScene::processInput()
         camera.position.z -= trig.cos(camera.rotation.y) * walkSpeed;
     }
 
+    ++count;
+    if (count > 10) {
+        count = 10;
+    }
+
+    if (count == 10) {
+        if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Cross)) {
+            pitchBase = 2;
+            reset = 1;
+            count = 0;
+        }
+
+        if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Square)) {
+            pitchBase = 4;
+            reset = 1;
+            count = 0;
+        }
+
+        if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Triangle)) {
+            pitchBase = 6;
+            reset = 1;
+            count = 0;
+        }
+
+        if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Circle)) {
+            pitchBase = 8;
+            reset = 1;
+            count = 0;
+        }
+    }
+
+    if (reset && count == 0) {
+        reset = 0;
+        psyqo::FixedPoint<> pitch{1.0};
+        psyqo::FixedPoint<> sqr{1.0594630943592};
+        for (int i = 0; i < pitchBase; ++i) {
+            pitch *= sqr;
+        }
+        playLoop(game.stepSound, pitch.value);
+    }
+
     dialogueBox.handleInput(game.pad);
 }
 

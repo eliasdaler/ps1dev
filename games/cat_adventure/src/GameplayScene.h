@@ -35,4 +35,8 @@ private:
     Renderer& renderer;
 
     DialogueBox dialogueBox;
+
+    int pitchBase;
+    int reset{0};
+    int count{100};
 };
