@@ -195,7 +195,7 @@ void GameplayScene::processInput()
 
     dialogueBox.handleInput(game.pad);
 
-    songCounter += 30;
+    // songCounter += 30;
 
     for (int j = 0; j < game.midi.events.size(); ++j) {
         if (j == 0) {
