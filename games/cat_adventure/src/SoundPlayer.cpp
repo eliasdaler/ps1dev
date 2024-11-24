@@ -16,7 +16,7 @@
 extern uint8_t _binary_loop_adpcm_start[];
 extern uint8_t _binary_loop_adpcm_end[];
 
-static void SPUResetVoice(int voiceID)
+void SoundPlayer::resetVoice(int voiceID)
 {
     SPU_VOICES[voiceID].volumeLeft = 0;
     SPU_VOICES[voiceID].volumeRight = 0;
@@ -36,36 +36,48 @@ static void SPUWaitIdle()
     } while ((SPU_STATUS & 0x07ff) != 0);
 }
 
-static void SPUUploadInstruments(uint32_t SpuAddr, const uint8_t* data, uint32_t size)
+void SoundPlayer::uploadSound(uint32_t SpuAddr, const uint8_t* data, uint32_t size)
 {
-    DPCR |= 0x000b0000;
+    // Set SPUCNT to "Stop" (and wait until it is applied in SPUSTAT)
+    setStopState();
 
     uint32_t bcr = size >> 6;
     if (size & 0x3f) bcr++;
     bcr <<= 16;
     bcr |= 0x10;
 
+    // Set the transfer address
     SPU_RAM_DTA = SpuAddr >> 3;
-    SPU_CTRL = (SPU_CTRL & ~0x0030) | 0x0020;
-    while ((SPU_CTRL & 0x0030) != 0x0020) {
-        // wait
-    }
+
+    // Set SPUCNT to "DMA Write" (and wait until it is applied in SPUSTAT)
+    spuState = (spuState & ~0x0030) | 0x0020;
+    setSpuState(spuState);
+    // setDMAWriteState();
+
     SBUS_DEV4_CTRL &= ~0x0f000000;
+
+    ramsyscall_printf(
+        "UPLOAD: spu addr = 0x%04X, RAM addr = 0x%04X, data size = %d\n",
+        SpuAddr,
+        (uint32_t)data,
+        (int)size);
+
     DMA_CTRL[DMA_SPU].MADR = (uint32_t)data;
     DMA_CTRL[DMA_SPU].BCR = bcr;
+    // Start DMA4 at CPU Side (blocksize=10h, control=01000201h)
     DMA_CTRL[DMA_SPU].CHCR = 0x01000201;
 
+    // Wait until DMA4 finishes (at CPU side)
     while ((DMA_CTRL[DMA_SPU].CHCR & 0x01000000) != 0) {
         // wait
     }
 }
 
-void spuInit()
+void SoundPlayer::init()
 {
-    DPCR |= 0x000b0000;
+    DPCR |= 0x000b0000; // WHY?
     SPU_VOL_MAIN_LEFT = 0x3800;
     SPU_VOL_MAIN_RIGHT = 0x3800;
-    SPU_CTRL = 0;
     SPU_KEY_ON_LOW = 0;
     SPU_KEY_ON_HIGH = 0;
     SPU_KEY_OFF_LOW = 0xffff;
@@ -81,83 +93,69 @@ void spuInit()
     SPU_REVERB_EN_HIGH = 0;
     SPU_VOL_EXT_LEFT = 0;
     SPU_VOL_EXT_RIGHT = 0;
-    SPU_CTRL = 0x8000;
+
+    // [spu_enable][unmute_spu][6bits for noise][reverb][irq][2 bits for mode][4 bits for ext/CD
+    // audio]
+    spuState = 0b11'000000'1'1'00'0000;
+    setSpuState(spuState);
 
     for (unsigned i = 0; i < 24; i++)
-        SPUResetVoice(i);
+        resetVoice(i);
 }
 
-void uploadSound(uint32_t SpuAddr, Sound& sound)
+void SoundPlayer::setDMAWriteState()
 {
-    static const auto vagHeaderSize = 0x30;
-    SPUUploadInstruments(SpuAddr, sound.bytes.data() + vagHeaderSize, sound.dataSize);
+    static constexpr auto mask = 0b11'111111'1'1'10'1111;
+    spuState &= mask;
+    setSpuState(spuState);
 }
 
-void playLoop(Sound& sound, uint16_t pitch)
+void SoundPlayer::setStopState()
 {
-    // uploadSound(0x1010, sound);
-    // SPUUploadInstruments(0x1010, sound.bytes.data(), sound.bytes.size());
+    static constexpr auto mask = 0b11'111111'1'1'00'1111;
+    spuState &= mask;
+    setSpuState(spuState);
+}
 
-    SPU_CTRL = 0xc000;
+void SoundPlayer::setSpuState(int spuState)
+{
+    this->spuState = spuState;
+    SPU_CTRL = spuState;
+    if (spuState & 0b110000) { // SPU mode changed
+        while ((SPU_STATUS & 0b11111) != (SPU_CTRL & 0b11111)) {
+            // wait until mode is applied
+        }
+    }
+}
 
-    SPU_VOICES[0].volumeLeft = 0xFF0;
-    SPU_VOICES[0].volumeRight = 0xF00;
-    SPU_VOICES[0].sampleStartAddr = 0x1010 >> 3;
+void SoundPlayer::uploadSound(uint32_t SpuAddr, const Sound& sound)
+{
+    sound.startAddr = SpuAddr;
+    if (sound.isVag) {
+        static const auto vagHeaderSize = 0x30;
+        uploadSound(SpuAddr, sound.bytes.data() + vagHeaderSize, sound.dataSize);
+    } else {
+        uploadSound(SpuAddr, sound.bytes.data(), sound.dataSize);
+    }
+}
+
+static void SPUKeyOn(uint32_t voiceBits)
+{
+    SPU_KEY_ON_LOW = voiceBits;
+    SPU_KEY_ON_HIGH = voiceBits >> 16;
+}
+
+void SoundPlayer::playSound(int channel, const Sound& sound, uint16_t pitch)
+{
+    setSpuState(0xc000);
+
+    SPU_VOICES[channel].volumeLeft = 0xFF0;
+    SPU_VOICES[channel].volumeRight = 0xF00;
+    SPU_VOICES[channel].sampleStartAddr = sound.startAddr >> 3;
     SPUWaitIdle();
-    SPU_KEY_ON_LOW = 1;
-    SPU_KEY_ON_HIGH = 0;
-    SPU_VOICES[0].sampleRate = pitch;
-    // SPU_VOICES[0].sampleRate = 2048;
-}
-
-void SoundPlayer::init()
-{
-    // SpuInit();
-    // SpuInitMalloc(SOUND_MALLOC_MAX, spumallocrec);
-
-    // Set common attributes (master volume left/right, CD volume, etc.)
-    /* spucommonattr.mask =
-        (SPU_COMMON_MVOLL | SPU_COMMON_MVOLR | SPU_COMMON_CDVOLL | SPU_COMMON_CDVOLR |
-         SPU_COMMON_CDMIX); */
-
-    // Master volume (left) - should be between 0x0000 and 0x3FFF
-    // spucommonattr.mvol.left = 0x3FFF;
-    // spucommonattr.mvol.right = 0x3FFF; // Master volume (right)
-
-    // CD volume (left)     -> should be between 0x0000 and 0x7FFF
-    // spucommonattr.cd.volume.left = 0x7FFF;
-    // spucommonattr.cd.volume.right = 0x7FFF; // CD volume (right)
-
-    // spucommonattr.cd.mix = SPU_ON; // Enable CD input on
-
-    // SpuSetCommonAttr(&spucommonattr);
-    // SpuSetTransferMode(SpuTransByDMA);
-
-    initReverb();
-}
-
-void SoundPlayer::initReverb()
-{
-    // long mode = SPU_REV_MODE_ROOM | SPU_REV_MODE_STUDIO_A | SPU_REV_MODE_HALL |
-    // SPU_REV_MODE_SPACE;
-
-    // if (SpuReserveReverbWorkArea(1) == 1) {
-    // reverbMode = SPU_REV_MODE_OFF;
-
-    // r_attr.mask = (SPU_REV_MODE | SPU_REV_DEPTHL | SPU_REV_DEPTHR);
-    // r_attr.mode = (SPU_REV_MODE_CLEAR_WA | reverbMode);
-    // r_attr.depth.left = 0x3fff;
-    // r_attr.depth.right = 0x3fff;
-
-    // SpuSetReverbModeParam(&r_attr);
-    // SpuSetReverbDepth(&r_attr);
-    // SpuSetReverbVoice(SpuOn, SPU_0CH);
-
-    // SpuSetReverb(SpuOn);
-
-    /* } else {
-        printf("FAIL?\n");
-    } */
+    SPUKeyOn(1 << channel);
+    SPU_VOICES[channel].sampleRepeatAddr = 0;
+    SPU_VOICES[channel].sampleRate = pitch;
 }
 
 namespace
@@ -179,17 +177,18 @@ void Sound::load(eastl::string_view filename, const eastl::vector<uint8_t>& data
         .bytes = data.data(),
     };
 
-#ifndef _NDEBUG
-    eastl::array<unsigned char, 4> header;
-    fr.ReadArr(header.data(), 4);
-    bool isVag = (header[0] == 'V' && header[1] == 'A' && header[2] == 'G' && header[3] == 'p');
-    if (!isVag) {
-        ramsyscall_printf("%s is not a VAG file\n", filename);
+    const auto header = fr.GetUInt32();
+    if (header != 0x70474156) { // VAGp
+        ramsyscall_printf("0x%04X %s is not a VAG file\n", header, filename);
+        // adpcm
+        bytes = data;
+        sampleFreq = 44100;
+        dataSize = bytes.size();
+        isVag = false;
+        return;
     }
+
     fr.SkipBytes(8);
-#else
-    fr.SkipBytes(12);
-#endif
 
     dataSize = byteswap32(fr.GetUInt32());
     sampleFreq = byteswap32(fr.GetUInt32());
@@ -197,64 +196,4 @@ void Sound::load(eastl::string_view filename, const eastl::vector<uint8_t>& data
     ramsyscall_printf("vag sample freq: %d, data size = %d\n", (int)sampleFreq, (int)dataSize);
 
     bytes = data;
-}
-
-void SoundPlayer::transferVAGToSpu(const Sound& sound, int voicechannel)
-{
-    // vagspuaddr = SpuMalloc(sound.bytes.size());
-
-    // SpuSetTransferStartAddr(vagspuaddr);
-    // SpuWrite((unsigned char*)(sound.bytes.data() + 48), sound.bytes.size() - 48);
-
-    // SpuIsTransferCompleted(SPU_TRANSFER_WAIT);
-
-    /* clang-format off */
-    /* spuVoiceAttr.mask = (
-        SPU_VOICE_VOLL |
-        SPU_VOICE_VOLR |
-        SPU_VOICE_PITCH |
-        SPU_VOICE_WDSA |
-        SPU_VOICE_ADSR_AMODE |
-        SPU_VOICE_ADSR_SMODE |
-        SPU_VOICE_ADSR_RMODE |
-        SPU_VOICE_ADSR_AR |
-        SPU_VOICE_ADSR_DR |
-        SPU_VOICE_ADSR_SR |
-        SPU_VOICE_ADSR_RR |
-        SPU_VOICE_ADSR_SL
-    ); */
-    /* clang-format on */
-
-    // spuVoiceAttr.voice = voicechannel;
-
-    // spuVoiceAttr.volume.left = 0x3FFF; // Left volume
-    // spuVoiceAttr.volume.right = 0x3FFF; // Right volume
-
-    // spuVoiceAttr.pitch = (sound.sampleFreq << 12) / 44100; // Pitch
-    // spuVoiceAttr.addr = vagspuaddr; // Waveform data start address
-
-    // spuVoiceAttr.a_mode = SPU_VOICE_LINEARIncN; // Attack curve
-    // spuVoiceAttr.s_mode = SPU_VOICE_LINEARIncN; // Sustain curve
-    // spuVoiceAttr.r_mode = SPU_VOICE_LINEARIncN; // Release curve
-
-    // spuVoiceAttr.ar = 0x00; // Attack rate
-    // spuVoiceAttr.dr = 0x00; // Decay rate
-    // spuVoiceAttr.sr = 0x00; // Sustain rate
-    // spuVoiceAttr.rr = 0x00; // Release rate
-    // spuVoiceAttr.sl = 0x00; // Sustain level
-
-    // these attrs are from "reverb" sample
-    // spuVoiceAttr.r_mode = SPU_VOICE_LINEARDecN; // Release curve
-
-    // SpuSetVoiceAttr(&spuVoiceAttr);
-}
-
-void SoundPlayer::playAudio(int voicechannel)
-{
-    // reverbMode = SPU_REV_MODE_HALL;
-    // r_attr.mode = (SPU_REV_MODE_CLEAR_WA | reverbMode);
-    // SpuSetReverbModeParam(&r_attr);
-    // SpuSetReverbDepth(&r_attr);
-
-    // SpuSetKey(SpuOn, voicechannel);
 }

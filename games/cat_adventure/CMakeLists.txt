@@ -14,6 +14,7 @@ add_executable(game
 
   src/Model.cpp
   src/TimFile.cpp
+  src/MidiFile.cpp
   src/Font.cpp
   src/Renderer.cpp
   src/DialogueBox.cpp

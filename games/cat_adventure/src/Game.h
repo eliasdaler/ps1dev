@@ -9,11 +9,11 @@
 #include <psyqo/trigonometry.hh>
 
 #include "Font.h"
+#include "MidiFile.h"
 #include "Model.h"
+#include "SoundPlayer.h"
 #include "TextureInfo.h"
 #include "TimFile.h"
-
-#include "SoundPlayer.h"
 
 class Game : public psyqo::Application {
     void prepare() override;
@@ -24,6 +24,7 @@ public:
     void loadFont(eastl::string_view filename, Font& font);
     void loadModel(eastl::string_view filename, Model& model);
     void loadSound(eastl::string_view filename, Sound& sound);
+    void loadMIDI(eastl::string_view filename, MidiFile& midi);
 
     [[nodiscard]] TextureInfo uploadTIM(const TimFile& tim);
 
@@ -51,5 +52,12 @@ public:
     int levelId{0};
 
     SoundPlayer soundPlayer;
-    Sound stepSound;
+    Sound bassSound;
+    Sound drumSound;
+    Sound synthSound;
+    Sound guitarSound;
+    Sound melodySound;
+    Sound melody2Sound;
+    Sound emptySample;
+    MidiFile midi;
 };

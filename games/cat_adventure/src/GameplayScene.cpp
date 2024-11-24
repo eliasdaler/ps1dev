@@ -27,6 +27,24 @@ void SetFogNearFar(int a, int b, int h)
     psyqo::GTE::write<psyqo::GTE::Register::DQA, psyqo::GTE::Unsafe>(dqaF);
     psyqo::GTE::write<psyqo::GTE::Register::DQB, psyqo::GTE::Safe>(dqbF);
 }
+
+psyqo::FixedPoint<> calculatePitch(int note, int baseNote)
+{
+    int pitchBase = note - baseNote;
+    psyqo::FixedPoint<> pitch{1.0};
+    static constexpr psyqo::FixedPoint<> sqr{1.0594630943592};
+    if (pitchBase >= 0) {
+        for (int i = 0; i < pitchBase; ++i) {
+            pitch *= sqr;
+        }
+    } else {
+        for (int i = 0; i < -pitchBase; ++i) {
+            pitch /= sqr;
+        }
+    }
+    return pitch;
+}
+
 }
 
 GameplayScene::GameplayScene(Game& game, Renderer& renderer) : game(game), renderer(renderer)
@@ -75,6 +93,19 @@ void GameplayScene::start(StartReason reason)
             camera.position = {0.f, -0.25f, -1.f};
             camera.rotation = {0.0, 0.0};
         }
+    }
+
+    for (int i = 0; i < lastEvent.size(); ++i) {
+        lastEvent[i] = 0;
+    }
+
+    for (int i = 0; i < eventNum.size(); ++i) {
+        eventNum[i] = 0;
+    }
+
+    for (int i = 0; i < eventNum.size(); ++i) {
+        eventNum[i] = 0;
+        channelUsers[i] = {};
     }
 }
 
@@ -136,43 +167,141 @@ void GameplayScene::processInput()
         count = 10;
     }
 
+    int playedNote = 48;
+    int baseNote = 48;
     if (count == 10) {
         if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Cross)) {
-            pitchBase = 2;
+            // playedNote = playedNote;
             reset = 1;
             count = 0;
         }
 
         if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Square)) {
-            pitchBase = 4;
+            playedNote = playedNote + 1;
             reset = 1;
             count = 0;
         }
 
         if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Triangle)) {
-            pitchBase = 6;
+            playedNote = playedNote + 2;
             reset = 1;
             count = 0;
         }
 
         if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Circle)) {
-            pitchBase = 8;
+            playedNote = playedNote + 3;
             reset = 1;
             count = 0;
         }
     }
 
+    auto& soundPlayer = game.soundPlayer;
+
     if (reset && count == 0) {
-        reset = 0;
-        psyqo::FixedPoint<> pitch{1.0};
-        psyqo::FixedPoint<> sqr{1.0594630943592};
-        for (int i = 0; i < pitchBase; ++i) {
-            pitch *= sqr;
-        }
-        playLoop(game.stepSound, pitch.value);
+        const auto pitch = calculatePitch(playedNote, baseNote);
+        soundPlayer.playSound(2, game.bassSound, pitch.value);
     }
 
+    reset = 0;
+
     dialogueBox.handleInput(game.pad);
+
+    // songCounter += 30;
+
+    for (int j = 0; j < game.midi.events.size(); ++j) {
+        if (j == 0) {
+            // continue; // broken, lol
+        }
+
+        auto& track = game.midi.events[j];
+        if (track.empty()) {
+            continue;
+        }
+
+        const auto& sample = [this](int track) {
+            switch (track) {
+            case 0:
+                return game.synthSound;
+            case 1:
+                return game.guitarSound;
+            case 3:
+                return game.melody2Sound;
+            case 4:
+                return game.bassSound;
+            case 5:
+                return game.guitarSound;
+            case 6:
+                return game.drumSound;
+            }
+            return game.emptySample;
+        }(j);
+
+        const auto baseNote = [](int track) {
+            switch (track) {
+            case 0:
+                return 36;
+            case 1:
+                return 84;
+            case 3:
+                return 72;
+            case 5:
+                return 84;
+            }
+            return 48;
+        }(j);
+
+        int startEventTime = lastEvent[j];
+        for (int i = eventNum[j]; i < track.size(); ++i) {
+            auto& event = track[i];
+            if (lastEvent[j] + event.delta > songCounter) {
+                eventNum[j] = i;
+                break;
+            }
+
+            lastEvent[j] = lastEvent[j] + track[i].delta;
+            if (event.type == MidiEvent::Type::NoteOn) {
+                const auto note = event.param1;
+                const auto voiceId = findChannel(j, note);
+                if (voiceId == -1) {
+                    // TODO: release oldest voice and use it instead
+                    continue;
+                }
+                const auto pitch = calculatePitch(note, baseNote);
+                soundPlayer.playSound(voiceId, sample, pitch.value);
+            } else if (event.type == MidiEvent::Type::NoteOff) {
+                const auto note = event.param1;
+                freeChannel(j, note);
+            }
+        }
+    }
+}
+
+int GameplayScene::findChannel(int trackId, int noteId)
+{
+    for (int i = 0; i < usedChannels.size(); ++i) {
+        if (usedChannels[i] == false) {
+            channelUsers[i] = UseInfo{
+                .trackId = trackId,
+                .noteId = noteId,
+            };
+            usedChannels[i] = true;
+            return i;
+        }
+    }
+    return -1;
+}
+
+void GameplayScene::freeChannel(int trackId, int nodeId)
+{
+    for (int i = 0; i < usedChannels.size(); ++i) {
+        if (usedChannels[i]) {
+            auto& user = channelUsers[i];
+            if (user.trackId == trackId && user.noteId == nodeId) {
+                usedChannels[i] = false;
+                game.soundPlayer.resetVoice(i);
+            }
+        }
+    }
 }
 
 void GameplayScene::updateCamera()
@@ -195,7 +324,7 @@ void GameplayScene::update()
     updateCamera();
 
     // spin the cat
-    // cato.rotation.y += 0.01;
+    cato.rotation.y += 0.01;
     // cato.rotation.x = 0.25;
 
     dialogueBox.update();
@@ -285,7 +414,7 @@ void GameplayScene::draw()
         // (won't have to upload camera.viewRot and change PseudoRegister::Rotation then)
 
         {
-            // renderer.drawModelObject(cato, camera, game.catoTexture);
+            renderer.drawModelObject(cato, camera, game.catoTexture);
         }
 
         {
@@ -308,10 +437,11 @@ void GameplayScene::drawDebugInfo()
         game.gpu(),
         {{.x = 16, .y = 16}},
         textCol,
-        "cam pos=(%.2f, %.2f, %.2f)",
+        "cam pos=(%.2f, %.2f, %.2f), %d",
         cato.position.x,
         cato.position.y,
-        cato.position.z);
+        cato.position.z,
+        songCounter);
 
     game.romFont.chainprintf(
         game.gpu(),

@@ -17,6 +17,9 @@ public:
 private:
     void start(StartReason reason) override;
 
+    int findChannel(int trackId, int noteId);
+    void freeChannel(int trackId, int nodeId);
+
     void frame() override;
 
     void processInput();
@@ -39,4 +42,15 @@ private:
     int pitchBase;
     int reset{0};
     int count{100};
+
+    int songCounter{0};
+    eastl::array<int, 16> lastEvent{};
+    eastl::array<int, 16> eventNum{};
+
+    eastl::array<bool, 24> usedChannels;
+    struct UseInfo {
+        int trackId;
+        int noteId;
+    };
+    eastl::array<UseInfo, 24> channelUsers;
 };
