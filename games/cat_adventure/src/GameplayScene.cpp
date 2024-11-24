@@ -27,24 +27,6 @@ void SetFogNearFar(int a, int b, int h)
     psyqo::GTE::write<psyqo::GTE::Register::DQA, psyqo::GTE::Unsafe>(dqaF);
     psyqo::GTE::write<psyqo::GTE::Register::DQB, psyqo::GTE::Safe>(dqbF);
 }
-
-psyqo::FixedPoint<> calculatePitch(int note, int baseNote)
-{
-    int pitchBase = note - baseNote;
-    psyqo::FixedPoint<> pitch{1.0};
-    static constexpr psyqo::FixedPoint<> sqr{1.0594630943592};
-    if (pitchBase >= 0) {
-        for (int i = 0; i < pitchBase; ++i) {
-            pitch *= sqr;
-        }
-    } else {
-        for (int i = 0; i < -pitchBase; ++i) {
-            pitch /= sqr;
-        }
-    }
-    return pitch;
-}
-
 }
 
 GameplayScene::GameplayScene(Game& game, Renderer& renderer) : game(game), renderer(renderer)
@@ -167,29 +149,27 @@ void GameplayScene::processInput()
         count = 10;
     }
 
-    int playedNote = 48;
-    int baseNote = 48;
     if (count == 10) {
         if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Cross)) {
-            // playedNote = playedNote;
+            pitchBase = -15;
             reset = 1;
             count = 0;
         }
 
         if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Square)) {
-            playedNote = playedNote + 1;
+            pitchBase = 4;
             reset = 1;
             count = 0;
         }
 
         if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Triangle)) {
-            playedNote = playedNote + 2;
+            pitchBase = 0;
             reset = 1;
             count = 0;
         }
 
         if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Circle)) {
-            playedNote = playedNote + 3;
+            pitchBase = -8;
             reset = 1;
             count = 0;
         }
@@ -198,15 +178,24 @@ void GameplayScene::processInput()
     auto& soundPlayer = game.soundPlayer;
 
     if (reset && count == 0) {
-        const auto pitch = calculatePitch(playedNote, baseNote);
-        soundPlayer.playSound(2, game.bassSound, pitch.value);
+        reset = 0;
+        psyqo::FixedPoint<> pitch{1.0};
+        psyqo::FixedPoint<> sqr{1.0594630943592};
+        if (pitchBase >= 0) {
+            for (int i = 0; i < pitchBase; ++i) {
+                pitch *= sqr;
+            }
+        } else {
+            for (int i = 0; i < -pitchBase; ++i) {
+                pitch /= sqr;
+            }
+        }
+        soundPlayer.playSound(2, game.guitarSound, pitch.value);
     }
-
-    reset = 0;
 
     dialogueBox.handleInput(game.pad);
 
-    // songCounter += 30;
+    songCounter += 30;
 
     for (int j = 0; j < game.midi.events.size(); ++j) {
         if (j == 0) {
@@ -218,36 +207,30 @@ void GameplayScene::processInput()
             continue;
         }
 
+        /* auto voiceId = 0;
+        if (j == 4) {
+            voiceId = 0;
+        } else if (j == 0) {
+            voiceId = 2;
+        } else if (j == 6) {
+            voiceId = 1;
+        } else if (j == 1) {
+            voiceId = 3;
+        } */
+
         const auto& sample = [this](int track) {
-            switch (track) {
-            case 0:
-                return game.synthSound;
-            case 1:
+            if (track == 4) {
+                return game.stepSound;
+            } else if (track == 5) {
                 return game.guitarSound;
-            case 3:
-                return game.melody2Sound;
-            case 4:
-                return game.bassSound;
-            case 5:
-                return game.guitarSound;
-            case 6:
+            } else if (track == 6) {
                 return game.drumSound;
+            } else if (track == 1) {
+                return game.guitarSound;
+            } else if (track == 3) {
+                return game.melody2Sound;
             }
             return game.emptySample;
-        }(j);
-
-        const auto baseNote = [](int track) {
-            switch (track) {
-            case 0:
-                return 36;
-            case 1:
-                return 84;
-            case 3:
-                return 72;
-            case 5:
-                return 84;
-            }
-            return 48;
         }(j);
 
         int startEventTime = lastEvent[j];
@@ -262,13 +245,36 @@ void GameplayScene::processInput()
             if (event.type == MidiEvent::Type::NoteOn) {
                 const auto note = event.param1;
                 const auto voiceId = findChannel(j, note);
-                if (voiceId == -1) {
-                    // TODO: release oldest voice and use it instead
-                    continue;
+
+                // WHYYYY
+                auto pitchBase = note - 48;
+                if (j == 0) {
+                    pitchBase = note - 36;
+                } else if (j == 1) {
+                    pitchBase = note - 84;
+                } else if (j == 5) {
+                    pitchBase = note - 84;
+                } else if (j == 3) {
+                    pitchBase = note - 72;
                 }
-                const auto pitch = calculatePitch(note, baseNote);
-                soundPlayer.playSound(voiceId, sample, pitch.value);
+
+                psyqo::FixedPoint<> pitch{1.0};
+                psyqo::FixedPoint<> sqr{1.0594630943592};
+                if (pitchBase >= 0) {
+                    for (int i = 0; i < pitchBase; ++i) {
+                        pitch *= sqr;
+                    }
+                } else {
+                    for (int i = 0; i < -pitchBase; ++i) {
+                        pitch /= sqr;
+                    }
+                }
+
+                if (voiceId != -1) {
+                    soundPlayer.playSound(voiceId, sample, pitch.value);
+                }
             } else if (event.type == MidiEvent::Type::NoteOff) {
+                // soundPlayer.resetVoice(voiceId);
                 const auto note = event.param1;
                 freeChannel(j, note);
             }

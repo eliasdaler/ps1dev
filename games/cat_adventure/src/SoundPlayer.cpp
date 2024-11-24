@@ -56,12 +56,6 @@ void SoundPlayer::uploadSound(uint32_t SpuAddr, const uint8_t* data, uint32_t si
 
     SBUS_DEV4_CTRL &= ~0x0f000000;
 
-    ramsyscall_printf(
-        "UPLOAD: spu addr = 0x%04X, RAM addr = 0x%04X, data size = %d\n",
-        SpuAddr,
-        (uint32_t)data,
-        (int)size);
-
     DMA_CTRL[DMA_SPU].MADR = (uint32_t)data;
     DMA_CTRL[DMA_SPU].BCR = bcr;
     // Start DMA4 at CPU Side (blocksize=10h, control=01000201h)
@@ -94,7 +88,7 @@ void SoundPlayer::init()
     SPU_VOL_EXT_LEFT = 0;
     SPU_VOL_EXT_RIGHT = 0;
 
-    // [spu_enable][unmute_spu][6bits for noise][reverb][irq][2 bits for mode][4 bits for ext/CD
+    // [spu enable][unmute_spu][6bits for noise][reverb][irq][2 bits for mode][4 bits for ext/CD
     // audio]
     spuState = 0b11'000000'1'1'00'0000;
     setSpuState(spuState);
@@ -130,13 +124,9 @@ void SoundPlayer::setSpuState(int spuState)
 
 void SoundPlayer::uploadSound(uint32_t SpuAddr, const Sound& sound)
 {
+    static const auto vagHeaderSize = 0x30;
     sound.startAddr = SpuAddr;
-    if (sound.isVag) {
-        static const auto vagHeaderSize = 0x30;
-        uploadSound(SpuAddr, sound.bytes.data() + vagHeaderSize, sound.dataSize);
-    } else {
-        uploadSound(SpuAddr, sound.bytes.data(), sound.dataSize);
-    }
+    uploadSound(SpuAddr, sound.bytes.data() + vagHeaderSize, sound.dataSize);
 }
 
 static void SPUKeyOn(uint32_t voiceBits)
@@ -177,18 +167,17 @@ void Sound::load(eastl::string_view filename, const eastl::vector<uint8_t>& data
         .bytes = data.data(),
     };
 
-    const auto header = fr.GetUInt32();
-    if (header != 0x70474156) { // VAGp
-        ramsyscall_printf("0x%04X %s is not a VAG file\n", header, filename);
-        // adpcm
-        bytes = data;
-        sampleFreq = 44100;
-        dataSize = bytes.size();
-        isVag = false;
-        return;
+#ifndef _NDEBUG
+    eastl::array<unsigned char, 4> header;
+    fr.ReadArr(header.data(), 4);
+    bool isVag = (header[0] == 'V' && header[1] == 'A' && header[2] == 'G' && header[3] == 'p');
+    if (!isVag) {
+        ramsyscall_printf("%s is not a VAG file\n", filename);
     }
-
     fr.SkipBytes(8);
+#else
+    fr.SkipBytes(12);
+#endif
 
     dataSize = byteswap32(fr.GetUInt32());
     sampleFreq = byteswap32(fr.GetUInt32());

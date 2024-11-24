@@ -57,7 +57,7 @@ psyqo::Coroutine<> loadCoroutine(Game* game)
     game->loadFont("FONT.FNT;1", game->font);
     co_await awaiter;
 
-    game->loadSound("BASS.VAG;1", game->bassSound);
+    game->loadSound("STEP1.VAG;1", game->stepSound);
     co_await awaiter;
 
     game->loadSound("DRUM.VAG;1", game->drumSound);
@@ -75,12 +75,12 @@ psyqo::Coroutine<> loadCoroutine(Game* game)
     game->loadSound("MELODY2.VAG;1", game->melody2Sound);
     co_await awaiter;
 
-    game->soundPlayer.uploadSound(0x1010, game->bassSound);
-    /* game->soundPlayer.uploadSound(0x8080, game->drumSound);
+    game->soundPlayer.uploadSound(0x1010, game->stepSound);
+    game->soundPlayer.uploadSound(0x8080, game->drumSound);
     game->soundPlayer.uploadSound(0xF0F0, game->synthSound);
     game->soundPlayer.uploadSound(0xC0C0, game->guitarSound);
     game->soundPlayer.uploadSound(0xE0E0, game->melodySound);
-    game->soundPlayer.uploadSound(0xFFA0, game->melody2Sound); */
+    game->soundPlayer.uploadSound(0xFFA0, game->melody2Sound);
 
     game->loadMIDI("SONG.MID;1", game->midi);
     co_await awaiter;

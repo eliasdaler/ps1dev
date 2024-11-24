@@ -52,7 +52,7 @@ public:
     int levelId{0};
 
     SoundPlayer soundPlayer;
-    Sound bassSound;
+    Sound stepSound;
     Sound drumSound;
     Sound synthSound;
     Sound guitarSound;

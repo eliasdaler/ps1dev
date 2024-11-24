@@ -23,8 +23,7 @@
                 <file name="LEVEL.BIN" type="data" source="assets/house_psx.bin"/>
                 <file name="LEVEL2.BIN" type="data" source="assets/level_new.bin"/>
                 <file name="HUMAN.BIN" type="data" source="assets/human.bin"/>
-                <! file name="BASS.VAG" type="data" source="assets/bass2.vag"/>
-                <file name="BASS.VAG" type="data" source="assets/bass.adpcm"/>
+                <file name="STEP1.VAG" type="data" source="assets/bass2.vag"/>
                 <file name="DRUM.VAG" type="data" source="assets/drum.vag"/>
                 <file name="SYNTH.VAG" type="data" source="assets/synth.vag"/>
                 <file name="GUITAR.VAG" type="data" source="assets/guitar.vag"/>
