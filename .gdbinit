@@ -14,6 +14,7 @@ tui new-layout horizontal-asm {-horizontal src 1 asm 1} 2 status 0 cmd 1
 layout horizontal-asm
 
 # b testMatrix
-b Renderer.cpp:232
+# b Renderer.cpp:232
+b SoundPlayer.cpp:189
 
 c

@@ -151,13 +151,13 @@ void GameplayScene::processInput()
 
     if (count == 10) {
         if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Cross)) {
-            pitchBase = -15;
+            pitchBase = -1;
             reset = 1;
             count = 0;
         }
 
         if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Square)) {
-            pitchBase = 4;
+            pitchBase = 1;
             reset = 1;
             count = 0;
         }
@@ -169,7 +169,7 @@ void GameplayScene::processInput()
         }
 
         if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Circle)) {
-            pitchBase = -8;
+            pitchBase = -2;
             reset = 1;
             count = 0;
         }
@@ -190,12 +190,16 @@ void GameplayScene::processInput()
                 pitch /= sqr;
             }
         }
-        soundPlayer.playSound(2, game.guitarSound, pitch.value);
+        if (pitchBase != 0) {
+            soundPlayer.playSound(2, game.stepSound, pitch.value);
+        } else {
+            soundPlayer.playSound(2, game.drumSound, pitch.value);
+        }
     }
 
     dialogueBox.handleInput(game.pad);
 
-    // songCounter += 30;
+    // songCounter += 50;
 
     for (int j = 0; j < game.midi.events.size(); ++j) {
         if (j == 0) {

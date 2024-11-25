@@ -76,8 +76,8 @@ psyqo::Coroutine<> loadCoroutine(Game* game)
     co_await awaiter;
 
     game->soundPlayer.uploadSound(0x1010, game->stepSound);
+    game->soundPlayer.uploadSound(0x4040, game->synthSound);
     game->soundPlayer.uploadSound(0x8080, game->drumSound);
-    game->soundPlayer.uploadSound(0xF0F0, game->synthSound);
     game->soundPlayer.uploadSound(0xC0C0, game->guitarSound);
     game->soundPlayer.uploadSound(0xE0E0, game->melodySound);
     game->soundPlayer.uploadSound(0xFFA0, game->melody2Sound);

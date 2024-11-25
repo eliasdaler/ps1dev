@@ -101,10 +101,10 @@ set(CMAKE_EXECUTABLE_SUFFIX ".elf")
 set(CMAKE_EXECUTABLE_SUFFIX_C ".elf")
 set(CMAKE_EXECUTABLE_SUFFIX_CXX ".elf")
 
-if (CMAKE_BUILD_TYPE STREQUAL "Release")
+if (CMAKE_BUILD_TYPE STREQUAL "RelPS1")
   set(OPT_FLAGS "-Os")
 else()
-  set(OPT_FLAGS "-O1")
+  set(OPT_FLAGS "-O0")
 endif()
 
 # EDIT(eliasdaler): default flags

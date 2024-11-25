@@ -11,7 +11,7 @@ fi
 cmake --build build
 
 GAMES_BUILD_DIR="build_games"
-GAMES_BUILD_TYPE="Release"
+GAMES_BUILD_TYPE="RelPS1"
 
 if [[ "$1" == "DEBUG" ]]; then
     GAMES_BUILD_DIR="build_games_debug"

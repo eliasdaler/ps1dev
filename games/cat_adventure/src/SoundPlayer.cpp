@@ -38,6 +38,7 @@ static void SPUWaitIdle()
 
 void SoundPlayer::uploadSound(uint32_t SpuAddr, const uint8_t* data, uint32_t size)
 {
+    ramsyscall_printf("Upload: 0x%08X -> 0x%08X, %d\n", (uint32_t)data, SpuAddr, size);
     // Set SPUCNT to "Stop" (and wait until it is applied in SPUSTAT)
     setStopState();
 
@@ -122,11 +123,15 @@ void SoundPlayer::setSpuState(int spuState)
     }
 }
 
-void SoundPlayer::uploadSound(uint32_t SpuAddr, const Sound& sound)
+void SoundPlayer::uploadSound(uint32_t SpuAddr, Sound& sound)
 {
-    static const auto vagHeaderSize = 0x30;
+    static const auto vagHeaderSize = 48;
     sound.startAddr = SpuAddr;
-    uploadSound(SpuAddr, sound.bytes.data() + vagHeaderSize, sound.dataSize);
+    if (sound.isVag) {
+        uploadSound(SpuAddr, sound.bytes.data() + vagHeaderSize, sound.dataSize);
+    } else {
+        uploadSound(SpuAddr, sound.bytes.data(), sound.dataSize);
+    }
 }
 
 static void SPUKeyOn(uint32_t voiceBits)
@@ -142,9 +147,9 @@ void SoundPlayer::playSound(int channel, const Sound& sound, uint16_t pitch)
     SPU_VOICES[channel].volumeLeft = 0xFF0;
     SPU_VOICES[channel].volumeRight = 0xF00;
     SPU_VOICES[channel].sampleStartAddr = sound.startAddr >> 3;
+    // SPU_VOICES[channel].sampleRepeatAddr = 0;
     SPUWaitIdle();
     SPUKeyOn(1 << channel);
-    SPU_VOICES[channel].sampleRepeatAddr = 0;
     SPU_VOICES[channel].sampleRate = pitch;
 }
 
@@ -167,22 +172,23 @@ void Sound::load(eastl::string_view filename, const eastl::vector<uint8_t>& data
         .bytes = data.data(),
     };
 
-#ifndef _NDEBUG
-    eastl::array<unsigned char, 4> header;
-    fr.ReadArr(header.data(), 4);
-    bool isVag = (header[0] == 'V' && header[1] == 'A' && header[2] == 'G' && header[3] == 'p');
-    if (!isVag) {
-        ramsyscall_printf("%s is not a VAG file\n", filename);
+    const auto header = fr.GetUInt32();
+    isVag = (header == 0x70474156);
+
+    if (!isVag) { // raw adpcm
+        ramsyscall_printf("%s is not a VAG file, header: %08X\n", filename, (int)header);
+        bytes = data;
+        sampleFreq = 44100;
+        dataSize = data.size();
+        return;
     }
+
     fr.SkipBytes(8);
-#else
-    fr.SkipBytes(12);
-#endif
 
     dataSize = byteswap32(fr.GetUInt32());
     sampleFreq = byteswap32(fr.GetUInt32());
 
-    ramsyscall_printf("vag sample freq: %d, data size = %d\n", (int)sampleFreq, (int)dataSize);
+    ramsyscall_printf("vag sample freq: %d, data size = %d\n", sampleFreq, (int)dataSize);
 
     bytes = data;
 }
