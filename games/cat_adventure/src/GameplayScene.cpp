@@ -89,6 +89,11 @@ void GameplayScene::start(StartReason reason)
         eventNum[i] = 0;
         channelUsers[i] = {};
     }
+
+    musicTimer = gpu().armPeriodicTimer(20000, [this](uint32_t) {
+        musicTime += 20;
+        updateMusic();
+    });
 }
 
 void GameplayScene::onResourcesLoaded()
@@ -96,9 +101,18 @@ void GameplayScene::onResourcesLoaded()
 
 void GameplayScene::frame()
 {
+    const auto currentFrameCounter = gpu().getFrameCount();
+    frameDiff = currentFrameCounter - lastFrameCounter;
+    lastFrameCounter = currentFrameCounter;
+
     processInput();
     update();
+
+    gpu().pumpCallbacks();
+
     draw();
+
+    gpu().pumpCallbacks();
 }
 
 void GameplayScene::processInput()
@@ -199,69 +213,81 @@ void GameplayScene::processInput()
 
     dialogueBox.handleInput(game.pad);
 
-    // songCounter += 50;
+    songCounter += 42;
+}
 
-    for (int j = 0; j < game.midi.events.size(); ++j) {
+void GameplayScene::updateMusic()
+{
+    auto& soundPlayer = game.soundPlayer;
+    const auto& events = game.midi.events;
+    const auto numTracks = events.size();
+
+    for (int j = 0; j < numTracks; ++j) {
         if (j == 0) {
-            // continue; // broken, lol
+            continue; // broken, lol
         }
 
-        auto& track = game.midi.events[j];
+        const auto& track = events[j];
         if (track.empty()) {
             continue;
         }
 
-        /* auto voiceId = 0;
-        if (j == 4) {
-            voiceId = 0;
-        } else if (j == 0) {
-            voiceId = 2;
-        } else if (j == 6) {
-            voiceId = 1;
-        } else if (j == 1) {
-            voiceId = 3;
-        } */
-
-        const auto& sample = [this](int track) {
-            if (track == 4) {
-                return game.stepSound;
-            } else if (track == 5) {
+        // TODO: get from the instrument
+        const auto& sample = [this](int track) -> const Sound& {
+            switch (track) {
+            case 1:
                 return game.guitarSound;
-            } else if (track == 6) {
-                return game.drumSound;
-            } else if (track == 1) {
-                return game.guitarSound;
-            } else if (track == 3) {
+            case 3:
                 return game.melody2Sound;
+            case 4:
+                return game.stepSound;
+            case 5:
+                return game.guitarSound;
+            case 6:
+                return game.drumSound;
             }
             return game.emptySample;
         }(j);
 
-        int startEventTime = lastEvent[j];
-        for (int i = eventNum[j]; i < track.size(); ++i) {
+        auto lastEventJ = lastEvent[j];
+        const auto trSize = track.size();
+        const auto startEvent = eventNum[j];
+        for (int i = startEvent; i < trSize; ++i) {
             auto& event = track[i];
-            if (lastEvent[j] + event.delta > songCounter) {
+            if ((lastEventJ + event.delta) > musicTime) {
+                lastEvent[j] = lastEventJ;
                 eventNum[j] = i;
                 break;
             }
 
-            lastEvent[j] = lastEvent[j] + track[i].delta;
+            lastEventJ = lastEventJ + event.delta;
             if (event.type == MidiEvent::Type::NoteOn) {
                 const auto note = event.param1;
                 const auto voiceId = findChannel(j, note);
-
-                // WHYYYY
-                auto pitchBase = note - 48;
-                if (j == 0) {
-                    pitchBase = note - 36;
-                } else if (j == 1) {
-                    pitchBase = note - 84;
-                } else if (j == 5) {
-                    pitchBase = note - 84;
-                } else if (j == 3) {
-                    pitchBase = note - 72;
+                if (voiceId == -1) {
+                    // TODO: drop the oldest sample
+                    continue;
                 }
 
+                // TODO: sample banks / VAB
+                auto baseNote = [](int track) {
+                    switch (track) {
+                    case 0:
+                        return 36;
+                    case 1:
+                        return 84;
+                    case 3:
+                        return 72;
+                    case 5:
+                        return 84;
+                    default:
+                        return 48;
+                    }
+                }(j);
+
+                const auto pitchBase = note - baseNote;
+
+                // TODO: LUT
                 psyqo::FixedPoint<> pitch{1.0};
                 psyqo::FixedPoint<> sqr{1.0594630943592};
                 if (pitchBase >= 0) {
@@ -274,11 +300,8 @@ void GameplayScene::processInput()
                     }
                 }
 
-                if (voiceId != -1) {
-                    soundPlayer.playSound(voiceId, sample, pitch.value);
-                }
+                soundPlayer.playSound(voiceId, sample, pitch.value);
             } else if (event.type == MidiEvent::Type::NoteOff) {
-                // soundPlayer.resetVoice(voiceId);
                 const auto note = event.param1;
                 freeChannel(j, note);
             }
@@ -447,11 +470,10 @@ void GameplayScene::drawDebugInfo()
         game.gpu(),
         {{.x = 16, .y = 16}},
         textCol,
-        "cam pos=(%.2f, %.2f, %.2f), %d",
+        "cam pos = (%.2f, %.2f, %.2f)",
         cato.position.x,
         cato.position.y,
-        cato.position.z,
-        songCounter);
+        cato.position.z);
 
     game.romFont.chainprintf(
         game.gpu(),
@@ -460,4 +482,20 @@ void GameplayScene::drawDebugInfo()
         "cam rot=(%.2f, %.2f)",
         camera.rotation.x,
         camera.rotation.y);
+
+    const auto fps = gpu().getRefreshRate() / frameDiff;
+    fpsMovingAverageNew = alpha * fps + oneMinAlpha * fpsMovingAverageOld;
+    fpsMovingAverageOld = fpsMovingAverageNew;
+
+    newFPS.value = fps << 12;
+    // lerp
+    avgFPS = avgFPS + lerpFactor * (newFPS - avgFPS);
+
+    game.romFont.chainprintf(
+        game.gpu(),
+        {{.x = 16, .y = 48}},
+        textCol,
+        "FPS: %.2f, avg: %.2f",
+        fpsMovingAverageNew,
+        avgFPS);
 }

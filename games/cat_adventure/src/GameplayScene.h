@@ -22,6 +22,8 @@ private:
 
     void frame() override;
 
+    void updateMusic();
+
     void processInput();
     void update();
     void updateCamera();
@@ -53,4 +55,19 @@ private:
         int noteId;
     };
     eastl::array<UseInfo, 24> channelUsers;
+
+    unsigned musicTimer;
+    int musicTime{0};
+
+    int frameDiff{0};
+    int lastFrameCounter{0};
+
+    psyqo::FixedPoint<> alpha{0.8};
+    psyqo::FixedPoint<> oneMinAlpha{1.0 - 0.8};
+    psyqo::FixedPoint<> fpsMovingAverageOld{};
+    psyqo::FixedPoint<> fpsMovingAverageNew{};
+
+    psyqo::FixedPoint<> newFPS{0.f};
+    psyqo::FixedPoint<> avgFPS{0.f};
+    psyqo::FixedPoint<> lerpFactor{0.1};
 };
