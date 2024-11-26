@@ -17,6 +17,7 @@ add_executable(game
   src/MidiFile.cpp
   src/Font.cpp
   src/Renderer.cpp
+  src/VabFile.cpp
   src/DialogueBox.cpp
 
   src/Game.cpp

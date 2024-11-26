@@ -85,6 +85,9 @@ psyqo::Coroutine<> loadCoroutine(Game* game)
     game->loadMIDI("SONG.MID;1", game->midi);
     co_await awaiter;
 
+    game->loadInstruments("INST.VAB;1", game->vab);
+    co_await awaiter;
+
     game->popScene();
 
     gameplayScene.onResourcesLoaded();

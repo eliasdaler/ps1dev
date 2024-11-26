@@ -14,6 +14,7 @@
 #include "SoundPlayer.h"
 #include "TextureInfo.h"
 #include "TimFile.h"
+#include "VabFile.h"
 
 class Game : public psyqo::Application {
     void prepare() override;
@@ -25,6 +26,7 @@ public:
     void loadModel(eastl::string_view filename, Model& model);
     void loadSound(eastl::string_view filename, Sound& sound);
     void loadMIDI(eastl::string_view filename, MidiFile& midi);
+    void loadInstruments(eastl::string_view filename, VabFile& vab);
 
     [[nodiscard]] TextureInfo uploadTIM(const TimFile& tim);
 
@@ -60,4 +62,6 @@ public:
     Sound melody2Sound;
     Sound emptySample;
     MidiFile midi;
+
+    VabFile vab;
 };

@@ -65,6 +65,16 @@ void Game::loadMIDI(eastl::string_view filename, MidiFile& midi)
         });
 }
 
+void Game::loadInstruments(eastl::string_view filename, VabFile& vab)
+{
+    cdromLoader.readFile(
+        filename, gpu(), isoParser, [this, filename, &vab](eastl::vector<uint8_t>&& buffer) {
+            cdReadBuffer = eastl::move(buffer);
+            vab.load(filename, cdReadBuffer);
+            cdLoadCoroutine.resume();
+        });
+}
+
 TextureInfo Game::uploadTIM(const TimFile& tim)
 {
     psyqo::Rect region =
