@@ -44,8 +44,8 @@ void MidiFile::load(eastl::string_view filename, const eastl::vector<uint8_t>& d
 
     events.resize(trackNum);
 
-    const auto trackDivision = byteswap16(fr.GetUInt16());
-    ramsyscall_printf("trackDivision : %d\n", trackDivision);
+    ticksPerQuarter = byteswap16(fr.GetUInt16());
+    ramsyscall_printf("ticksPerQuarter: %d\n", ticksPerQuarter);
 
     for (int i = 0; i < trackNum; ++i) {
         const auto trackHeader = byteswap32(fr.GetUInt32());
@@ -54,69 +54,82 @@ void MidiFile::load(eastl::string_view filename, const eastl::vector<uint8_t>& d
         (void)chunkSize;
         ramsyscall_printf("trackNum: %d, chunkSize: %d\n", i, chunkSize);
 
-        auto cursor = 0;
-
         MidiEvent event;
 
-        if (i == 5 || i == 1 || i == 4 || i == 6 || i == 3) {
-            for (int j = 0; j < 100500; ++j) {
-                // TODO: put into a function?
-                auto b = fr.GetUInt8();
-                ++cursor;
-                event.delta = b;
-                if (b & 0x80) {
-                    event.delta = (b & 0x7F);
-                    do {
-                        b = fr.GetUInt8();
-                        ++cursor;
-                        event.delta = (event.delta << 7) + (b & 0x7F);
-                    } while (b & 0x80);
-                }
+        auto readVar = [](util::FileReader& fr) {
+            auto b = fr.GetUInt8();
+            uint32_t var = b;
+            if (b & 0x80) {
+                var = (b & 0x7F);
+                do {
+                    b = fr.GetUInt8();
+                    var = (var << 7) + (b & 0x7F);
+                } while (b & 0x80);
+            }
+            return var;
+        };
 
-                // type
-                event.type = MidiEvent::Type{(fr.GetUInt8() & 0xF0) >> 4};
-                ++cursor;
+        auto readVarLen = [](util::FileReader& fr, uint8_t len) {
+            auto var = 0;
+            for (int i = 0; i < len; ++i) {
+                var = (var << 8) + fr.GetUInt8();
+            }
+            return var;
+        };
 
-                if (event.type != MidiEvent::Type::NoteOff &&
-                    event.type != MidiEvent::Type::NoteOn &&
-                    event.type != MidiEvent::Type::Controller &&
-                    event.type != MidiEvent::Type::ProgramChange &&
-                    event.type != MidiEvent::Type::PitchBend) {
-                    ramsyscall_printf("UNKNOWN: 0x%01X\n", (int)event.type);
-                }
+        while (true) {
+            event.delta = readVar(fr);
 
-                // param1
-                event.param1 = fr.GetUInt8();
-                ++cursor;
+            // type
+            const auto eventByte = fr.GetUInt8();
+            event.type = MidiEvent::Type{(eventByte & 0xF0) >> 4};
 
-                if (event.type == MidiEvent::Type::NoteOff ||
-                    event.type == MidiEvent::Type::NoteOn ||
-                    event.type == MidiEvent::Type::Controller ||
-                    event.type == MidiEvent::Type::PitchBend ||
-                    event.type == MidiEvent::Type::Unknown) {
-                    event.param2 = fr.GetUInt8();
-                    ++cursor;
-                }
+            if (event.type != MidiEvent::Type::NoteOff && event.type != MidiEvent::Type::NoteOn &&
+                event.type != MidiEvent::Type::Controller &&
+                event.type != MidiEvent::Type::ProgramChange &&
+                event.type != MidiEvent::Type::MetaEvent &&
+                event.type != MidiEvent::Type::PitchBend) {
+                ramsyscall_printf("UNKNOWN: 0x%01X, 0x%01X\n", (int)event.type, (int)eventByte);
+                return;
+            }
 
-                if (i == 3000 && event.type == MidiEvent::Type::NoteOn) {
-                    ramsyscall_printf(
-                        "%d: delta: %d, type : 0x%01X, param1: %d, param2: %d\n",
-                        j,
-                        event.delta,
-                        event.type,
-                        event.param1,
-                        event.param2);
-                }
-
-                events[i].push_back(event);
-                if (cursor == chunkSize) {
-                    ramsyscall_printf("~~~ %d, %d messages\n", i, events[i].size());
+            if (event.type == MidiEvent::Type::MetaEvent) {
+                event.metaEventType = (MidiEvent::MetaEventType)fr.GetUInt8();
+                // ramsyscall_printf("META EVENT: 0x%01X\n", event.metaEventType);
+                if (event.metaEventType == MidiEvent::MetaEventType::SetTempo ||
+                    event.metaEventType == MidiEvent::MetaEventType::TimeSignature) {
+                    const auto len = fr.GetUInt8();
+                    event.metaValue = readVarLen(fr, len);
+                    // ramsyscall_printf("var len: len=%d, %d\n", (int)len, (int)event.metaValue);
+                } else if (event.metaEventType == MidiEvent::MetaEventType::EndOfTrack) {
+                    const auto len = fr.GetUInt8(); //  should be 0
                     goto endTrack;
                 }
+                events[i].push_back(event);
+                continue;
             }
-        }
 
-        fr.SkipBytes(chunkSize - cursor);
+            // param1
+            event.param1 = fr.GetUInt8();
+
+            if (event.type == MidiEvent::Type::NoteOff || event.type == MidiEvent::Type::NoteOn ||
+                event.type == MidiEvent::Type::Controller ||
+                event.type == MidiEvent::Type::PitchBend ||
+                event.type == MidiEvent::Type::Unknown) {
+                event.param2 = fr.GetUInt8();
+            }
+
+            if (i == 3000 && event.type == MidiEvent::Type::NoteOn) {
+                ramsyscall_printf(
+                    "%d: delta: %d, type : 0x%01X, param1: %d, param2: %d\n",
+                    event.delta,
+                    event.type,
+                    event.param1,
+                    event.param2);
+            }
+
+            events[i].push_back(event);
+        }
 
     endTrack:
     }

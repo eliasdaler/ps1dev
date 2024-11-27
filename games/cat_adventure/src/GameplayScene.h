@@ -22,6 +22,7 @@ private:
 
     void frame() override;
 
+    void findBPM();
     void updateMusic();
 
     void processInput();
@@ -45,9 +46,9 @@ private:
     int reset{0};
     int count{100};
 
-    int songCounter{0};
     eastl::array<int, 16> lastEvent{};
     eastl::array<int, 16> eventNum{};
+    eastl::array<int, 16> currentInst{};
 
     eastl::array<bool, 24> usedChannels;
     struct UseInfo {
@@ -70,4 +71,13 @@ private:
     psyqo::FixedPoint<> newFPS{0.f};
     psyqo::FixedPoint<> avgFPS{0.f};
     psyqo::FixedPoint<> lerpFactor{0.1};
+
+    int toneNum{0};
+
+    int32_t chanMaskOn{0};
+    int32_t chanMaskOff{0};
+
+    uint32_t bpm{102};
+    uint32_t microsecondsPerClick{0};
+    uint32_t ticksPerClick{0};
 };

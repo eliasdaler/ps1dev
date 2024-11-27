@@ -27,4 +27,19 @@ void VabFile::load(eastl::string_view filename, const eastl::vector<uint8_t>& da
     fr.ReadArr(toneAttributes.data(), toneAttributes.size());
 
     fr.ReadArr(vagSizes.data(), 256);
+
+    instruments.resize(header.numPrograms);
+    for (int i = 0; i < header.numPrograms; ++i) {
+        auto& instInfo = instruments[i];
+        const auto& progInfo = progAttributes[i];
+        instInfo.numTones = progInfo.tones;
+
+        int toneNum = 0;
+        for (int j = 0; j < toneAttributes.size(); ++j) {
+            if (toneAttributes[j].prog == i) {
+                instInfo.tones[toneNum] = j;
+                ++toneNum;
+            }
+        }
+    }
 }

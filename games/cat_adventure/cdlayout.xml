@@ -23,20 +23,15 @@
                 <file name="LEVEL.BIN" type="data" source="assets/house_psx.bin"/>
                 <file name="LEVEL2.BIN" type="data" source="assets/level_new.bin"/>
                 <file name="HUMAN.BIN" type="data" source="assets/human.bin"/>
-                <! file name="STEP1.VAG" type="data" source="assets/bass2.vag"/>
-                <file name="STEP1.VAG" type="data" source="assets/bass.adpcm"/>
-                <file name="DRUM.VAG" type="data" source="assets/drum.vag"/>
-                <file name="SYNTH.VAG" type="data" source="assets/synth.vag"/>
-                <file name="GUITAR.VAG" type="data" source="assets/guitar.vag"/>
-                <file name="MELODY.VAG" type="data" source="assets/melody.vag"/>
                 <file name="CATO.BIN" type="data" source="assets/cato.bin"/>
                 <file name="CATO.TIM" type="data" source="assets/cato.tim"/>
                 <file name="CAR.BIN" type="data" source="assets/car.bin"/>
                 <file name="CAR.TIM" type="data" source="assets/car.tim"/>
                 <file name="FONT.TIM" type="data" source="assets/font.tim"/>
                 <file name="FONT.FNT" type="data" source="assets/font.fnt"/>
-                <file name="SONG.MID" type="data" source="assets/song.mid"/>
-                <file name="INST.VAB" type="data" source="assets/inst.vab"/>
+                <file name="SONG.MID" type="data" source="assets/b2/song.mid"/>
+                <file name="INST.VAB" type="data" source="assets/b2/inst.vab"/>
+                <file name="SMPL.PCM" type="data" source="assets/b2/smpl.pcm"/>
                 <dummy sectors="1024"/>
             </directory_tree>
         </track>

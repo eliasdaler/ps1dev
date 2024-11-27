@@ -27,6 +27,7 @@ public:
     void loadSound(eastl::string_view filename, Sound& sound);
     void loadMIDI(eastl::string_view filename, MidiFile& midi);
     void loadInstruments(eastl::string_view filename, VabFile& vab);
+    void loadRawPCM(eastl::string_view filename, uint32_t spuUploadAddr);
 
     [[nodiscard]] TextureInfo uploadTIM(const TimFile& tim);
 

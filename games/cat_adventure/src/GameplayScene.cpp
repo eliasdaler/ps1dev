@@ -90,10 +90,36 @@ void GameplayScene::start(StartReason reason)
         channelUsers[i] = {};
     }
 
-    musicTimer = gpu().armPeriodicTimer(20000, [this](uint32_t) {
-        musicTime += 20;
+    findBPM();
+
+    auto period = 10000;
+    musicTimer = gpu().armPeriodicTimer(period, [this](uint32_t) {
+        auto now = gpu().now();
+        static auto prevNow = now;
+        musicTime += (now - prevNow);
+        prevNow = now;
+
         updateMusic();
     });
+}
+
+void GameplayScene::findBPM()
+{
+    for (int j = 0; j < game.midi.events.size(); ++j) {
+        const auto& track = game.midi.events[j];
+        if (track.empty()) {
+            continue;
+        }
+
+        for (int i = 0; i < track.size(); ++i) {
+            auto& event = track[i];
+            if (event.metaEventType == MidiEvent::MetaEventType::SetTempo) {
+                microsecondsPerClick = event.metaValue;
+                bpm = (60 * 1000 * 1000) / microsecondsPerClick;
+                return;
+            }
+        }
+    }
 }
 
 void GameplayScene::onResourcesLoaded()
@@ -126,10 +152,10 @@ void GameplayScene::processInput()
 
     // yaw
     if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Left)) {
-        camera.rotation.y -= rotateSpeed;
+        // camera.rotation.y -= rotateSpeed;
     }
     if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Right)) {
-        camera.rotation.y += rotateSpeed;
+        // camera.rotation.y += rotateSpeed;
     }
 
     // pitch
@@ -161,6 +187,24 @@ void GameplayScene::processInput()
     ++count;
     if (count > 10) {
         count = 10;
+    }
+
+    static bool wasLeftPressed = false;
+    if (!wasLeftPressed && pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Left)) {
+        toneNum -= 1;
+        wasLeftPressed = true;
+    }
+    if (!pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Left)) {
+        wasLeftPressed = false;
+    }
+
+    static bool wasRightPressed = false;
+    if (!wasRightPressed && pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Right)) {
+        toneNum += 1;
+        wasRightPressed = true;
+    }
+    if (!pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Right)) {
+        wasRightPressed = false;
     }
 
     if (count == 10) {
@@ -204,16 +248,16 @@ void GameplayScene::processInput()
                 pitch /= sqr;
             }
         }
-        if (pitchBase != 0) {
-            soundPlayer.playSound(2, game.stepSound, pitch.value);
-        } else {
-            soundPlayer.playSound(2, game.drumSound, pitch.value);
+
+        auto addr = 0x1010;
+        for (int i = 0; i < toneNum; ++i) {
+            addr += game.vab.vagSizes[i] << 3;
         }
+
+        soundPlayer.playSound(2, addr, 128, pitch.value, game.vab.toneAttributes[toneNum]);
     }
 
     dialogueBox.handleInput(game.pad);
-
-    songCounter += 42;
 }
 
 void GameplayScene::updateMusic()
@@ -222,46 +266,40 @@ void GameplayScene::updateMusic()
     const auto& events = game.midi.events;
     const auto numTracks = events.size();
 
-    for (int j = 0; j < numTracks; ++j) {
-        if (j == 0) {
-            continue; // broken, lol
-        }
+    chanMaskOn = 0;
+    chanMaskOff = 0;
 
+    // auto now = gpu().now();
+    auto now = musicTime;
+    const auto tickTime = microsecondsPerClick / game.midi.ticksPerQuarter;
+    const auto tpc = tickTime;
+
+    for (int j = 0; j < numTracks; ++j) {
         const auto& track = events[j];
         if (track.empty()) {
             continue;
         }
-
-        // TODO: get from the instrument
-        const auto& sample = [this](int track) -> const Sound& {
-            switch (track) {
-            case 1:
-                return game.guitarSound;
-            case 3:
-                return game.melody2Sound;
-            case 4:
-                return game.stepSound;
-            case 5:
-                return game.guitarSound;
-            case 6:
-                return game.drumSound;
-            }
-            return game.emptySample;
-        }(j);
 
         auto lastEventJ = lastEvent[j];
         const auto trSize = track.size();
         const auto startEvent = eventNum[j];
         for (int i = startEvent; i < trSize; ++i) {
             auto& event = track[i];
-            if ((lastEventJ + event.delta) > musicTime) {
+            if ((lastEventJ + event.delta) * tpc >= now) {
                 lastEvent[j] = lastEventJ;
                 eventNum[j] = i;
                 break;
             }
 
             lastEventJ = lastEventJ + event.delta;
-            if (event.type == MidiEvent::Type::NoteOn) {
+            if (event.type == MidiEvent::Type::MetaEvent) {
+                if (event.metaEventType == MidiEvent::MetaEventType::SetTempo) {
+                    microsecondsPerClick = event.metaValue;
+                    bpm = (60 * 1000 * 1000) / microsecondsPerClick;
+                }
+            } else if (event.type == MidiEvent::Type::ProgramChange) {
+                currentInst[j] = event.param1;
+            } else if (event.type == MidiEvent::Type::NoteOn) {
                 const auto note = event.param1;
                 const auto voiceId = findChannel(j, note);
                 if (voiceId == -1) {
@@ -269,21 +307,28 @@ void GameplayScene::updateMusic()
                     continue;
                 }
 
-                // TODO: sample banks / VAB
-                auto baseNote = [](int track) {
-                    switch (track) {
-                    case 0:
-                        return 36;
-                    case 1:
-                        return 84;
-                    case 3:
-                        return 72;
-                    case 5:
-                        return 84;
-                    default:
-                        return 48;
+                const auto& inst = game.vab.instruments[currentInst[j]];
+
+                auto toneIndex = -1;
+                for (int k = 0; k < inst.numTones; ++k) {
+                    const auto& tone = game.vab.toneAttributes[inst.tones[k]];
+                    if (note >= tone.min && note <= tone.max) {
+                        toneIndex = inst.tones[k];
+                        break;
                     }
-                }(j);
+                }
+
+                if (toneIndex == -1) {
+                    continue;
+                }
+
+                const auto& tone = game.vab.toneAttributes[toneIndex];
+                const auto baseNote = tone.center;
+
+                auto addr = 0x1010;
+                for (int i = 0; i < tone.vag; ++i) {
+                    addr += game.vab.vagSizes[i] << 3;
+                }
 
                 const auto pitchBase = note - baseNote;
 
@@ -300,13 +345,18 @@ void GameplayScene::updateMusic()
                     }
                 }
 
-                soundPlayer.playSound(voiceId, sample, pitch.value);
+                const auto velocity = event.param2;
+                soundPlayer.playSound(voiceId, addr, velocity, pitch.value, tone);
+
+                chanMaskOn |= (1 << voiceId);
             } else if (event.type == MidiEvent::Type::NoteOff) {
                 const auto note = event.param1;
                 freeChannel(j, note);
             }
         }
     }
+
+    soundPlayer.setKeyOnOff(chanMaskOn, chanMaskOff);
 }
 
 int GameplayScene::findChannel(int trackId, int noteId)
@@ -331,7 +381,8 @@ void GameplayScene::freeChannel(int trackId, int nodeId)
             auto& user = channelUsers[i];
             if (user.trackId == trackId && user.noteId == nodeId) {
                 usedChannels[i] = false;
-                game.soundPlayer.resetVoice(i);
+                // game.soundPlayer.resetVoice(i);
+                chanMaskOff |= (1 << i);
             }
         }
     }
@@ -482,6 +533,9 @@ void GameplayScene::drawDebugInfo()
         "cam rot=(%.2f, %.2f)",
         camera.rotation.x,
         camera.rotation.y);
+
+    game.romFont.chainprintf(
+        game.gpu(), {{.x = 16, .y = 64}}, textCol, "bpm=%d, t=%d", (int)bpm, (int)musicTime);
 
     const auto fps = gpu().getRefreshRate() / frameDiff;
     fpsMovingAverageNew = alpha * fps + oneMinAlpha * fpsMovingAverageOld;

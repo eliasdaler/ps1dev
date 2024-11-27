@@ -13,6 +13,10 @@
 #include "common/hardware/dma.h"
 #include "common/hardware/spu.h"
 
+#include "VabFile.h"
+
+#include <psyqo/fixed-point.hh>
+
 extern uint8_t _binary_loop_adpcm_start[];
 extern uint8_t _binary_loop_adpcm_end[];
 
@@ -144,13 +148,60 @@ void SoundPlayer::playSound(int channel, const Sound& sound, uint16_t pitch)
 {
     setSpuState(0xc000);
 
-    SPU_VOICES[channel].volumeLeft = 0xFF0;
+    SPU_VOICES[channel].volumeLeft = 0xF00;
     SPU_VOICES[channel].volumeRight = 0xF00;
     SPU_VOICES[channel].sampleStartAddr = sound.startAddr >> 3;
     // SPU_VOICES[channel].sampleRepeatAddr = 0;
     SPUWaitIdle();
     SPUKeyOn(1 << channel);
     SPU_VOICES[channel].sampleRate = pitch;
+}
+
+void SoundPlayer::playSound(
+    int channel,
+    uint32_t startAddr,
+    uint8_t velocity,
+    uint16_t pitch,
+    const ToneAttribute& toneAttrib)
+{
+    setSpuState(0xc000);
+
+    auto volLeft = 0x4F * ((toneAttrib.pan) / 2);
+    auto volRight = 0x4F * ((128 - toneAttrib.pan) / 2);
+
+    psyqo::FixedPoint<> volL, volR;
+
+    volL.value = volLeft;
+    volR.value = volRight;
+
+    psyqo::FixedPoint<> velo;
+    velo.value = velocity << 5; // 128 -> 4096
+
+    psyqo::FixedPoint<> volMul;
+    volMul.value = toneAttrib.vol << 5; // 128 -> 4096
+
+    volL *= velo * volMul;
+    volR *= velo * volMul;
+
+    // TODO: proper velocity calculation
+    SPU_VOICES[channel].volumeLeft = volL.value;
+    SPU_VOICES[channel].volumeRight = volR.value;
+
+    SPU_VOICES[channel].ad = toneAttrib.ad;
+    SPU_VOICES[channel].sr = toneAttrib.sr;
+    SPU_VOICES[channel].sampleStartAddr = startAddr >> 3;
+    SPU_VOICES[channel].sampleRate = pitch;
+    // SPUWaitIdle();
+    // SPUKeyOn(1 << channel);
+}
+
+void SoundPlayer::setKeyOnOff(int keyOn, int keyOff)
+{
+    SPU_KEY_ON_LOW = keyOn;
+    SPU_KEY_ON_HIGH = keyOn >> 16;
+
+    SPU_KEY_OFF_LOW = keyOff;
+    SPU_KEY_OFF_HIGH = keyOff >> 16;
 }
 
 namespace

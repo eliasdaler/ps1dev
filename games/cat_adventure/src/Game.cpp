@@ -75,6 +75,15 @@ void Game::loadInstruments(eastl::string_view filename, VabFile& vab)
         });
 }
 
+void Game::loadRawPCM(eastl::string_view filename, uint32_t spuUploadAddr)
+{
+    cdromLoader.readFile(
+        filename, gpu(), isoParser, [this, spuUploadAddr](eastl::vector<uint8_t>&& buffer) {
+            soundPlayer.uploadSound(spuUploadAddr, buffer.data(), buffer.size());
+            cdLoadCoroutine.resume();
+        });
+}
+
 TextureInfo Game::uploadTIM(const TimFile& tim)
 {
     psyqo::Rect region =

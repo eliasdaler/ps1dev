@@ -35,8 +35,8 @@ struct ToneAttribute {
     std::uint8_t pbmax; // pitch bend max
     std::uint8_t reserved1;
     std::uint8_t reserved2;
-    std::uint8_t attack, decay; // ADSR1 (attack/decay)
-    std::uint8_t release, sust; // ADSR2 (release/sustain)
+    std::uint16_t ad; // ADSR1 (attack/decay)
+    std::uint16_t sr; // ADSR2 (release/sustain)
     std::uint16_t prog; // parent program
     std::uint16_t vag; // waveform (VAG) used
     std::uint16_t reserved[4];
@@ -65,4 +65,10 @@ struct VabFile {
     eastl::array<ProgramAttribute, 128> progAttributes;
     eastl::vector<ToneAttribute> toneAttributes;
     eastl::array<std::uint16_t, 256> vagSizes;
+
+    struct InstrumentInfo {
+        eastl::array<int, 256> tones;
+        std::uint8_t numTones;
+    };
+    eastl::vector<InstrumentInfo> instruments;
 };
