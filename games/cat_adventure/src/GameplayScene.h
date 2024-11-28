@@ -80,4 +80,5 @@ private:
     uint32_t bpm{102};
     uint32_t microsecondsPerClick{0};
     uint32_t ticksPerClick{0};
+    uint32_t waitHBlanks{0};
 };

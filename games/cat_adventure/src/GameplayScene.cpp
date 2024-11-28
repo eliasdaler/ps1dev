@@ -15,6 +15,8 @@
 
 #include <common/syscalls/syscalls.h>
 
+#include "common/hardware/hwregs.h"
+
 namespace
 {
 void SetFogNearFar(int a, int b, int h)
@@ -31,6 +33,29 @@ void SetFogNearFar(int a, int b, int h)
 
 GameplayScene::GameplayScene(Game& game, Renderer& renderer) : game(game), renderer(renderer)
 {}
+
+// Taken from PCSX-Redux's modplayer
+uint32_t calculateHBlanks(uint32_t bpm)
+{
+    // The original code only uses 39000 here but the reality is a bit more
+    // complex than that, as not all clocks are exactly the same, depending
+    // on the machine's region, and the video mode selected.
+
+    uint32_t status = GPU_STATUS;
+    int isPalConsole = *((const char*)0xbfc7ff52) == 'E';
+    int isPal = (status & 0x00100000) != 0;
+    uint32_t base;
+    if (isPal && isPalConsole) { // PAL video on PAL console
+        base = 39062; // 312.5 * 125 * 50.000 / 50 or 314 * 125 * 49.761 / 50
+    } else if (isPal && !isPalConsole) { // PAL video on NTSC console
+        base = 39422; // 312.5 * 125 * 50.460 / 50 or 314 * 125 * 50.219 / 50
+    } else if (!isPal && isPalConsole) { // NTSC video on PAL console
+        base = 38977; // 262.5 * 125 * 59.393 / 50 or 263 * 125 * 59.280 / 50
+    } else { // NTSC video on NTSC console
+        base = 39336; // 262.5 * 125 * 59.940 / 50 or 263 * 125 * 59.826 / 50
+    }
+    return base / bpm;
+}
 
 void GameplayScene::start(StartReason reason)
 {
@@ -92,19 +117,21 @@ void GameplayScene::start(StartReason reason)
 
     findBPM();
 
-    auto period = 10000;
-    musicTimer = gpu().armPeriodicTimer(period, [this](uint32_t) {
-        auto now = gpu().now();
-        static auto prevNow = now;
-        musicTime += (now - prevNow);
-        prevNow = now;
-
+    waitHBlanks = calculateHBlanks(bpm);
+    musicTimer = gpu().armPeriodicTimer(waitHBlanks * psyqo::GPU::US_PER_HBLANK, [this](uint32_t) {
         updateMusic();
+        musicTime += waitHBlanks * psyqo::GPU::US_PER_HBLANK;
+
+        waitHBlanks = calculateHBlanks(bpm);
+        gpu().changeTimerPeriod(musicTimer, waitHBlanks * psyqo::GPU::US_PER_HBLANK);
     });
 }
 
 void GameplayScene::findBPM()
 {
+    // FIXME: this assumes that the first even we encounter is in the first track
+    // but actually we need to look for the first BPM change on the timeline
+    // for all the tracks
     for (int j = 0; j < game.midi.events.size(); ++j) {
         const auto& track = game.midi.events[j];
         if (track.empty()) {
@@ -269,10 +296,7 @@ void GameplayScene::updateMusic()
     chanMaskOn = 0;
     chanMaskOff = 0;
 
-    // auto now = gpu().now();
-    auto now = musicTime;
     const auto tickTime = microsecondsPerClick / game.midi.ticksPerQuarter;
-    const auto tpc = tickTime;
 
     for (int j = 0; j < numTracks; ++j) {
         const auto& track = events[j];
@@ -285,7 +309,7 @@ void GameplayScene::updateMusic()
         const auto startEvent = eventNum[j];
         for (int i = startEvent; i < trSize; ++i) {
             auto& event = track[i];
-            if ((lastEventJ + event.delta) * tpc >= now) {
+            if ((lastEventJ + event.delta) * tickTime > musicTime) {
                 lastEvent[j] = lastEventJ;
                 eventNum[j] = i;
                 break;
@@ -381,7 +405,6 @@ void GameplayScene::freeChannel(int trackId, int nodeId)
             auto& user = channelUsers[i];
             if (user.trackId == trackId && user.noteId == nodeId) {
                 usedChannels[i] = false;
-                // game.soundPlayer.resetVoice(i);
                 chanMaskOff |= (1 << i);
             }
         }
@@ -491,6 +514,8 @@ void GameplayScene::draw()
         renderer.drawMeshObject(object, camera, game.catoTexture);
     }
 
+    gpu().pumpCallbacks();
+
     renderer.bias = 0;
     // draw dynamic objects
     {
@@ -505,6 +530,8 @@ void GameplayScene::draw()
             // renderer.drawModelObject(car, camera, game.carTexture);
         }
     }
+
+    gpu().pumpCallbacks();
 
     gpu().chain(ot);
 
