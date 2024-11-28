@@ -19,6 +19,7 @@ add_executable(game
   src/Renderer.cpp
   src/VabFile.cpp
   src/DialogueBox.cpp
+  src/SongPlayer.cpp
 
   src/Game.cpp
 

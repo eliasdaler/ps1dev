@@ -17,9 +17,6 @@
 
 #include <psyqo/fixed-point.hh>
 
-extern uint8_t _binary_loop_adpcm_start[];
-extern uint8_t _binary_loop_adpcm_end[];
-
 void SoundPlayer::resetVoice(int voiceID)
 {
     SPU_VOICES[voiceID].volumeLeft = 0;
@@ -34,15 +31,14 @@ void SoundPlayer::resetVoice(int voiceID)
 
 static void SPUWaitIdle()
 {
-    do {
-        for (unsigned c = 0; c < 2045; c++)
-            asm("");
-    } while ((SPU_STATUS & 0x07ff) != 0);
+    while ((SPU_STATUS & 0x07ff) != 0) {
+        // wait
+    }
 }
 
 void SoundPlayer::uploadSound(uint32_t SpuAddr, const uint8_t* data, uint32_t size)
 {
-    ramsyscall_printf("Upload: 0x%08X -> 0x%08X, %d\n", (uint32_t)data, SpuAddr, size);
+    ramsyscall_printf("SPU Upload: 0x%08X -> 0x%08X, size=%d\n", (uint32_t)data, SpuAddr, size);
     // Set SPUCNT to "Stop" (and wait until it is applied in SPUSTAT)
     setStopState();
 

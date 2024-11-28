@@ -15,8 +15,6 @@
 
 #include <common/syscalls/syscalls.h>
 
-#include "common/hardware/hwregs.h"
-
 namespace
 {
 void SetFogNearFar(int a, int b, int h)
@@ -33,29 +31,6 @@ void SetFogNearFar(int a, int b, int h)
 
 GameplayScene::GameplayScene(Game& game, Renderer& renderer) : game(game), renderer(renderer)
 {}
-
-// Taken from PCSX-Redux's modplayer
-uint32_t calculateHBlanks(uint32_t bpm)
-{
-    // The original code only uses 39000 here but the reality is a bit more
-    // complex than that, as not all clocks are exactly the same, depending
-    // on the machine's region, and the video mode selected.
-
-    uint32_t status = GPU_STATUS;
-    int isPalConsole = *((const char*)0xbfc7ff52) == 'E';
-    int isPal = (status & 0x00100000) != 0;
-    uint32_t base;
-    if (isPal && isPalConsole) { // PAL video on PAL console
-        base = 39062; // 312.5 * 125 * 50.000 / 50 or 314 * 125 * 49.761 / 50
-    } else if (isPal && !isPalConsole) { // PAL video on NTSC console
-        base = 39422; // 312.5 * 125 * 50.460 / 50 or 314 * 125 * 50.219 / 50
-    } else if (!isPal && isPalConsole) { // NTSC video on PAL console
-        base = 38977; // 262.5 * 125 * 59.393 / 50 or 263 * 125 * 59.280 / 50
-    } else { // NTSC video on NTSC console
-        base = 39336; // 262.5 * 125 * 59.940 / 50 or 263 * 125 * 59.826 / 50
-    }
-    return base / bpm;
-}
 
 void GameplayScene::start(StartReason reason)
 {
@@ -102,51 +77,7 @@ void GameplayScene::start(StartReason reason)
         }
     }
 
-    for (int i = 0; i < lastEvent.size(); ++i) {
-        lastEvent[i] = 0;
-    }
-
-    for (int i = 0; i < eventNum.size(); ++i) {
-        eventNum[i] = 0;
-    }
-
-    for (int i = 0; i < eventNum.size(); ++i) {
-        eventNum[i] = 0;
-        channelUsers[i] = {};
-    }
-
-    findBPM();
-
-    waitHBlanks = calculateHBlanks(bpm);
-    musicTimer = gpu().armPeriodicTimer(waitHBlanks * psyqo::GPU::US_PER_HBLANK, [this](uint32_t) {
-        updateMusic();
-        musicTime += waitHBlanks * psyqo::GPU::US_PER_HBLANK;
-
-        waitHBlanks = calculateHBlanks(bpm);
-        gpu().changeTimerPeriod(musicTimer, waitHBlanks * psyqo::GPU::US_PER_HBLANK);
-    });
-}
-
-void GameplayScene::findBPM()
-{
-    // FIXME: this assumes that the first even we encounter is in the first track
-    // but actually we need to look for the first BPM change on the timeline
-    // for all the tracks
-    for (int j = 0; j < game.midi.events.size(); ++j) {
-        const auto& track = game.midi.events[j];
-        if (track.empty()) {
-            continue;
-        }
-
-        for (int i = 0; i < track.size(); ++i) {
-            auto& event = track[i];
-            if (event.metaEventType == MidiEvent::MetaEventType::SetTempo) {
-                microsecondsPerClick = event.metaValue;
-                bpm = (60 * 1000 * 1000) / microsecondsPerClick;
-                return;
-            }
-        }
-    }
+    game.songPlayer.init(game.midi, game.vab);
 }
 
 void GameplayScene::onResourcesLoaded()
@@ -211,11 +142,6 @@ void GameplayScene::processInput()
         camera.position.z -= trig.cos(camera.rotation.y) * walkSpeed;
     }
 
-    ++count;
-    if (count > 10) {
-        count = 10;
-    }
-
     static bool wasLeftPressed = false;
     if (!wasLeftPressed && pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Left)) {
         toneNum -= 1;
@@ -234,181 +160,7 @@ void GameplayScene::processInput()
         wasRightPressed = false;
     }
 
-    if (count == 10) {
-        if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Cross)) {
-            pitchBase = -1;
-            reset = 1;
-            count = 0;
-        }
-
-        if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Square)) {
-            pitchBase = 1;
-            reset = 1;
-            count = 0;
-        }
-
-        if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Triangle)) {
-            pitchBase = 0;
-            reset = 1;
-            count = 0;
-        }
-
-        if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Circle)) {
-            pitchBase = -2;
-            reset = 1;
-            count = 0;
-        }
-    }
-
-    auto& soundPlayer = game.soundPlayer;
-
-    if (reset && count == 0) {
-        reset = 0;
-        psyqo::FixedPoint<> pitch{1.0};
-        psyqo::FixedPoint<> sqr{1.0594630943592};
-        if (pitchBase >= 0) {
-            for (int i = 0; i < pitchBase; ++i) {
-                pitch *= sqr;
-            }
-        } else {
-            for (int i = 0; i < -pitchBase; ++i) {
-                pitch /= sqr;
-            }
-        }
-
-        auto addr = 0x1010;
-        for (int i = 0; i < toneNum; ++i) {
-            addr += game.vab.vagSizes[i] << 3;
-        }
-
-        soundPlayer.playSound(2, addr, 128, pitch.value, game.vab.toneAttributes[toneNum]);
-    }
-
     dialogueBox.handleInput(game.pad);
-}
-
-void GameplayScene::updateMusic()
-{
-    auto& soundPlayer = game.soundPlayer;
-    const auto& events = game.midi.events;
-    const auto numTracks = events.size();
-
-    chanMaskOn = 0;
-    chanMaskOff = 0;
-
-    const auto tickTime = microsecondsPerClick / game.midi.ticksPerQuarter;
-
-    for (int j = 0; j < numTracks; ++j) {
-        const auto& track = events[j];
-        if (track.empty()) {
-            continue;
-        }
-
-        auto lastEventJ = lastEvent[j];
-        const auto trSize = track.size();
-        const auto startEvent = eventNum[j];
-        for (int i = startEvent; i < trSize; ++i) {
-            auto& event = track[i];
-            if ((lastEventJ + event.delta) * tickTime > musicTime) {
-                lastEvent[j] = lastEventJ;
-                eventNum[j] = i;
-                break;
-            }
-
-            lastEventJ = lastEventJ + event.delta;
-            if (event.type == MidiEvent::Type::MetaEvent) {
-                if (event.metaEventType == MidiEvent::MetaEventType::SetTempo) {
-                    microsecondsPerClick = event.metaValue;
-                    bpm = (60 * 1000 * 1000) / microsecondsPerClick;
-                }
-            } else if (event.type == MidiEvent::Type::ProgramChange) {
-                currentInst[j] = event.param1;
-            } else if (event.type == MidiEvent::Type::NoteOn) {
-                const auto note = event.param1;
-                const auto voiceId = findChannel(j, note);
-                if (voiceId == -1) {
-                    // TODO: drop the oldest sample
-                    continue;
-                }
-
-                const auto& inst = game.vab.instruments[currentInst[j]];
-
-                auto toneIndex = -1;
-                for (int k = 0; k < inst.numTones; ++k) {
-                    const auto& tone = game.vab.toneAttributes[inst.tones[k]];
-                    if (note >= tone.min && note <= tone.max) {
-                        toneIndex = inst.tones[k];
-                        break;
-                    }
-                }
-
-                if (toneIndex == -1) {
-                    continue;
-                }
-
-                const auto& tone = game.vab.toneAttributes[toneIndex];
-                const auto baseNote = tone.center;
-
-                auto addr = 0x1010;
-                for (int i = 0; i < tone.vag; ++i) {
-                    addr += game.vab.vagSizes[i] << 3;
-                }
-
-                const auto pitchBase = note - baseNote;
-
-                // TODO: LUT
-                psyqo::FixedPoint<> pitch{1.0};
-                psyqo::FixedPoint<> sqr{1.0594630943592};
-                if (pitchBase >= 0) {
-                    for (int i = 0; i < pitchBase; ++i) {
-                        pitch *= sqr;
-                    }
-                } else {
-                    for (int i = 0; i < -pitchBase; ++i) {
-                        pitch /= sqr;
-                    }
-                }
-
-                const auto velocity = event.param2;
-                soundPlayer.playSound(voiceId, addr, velocity, pitch.value, tone);
-
-                chanMaskOn |= (1 << voiceId);
-            } else if (event.type == MidiEvent::Type::NoteOff) {
-                const auto note = event.param1;
-                freeChannel(j, note);
-            }
-        }
-    }
-
-    soundPlayer.setKeyOnOff(chanMaskOn, chanMaskOff);
-}
-
-int GameplayScene::findChannel(int trackId, int noteId)
-{
-    for (int i = 0; i < usedChannels.size(); ++i) {
-        if (usedChannels[i] == false) {
-            channelUsers[i] = UseInfo{
-                .trackId = trackId,
-                .noteId = noteId,
-            };
-            usedChannels[i] = true;
-            return i;
-        }
-    }
-    return -1;
-}
-
-void GameplayScene::freeChannel(int trackId, int nodeId)
-{
-    for (int i = 0; i < usedChannels.size(); ++i) {
-        if (usedChannels[i]) {
-            auto& user = channelUsers[i];
-            if (user.trackId == trackId && user.noteId == nodeId) {
-                usedChannels[i] = false;
-                chanMaskOff |= (1 << i);
-            }
-        }
-    }
 }
 
 void GameplayScene::updateCamera()
@@ -449,7 +201,6 @@ void GameplayScene::draw()
     gpu().chain(tpage);
 
     // clear
-    // psyqo::Color bg{{.r = 0, .g = 64, .b = 91}};
     psyqo::Color bg{{.r = 33, .g = 14, .b = 58}};
     auto& fill = primBuffer.allocateFragment<psyqo::Prim::FastFill>();
     gpu().getNextClear(fill.primitive, bg);
@@ -535,7 +286,7 @@ void GameplayScene::draw()
 
     gpu().chain(ot);
 
-    // dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
+    dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
 
     drawDebugInfo();
 }
@@ -562,7 +313,12 @@ void GameplayScene::drawDebugInfo()
         camera.rotation.y);
 
     game.romFont.chainprintf(
-        game.gpu(), {{.x = 16, .y = 64}}, textCol, "bpm=%d, t=%d", (int)bpm, (int)musicTime);
+        game.gpu(),
+        {{.x = 16, .y = 64}},
+        textCol,
+        "bpm=%d, t=%d",
+        (int)game.songPlayer.bpm,
+        (int)game.songPlayer.musicTime);
 
     const auto fps = gpu().getRefreshRate() / frameDiff;
     fpsMovingAverageNew = alpha * fps + oneMinAlpha * fpsMovingAverageOld;

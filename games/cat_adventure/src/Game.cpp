@@ -2,6 +2,9 @@
 
 #include <common/syscalls/syscalls.h>
 
+Game::Game() : songPlayer(gpu(), soundPlayer)
+{}
+
 void Game::prepare()
 {
     psyqo::GPU::Configuration config;
@@ -101,7 +104,7 @@ TextureInfo Game::uploadTIM(const TimFile& tim)
     TextureInfo info;
     info.clut = {{.x = tim.clutDX, .y = tim.clutDY}};
 
-    ramsyscall_printf("tim pixDX: %d, pixDY: %d\n", tim.pixDX, tim.pixDY);
+    // ramsyscall_printf("tim pixDX: %d, pixDY: %d\n", tim.pixDX, tim.pixDY);
 
     const auto colorMode = [](TimFile::PMode pmode) {
         switch (pmode) {

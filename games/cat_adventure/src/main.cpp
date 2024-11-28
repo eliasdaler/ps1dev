@@ -74,7 +74,7 @@ psyqo::Coroutine<> loadCoroutine(Game* game)
 
 void Game::createScene()
 {
-    testing::testMatrix();
+    // testing::testMatrix();
     romFont.uploadSystemFont(gpu(), {{.x = 960, .y = int16_t(512 - 48 - 90)}});
 
     pad.initialize();

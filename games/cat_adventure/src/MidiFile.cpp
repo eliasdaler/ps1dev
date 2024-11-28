@@ -6,6 +6,9 @@
 
 namespace
 {
+const uint32_t midiMagic = 0x4D546864; // "MThd"
+const uint32_t midiTrackMagic = 0x4D54726B; // "MTrk"
+
 uint32_t byteswap32(uint32_t x)
 {
     uint32_t y = (x >> 24) & 0xff;
@@ -20,6 +23,29 @@ uint16_t byteswap16(uint16_t val)
     return (val << 8) | ((val >> 8) & 0xFF);
 }
 
+uint32_t readVar(util::FileReader& fr)
+{
+    auto b = fr.GetUInt8();
+    uint32_t var = b;
+    if (b & 0x80) {
+        var = (b & 0x7F);
+        do {
+            b = fr.GetUInt8();
+            var = (var << 7) + (b & 0x7F);
+        } while (b & 0x80);
+    }
+    return var;
+}
+
+uint32_t readVarLen(util::FileReader& fr, uint8_t len)
+{
+    uint32_t var = 0;
+    for (int i = 0; i < len; ++i) {
+        var = (var << 8) + fr.GetUInt8();
+    }
+    return var;
+}
+
 }
 
 void MidiFile::load(eastl::string_view filename, const eastl::vector<uint8_t>& data)
@@ -29,53 +55,36 @@ void MidiFile::load(eastl::string_view filename, const eastl::vector<uint8_t>& d
     };
 
     const auto header = byteswap32(fr.GetUInt32());
-    bool isMIDI = (header == 0x4D546864);
+    bool isMIDI = (header == midiMagic);
     if (!isMIDI) {
-        ramsyscall_printf("%s is not a MIDI file\n", filename);
+        ramsyscall_printf("Not a MIDI file, got header: 0x%08X\n", header);
     }
 
     const auto chunkSize = byteswap32(fr.GetUInt32()); // should be 6
     (void)chunkSize;
 
     const auto formatType = byteswap16(fr.GetUInt16()); // should be 1 (for now)
+    if (formatType != 1) {
+        ramsyscall_printf("Only SMF format 1 is supported\n");
+    }
 
     const auto trackNum = byteswap16(fr.GetUInt16());
-    ramsyscall_printf("numTracks : %d\n", trackNum);
-
-    events.resize(trackNum);
+    tracks.resize(trackNum);
 
     ticksPerQuarter = byteswap16(fr.GetUInt16());
-    ramsyscall_printf("ticksPerQuarter: %d\n", ticksPerQuarter);
 
-    for (int i = 0; i < trackNum; ++i) {
+    for (int trackIdx = 0; trackIdx < trackNum; ++trackIdx) {
         const auto trackHeader = byteswap32(fr.GetUInt32());
-        // TODO assert(trackHeader == 0x4D54726B)
-        const auto chunkSize = byteswap32(fr.GetUInt32()); // should be 6
+        if (trackHeader != midiTrackMagic) {
+            ramsyscall_printf("ERROR: track header is not right, got: 0x%08X\n", trackHeader);
+        }
+
+        const auto chunkSize = byteswap32(fr.GetUInt32());
         (void)chunkSize;
-        ramsyscall_printf("trackNum: %d, chunkSize: %d\n", i, chunkSize);
 
-        MidiEvent event;
+        MidiEvent event{};
 
-        auto readVar = [](util::FileReader& fr) {
-            auto b = fr.GetUInt8();
-            uint32_t var = b;
-            if (b & 0x80) {
-                var = (b & 0x7F);
-                do {
-                    b = fr.GetUInt8();
-                    var = (var << 7) + (b & 0x7F);
-                } while (b & 0x80);
-            }
-            return var;
-        };
-
-        auto readVarLen = [](util::FileReader& fr, uint8_t len) {
-            auto var = 0;
-            for (int i = 0; i < len; ++i) {
-                var = (var << 8) + fr.GetUInt8();
-            }
-            return var;
-        };
+        auto& track = tracks[trackIdx];
 
         while (true) {
             event.delta = readVar(fr);
@@ -90,7 +99,11 @@ void MidiFile::load(eastl::string_view filename, const eastl::vector<uint8_t>& d
                 event.type != MidiEvent::Type::MetaEvent &&
                 event.type != MidiEvent::Type::PitchBend) {
                 ramsyscall_printf("UNKNOWN: 0x%01X, 0x%01X\n", (int)event.type, (int)eventByte);
-                return;
+                return; // FIXME: this will break stuff
+            }
+
+            if (event.type == MidiEvent::Type::PitchBend) {
+                ramsyscall_printf("PITCH BEND IS NOT IMPLEMENTED\n");
             }
 
             if (event.type == MidiEvent::Type::MetaEvent) {
@@ -105,30 +118,21 @@ void MidiFile::load(eastl::string_view filename, const eastl::vector<uint8_t>& d
                     const auto len = fr.GetUInt8(); //  should be 0
                     goto endTrack;
                 }
-                events[i].push_back(event);
+                tracks[trackIdx].push_back(event);
                 continue;
             }
 
-            // param1
             event.param1 = fr.GetUInt8();
 
-            if (event.type == MidiEvent::Type::NoteOff || event.type == MidiEvent::Type::NoteOn ||
+            if (event.type == MidiEvent::Type::NoteOff || //
+                event.type == MidiEvent::Type::NoteOn ||
                 event.type == MidiEvent::Type::Controller ||
                 event.type == MidiEvent::Type::PitchBend ||
                 event.type == MidiEvent::Type::Unknown) {
                 event.param2 = fr.GetUInt8();
             }
 
-            if (i == 3000 && event.type == MidiEvent::Type::NoteOn) {
-                ramsyscall_printf(
-                    "%d: delta: %d, type : 0x%01X, param1: %d, param2: %d\n",
-                    event.delta,
-                    event.type,
-                    event.param1,
-                    event.param2);
-            }
-
-            events[i].push_back(event);
+            track.push_back(event);
         }
 
     endTrack:

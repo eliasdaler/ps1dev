@@ -34,17 +34,17 @@ struct MidiEvent {
     };
 
     Type type{Type::Unknown};
-    uint32_t delta;
+    uint32_t delta{};
     uint8_t param1{};
     uint8_t param2{};
 
     MetaEventType metaEventType{MetaEventType::Unknown};
-    uint32_t metaValue;
+    uint32_t metaValue{};
 };
 
 struct MidiFile {
     void load(eastl::string_view filename, const eastl::vector<uint8_t>& data);
 
     uint32_t ticksPerQuarter{480};
-    eastl::vector<eastl::vector<MidiEvent>> events;
+    eastl::vector<eastl::vector<MidiEvent>> tracks;
 };

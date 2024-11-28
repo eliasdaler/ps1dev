@@ -11,6 +11,7 @@
 #include "Font.h"
 #include "MidiFile.h"
 #include "Model.h"
+#include "SongPlayer.h"
 #include "SoundPlayer.h"
 #include "TextureInfo.h"
 #include "TimFile.h"
@@ -21,6 +22,8 @@ class Game : public psyqo::Application {
     void createScene() override;
 
 public:
+    Game();
+
     void loadTIM(eastl::string_view filename, TextureInfo& textureInfo);
     void loadFont(eastl::string_view filename, Font& font);
     void loadModel(eastl::string_view filename, Model& model);
@@ -55,14 +58,8 @@ public:
     int levelId{0};
 
     SoundPlayer soundPlayer;
-    Sound stepSound;
-    Sound drumSound;
-    Sound synthSound;
-    Sound guitarSound;
-    Sound melodySound;
-    Sound melody2Sound;
-    Sound emptySample;
-    MidiFile midi;
+    SongPlayer songPlayer;
 
+    MidiFile midi;
     VabFile vab;
 };

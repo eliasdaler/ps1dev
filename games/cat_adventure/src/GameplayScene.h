@@ -17,13 +17,7 @@ public:
 private:
     void start(StartReason reason) override;
 
-    int findChannel(int trackId, int noteId);
-    void freeChannel(int trackId, int nodeId);
-
     void frame() override;
-
-    void findBPM();
-    void updateMusic();
 
     void processInput();
     void update();
@@ -42,24 +36,6 @@ private:
 
     DialogueBox dialogueBox;
 
-    int pitchBase;
-    int reset{0};
-    int count{100};
-
-    eastl::array<int, 16> lastEvent{};
-    eastl::array<int, 16> eventNum{};
-    eastl::array<int, 16> currentInst{};
-
-    eastl::array<bool, 24> usedChannels;
-    struct UseInfo {
-        int trackId;
-        int noteId;
-    };
-    eastl::array<UseInfo, 24> channelUsers;
-
-    unsigned musicTimer;
-    int musicTime{0};
-
     int frameDiff{0};
     int lastFrameCounter{0};
 
@@ -73,12 +49,4 @@ private:
     psyqo::FixedPoint<> lerpFactor{0.1};
 
     int toneNum{0};
-
-    int32_t chanMaskOn{0};
-    int32_t chanMaskOff{0};
-
-    uint32_t bpm{102};
-    uint32_t microsecondsPerClick{0};
-    uint32_t ticksPerClick{0};
-    uint32_t waitHBlanks{0};
 };
