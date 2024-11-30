@@ -35,7 +35,7 @@ constexpr auto SpuDMAWriteMode =
 constexpr auto SpuRamTransferStop = ((int)SpuRamTransferMode::Stop << SPU_RAM_TRANSFER_MODE_OFFSET);
 
 #define SPU_REVERB_START_ADDR HW_U16(0x1f801da2)
-#define SPU_REVERB_SETTINGS ((volatile uint16_t*)0x1f801dc0)
+#define SPU_REVERB_SETTINGS ((volatile std::uint16_t*)0x1f801dc0)
 
 constexpr auto SPU_REVERB_BIT = 7;
 constexpr auto SPU_REVERB_ENABLE = (1 << SPU_REVERB_BIT);
@@ -63,13 +63,17 @@ static void SPUWaitIdle()
     }
 }
 
-void SoundPlayer::uploadSound(uint32_t SpuAddr, const uint8_t* data, uint32_t size)
+void SoundPlayer::uploadSound(std::uint32_t SpuAddr, const std::uint8_t* data, std::uint32_t size)
 {
-    ramsyscall_printf("SPU Upload: 0x%08X -> 0x%08X, size=%d\n", (uint32_t)data, SpuAddr, size);
+    ramsyscall_printf(
+        "SPU Upload: (RAM) 0x%08X -> (SPU) 0x%04X, size=%d\n",
+        (std::uint32_t)data,
+        (SpuAddr >> 3),
+        size);
     // Set SPUCNT to "Stop" (and wait until it is applied in SPUSTAT)
     setStopState();
 
-    uint32_t bcr = size >> 6;
+    std::uint32_t bcr = size >> 6;
     if (size & 0x3f) bcr++;
     bcr <<= 16;
     bcr |= 0x10;
@@ -82,7 +86,7 @@ void SoundPlayer::uploadSound(uint32_t SpuAddr, const uint8_t* data, uint32_t si
 
     SBUS_DEV4_CTRL &= ~0x0f000000;
 
-    DMA_CTRL[DMA_SPU].MADR = (uint32_t)data;
+    DMA_CTRL[DMA_SPU].MADR = (std::uint32_t)data;
     DMA_CTRL[DMA_SPU].BCR = bcr;
     // Start DMA4 at CPU Side (blocksize=10h, control=01000201h)
     DMA_CTRL[DMA_SPU].CHCR = 0x01000201;
@@ -96,8 +100,8 @@ void SoundPlayer::uploadSound(uint32_t SpuAddr, const uint8_t* data, uint32_t si
 void SoundPlayer::init()
 {
     DPCR |= 0x000b0000; // WHY?
-    SPU_VOL_MAIN_LEFT = 0x3800;
-    SPU_VOL_MAIN_RIGHT = 0x3800;
+    SPU_VOL_MAIN_LEFT = 0x3FFF;
+    SPU_VOL_MAIN_RIGHT = 0x3FFF;
     SPU_KEY_ON_LOW = 0;
     SPU_KEY_ON_HIGH = 0;
     SPU_KEY_OFF_LOW = 0xffff;
@@ -152,12 +156,12 @@ void SoundPlayer::setStopState()
     setSpuState(spuState);
 }
 
-void SoundPlayer::setSpuState(uint16_t spuState)
+void SoundPlayer::setSpuState(std::uint16_t spuState)
 {
     this->spuState = spuState;
     SPU_CTRL = spuState;
     if (spuState & 0b110000) { // SPU mode changed
-        while ((SPU_STATUS & 0b11111) != (SPU_CTRL & 0b11111)) {
+        while ((SPU_STATUS & 0b110000) != (SPU_CTRL & 0b110000)) {
             // wait until mode is applied
         }
     }
@@ -167,10 +171,12 @@ void SoundPlayer::setSpuState(uint16_t spuState)
         SPU_CTRL |= SPU_REVERB_ENABLE;
     } else {
         SPU_CTRL &= ~SPU_REVERB_ENABLE;
+        SPU_REVERB_EN_LOW = 0x0000;
+        SPU_REVERB_EN_HIGH = 0x0000;
     }
 }
 
-void SoundPlayer::uploadSound(uint32_t SpuAddr, Sound& sound)
+void SoundPlayer::uploadSound(std::uint32_t SpuAddr, Sound& sound)
 {
     static const auto vagHeaderSize = 48;
     sound.startAddr = SpuAddr;
@@ -181,30 +187,32 @@ void SoundPlayer::uploadSound(uint32_t SpuAddr, Sound& sound)
     }
 }
 
-static void SPUKeyOn(uint32_t voiceBits)
+static void SPUKeyOn(std::uint32_t voiceBits)
 {
     SPU_KEY_ON_LOW = voiceBits;
     SPU_KEY_ON_HIGH = voiceBits >> 16;
 }
 
-void SoundPlayer::playSound(int channel, const Sound& sound, uint16_t pitch)
+void SoundPlayer::playSound(int channel, const Sound& sound, std::uint16_t pitch)
 {
     setSpuState(0xc000);
 
     SPU_VOICES[channel].volumeLeft = 0xF00;
     SPU_VOICES[channel].volumeRight = 0xF00;
     SPU_VOICES[channel].sampleStartAddr = sound.startAddr >> 3;
-    // SPU_VOICES[channel].sampleRepeatAddr = 0;
-    SPUWaitIdle();
-    SPUKeyOn(1 << channel);
     SPU_VOICES[channel].sampleRate = pitch;
+    // SPU_VOICES[channel].sampleRepeatAddr = 0;
+
+    SPUWaitIdle();
+
+    SPUKeyOn(1 << channel);
 }
 
 void SoundPlayer::playSound(
     int channel,
-    uint32_t startAddr,
-    uint8_t velocity,
-    uint16_t pitch,
+    std::uint32_t startAddr,
+    std::uint8_t velocity,
+    std::uint16_t pitch,
     const ToneAttribute& toneAttrib)
 {
     setSpuState(0xc000);
@@ -238,7 +246,7 @@ void SoundPlayer::playSound(
     // SPUKeyOn(1 << channel);
 }
 
-void SoundPlayer::setKeyOnOff(uint32_t keyOn, uint32_t keyOff)
+void SoundPlayer::setKeyOnOff(std::uint32_t keyOn, std::uint32_t keyOff)
 {
     SPU_KEY_ON_LOW = keyOn;
     SPU_KEY_ON_HIGH = keyOn >> 16;
@@ -249,9 +257,9 @@ void SoundPlayer::setKeyOnOff(uint32_t keyOn, uint32_t keyOff)
 
 namespace
 {
-uint32_t byteswap32(uint32_t x)
+std::uint32_t byteswap32(std::uint32_t x)
 {
-    uint32_t y = (x >> 24) & 0xff;
+    std::uint32_t y = (x >> 24) & 0xff;
     y |= ((x >> 16) & 0xff) << 8;
     y |= ((x >> 8) & 0xff) << 16;
     y |= (x & 0xff) << 24;
@@ -260,7 +268,7 @@ uint32_t byteswap32(uint32_t x)
 
 }
 
-void Sound::load(eastl::string_view filename, const eastl::vector<uint8_t>& data)
+void Sound::load(eastl::string_view filename, const eastl::vector<std::uint8_t>& data)
 {
     util::FileReader fr{
         .bytes = data.data(),
@@ -290,7 +298,7 @@ void Sound::load(eastl::string_view filename, const eastl::vector<uint8_t>& data
 void SoundPlayer::setReverbPreset(SpuReverbPreset preset)
 {
     // clang-format off
-    static const uint16_t reverbSettings[] = {
+    static const std::uint16_t reverbSettings[] = {
       /*
       dAPF1  dAPF2  vIIR   vCOMB1 vCOMB2  vCOMB3  vCOMB4  vWALL   ;1F801DC0h..CEh
       vAPF1  vAPF2  mLSAME mRSAME mLCOMB1 mRCOMB1 mLCOMB2 mRCOMB2 ;1F801DD0h..DEh
@@ -349,7 +357,7 @@ void SoundPlayer::setReverbPreset(SpuReverbPreset preset)
       0x0000,0x0000,0x0001,0x0001,0x0001,0x0001,0x0000,0x0000,
     };
     // clang-format on
-    const uint32_t reverbSizes[] = {
+    const std::uint32_t reverbSizes[] = {
         0x26C0, // Room
         0x1F40, // Studio Small
         0x4840, // Studio Medium
@@ -369,7 +377,10 @@ void SoundPlayer::setReverbPreset(SpuReverbPreset preset)
         eastl::span{&reverbSettings[presetIndex * NUM_REVERB_PARAMS], NUM_REVERB_PARAMS},
         reverbSizes[presetIndex]);
 
-    SPU_REVERB_START_ADDR = (0x80000 - reverbSizes[presetIndex]) / 8;
+    const auto reverbSize = reverbSizes[presetIndex];
+    const auto startAddr = (0x80000 - reverbSize) >> 3;
+    SPU_REVERB_START_ADDR = startAddr;
+    clearReverbArea(startAddr << 3, reverbSize);
 }
 
 void SoundPlayer::setReverbSettings(
@@ -378,5 +389,21 @@ void SoundPlayer::setReverbSettings(
 {
     for (std::size_t i = 0; i < reverbSettings.size(); ++i) {
         SPU_REVERB_SETTINGS[i] = reverbSettings[i];
+    }
+}
+
+void SoundPlayer::clearReverbArea(std::uint32_t reverbAreaStartAddr, const uint32_t reverbSize)
+{
+    // FIXME: not 100% sure about this one, might be broken in some places...
+    const auto zeroBlockSize = 1024;
+    static eastl::array<uint8_t, zeroBlockSize> zeros = {};
+    const auto numDMAs = (reverbSize + zeroBlockSize - 1) / zeroBlockSize;
+    for (std::uint32_t i = 0; i < numDMAs; ++i) {
+        const auto startAddr = reverbAreaStartAddr + i * zeroBlockSize;
+        auto size = (0x80000 - startAddr);
+        if (size > zeroBlockSize) {
+            size = zeroBlockSize;
+        }
+        uploadSound(startAddr, zeros.data(), size);
     }
 }

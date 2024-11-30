@@ -147,11 +147,16 @@ void GameplayScene::processInput()
         toneNum -= 1;
 
         reverbPreset -= 1;
-        game.soundPlayer.setReverbPreset((SpuReverbPreset)reverbPreset);
+        // game.soundPlayer.setReverbPreset((SpuReverbPreset)reverbPreset);
 
         wasLeftPressed = true;
 
-        // SoundPlayer::reverbEnabled = !SoundPlayer::reverbEnabled;
+        SoundPlayer::reverbEnabled = !SoundPlayer::reverbEnabled;
+        if (!SoundPlayer::reverbEnabled) {
+            game.soundPlayer.setReverbPreset(SpuReverbPreset::Off);
+        } else {
+            game.soundPlayer.setReverbPreset(SpuReverbPreset::StudioLarge);
+        }
     }
     if (!pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Left)) {
         wasLeftPressed = false;
@@ -329,7 +334,7 @@ void GameplayScene::drawDebugInfo()
         "bpm=%d, t=%d, reverb = %d",
         (int)game.songPlayer.bpm,
         (int)game.songPlayer.musicTime,
-        reverbPreset);
+        (int)SoundPlayer::reverbEnabled);
 
     const auto fps = gpu().getRefreshRate() / frameDiff;
     fpsMovingAverageNew = alpha * fps + oneMinAlpha * fpsMovingAverageOld;
