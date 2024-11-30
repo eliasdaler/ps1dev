@@ -70,12 +70,12 @@ void SongPlayer::init(MidiFile& song, VabFile& vab)
     // TODO: handle case where the init is called twice
     const auto waitHBlanks = calculateHBlanks(bpm);
     musicTimer = gpu.armPeriodicTimer(
-        waitHBlanks * psyqo::GPU::US_PER_HBLANK, [this, waitHBlanks](uint32_t) {
+        waitHBlanks * psyqo::GPU::US_PER_HBLANK / 2, [this, waitHBlanks](uint32_t) {
             updateMusic();
-            musicTime += waitHBlanks * psyqo::GPU::US_PER_HBLANK;
+            musicTime += waitHBlanks * psyqo::GPU::US_PER_HBLANK / 2; // FIXME: use newWaitHBlanks!
 
             const auto newWaitHBlanks = calculateHBlanks(bpm);
-            gpu.changeTimerPeriod(musicTimer, newWaitHBlanks * psyqo::GPU::US_PER_HBLANK);
+            gpu.changeTimerPeriod(musicTimer, newWaitHBlanks * psyqo::GPU::US_PER_HBLANK / 2);
         });
 }
 
@@ -112,11 +112,18 @@ void SongPlayer::updateMusic()
 
     const auto tickTime = microsecondsPerClick / song->ticksPerQuarter;
 
+    static int update = 0;
+    ++update;
+
     for (int trackIdx = 0; trackIdx < numTracks; ++trackIdx) {
         const auto& track = tracks[trackIdx];
         if (track.empty()) {
             continue;
         }
+
+        /* if (trackIdx != 3) {
+            continue;
+        } */
 
         auto lastEventAbsTime = lastEventIdx[trackIdx];
         const auto trSize = track.size();
@@ -124,6 +131,7 @@ void SongPlayer::updateMusic()
         for (int i = startEventIdx; i < trSize; ++i) {
             const auto& event = track[i];
             if ((lastEventAbsTime + event.delta) * tickTime > musicTime) {
+                // ^ FIXME: this is wrong if BPM changes - need to count in ticks!
                 lastEventIdx[trackIdx] = lastEventAbsTime;
                 eventNum[trackIdx] = i;
                 break;
@@ -184,15 +192,26 @@ void SongPlayer::updateMusic()
                 }
 
                 const auto velocity = event.param2;
+                if (tone.mode != 4) {
+                    reverbEnableMask &= ~(1 << voiceId);
+                } else {
+                    reverbEnableMask |= (1 << voiceId);
+                }
                 spu.playSound(voiceId, addr, velocity, pitch.value, tone);
+                voicesKeyOnMask |= (1 << voiceId);
+                // ramsyscall_printf("%d: on\n", update);
             } else if (event.type == MidiEvent::Type::NoteOff) {
                 const auto note = event.param1;
-                freeChannel(trackIdx, note);
+                const auto voiceId = freeChannel(trackIdx, note);
+                voicesKeyOffMask |= (1 << voiceId);
+                reverbEnableMask &= ~(1 << voiceId);
+                // ramsyscall_printf("%d: off\n", update);
             }
         }
     }
 
     spu.setKeyOnOff(voicesKeyOnMask, voicesKeyOffMask);
+    spu.setReverbChannels(reverbEnableMask);
 }
 
 int SongPlayer::findChannel(std::uint8_t trackId, std::uint8_t noteId)
@@ -206,14 +225,13 @@ int SongPlayer::findChannel(std::uint8_t trackId, std::uint8_t noteId)
             .trackId = trackId,
             .noteId = noteId,
         };
-        voicesKeyOnMask |= (1 << voiceId);
         usedVoices[voiceId] = true;
         return voiceId;
     }
     return -1;
 }
 
-void SongPlayer::freeChannel(std::uint8_t trackId, std::uint8_t noteId)
+int SongPlayer::freeChannel(std::uint8_t trackId, std::uint8_t noteId)
 {
     for (std::uint8_t voiceId = 0; voiceId < usedVoices.size(); ++voiceId) {
         if (!usedVoices[voiceId]) {
@@ -223,7 +241,8 @@ void SongPlayer::freeChannel(std::uint8_t trackId, std::uint8_t noteId)
         const auto& user = voiceUsers[voiceId];
         if (user.trackId == trackId && user.noteId == noteId) {
             usedVoices[voiceId] = false;
-            voicesKeyOffMask |= (1 << voiceId);
+            return voiceId;
         }
     }
+    return -1;
 }

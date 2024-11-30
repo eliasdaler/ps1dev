@@ -95,8 +95,6 @@ void GameplayScene::frame()
     gpu().pumpCallbacks();
 
     draw();
-
-    gpu().pumpCallbacks();
 }
 
 void GameplayScene::processInput()

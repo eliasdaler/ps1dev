@@ -44,16 +44,16 @@ constexpr auto SPU_REVERB_ENABLE = (1 << SPU_REVERB_BIT);
 
 bool SoundPlayer::reverbEnabled = true;
 
-void SoundPlayer::resetVoice(int voiceID)
+void SoundPlayer::resetVoice(int voiceId)
 {
-    SPU_VOICES[voiceID].volumeLeft = 0;
-    SPU_VOICES[voiceID].volumeRight = 0;
-    SPU_VOICES[voiceID].sampleRate = 0;
-    SPU_VOICES[voiceID].sampleStartAddr = 0;
-    SPU_VOICES[voiceID].ad = 0x000f;
-    SPU_VOICES[voiceID].currentVolume = 0;
-    SPU_VOICES[voiceID].sampleRepeatAddr = 0;
-    SPU_VOICES[voiceID].sr = 0x0000;
+    SPU_VOICES[voiceId].volumeLeft = 0;
+    SPU_VOICES[voiceId].volumeRight = 0;
+    SPU_VOICES[voiceId].sampleRate = 0;
+    SPU_VOICES[voiceId].sampleStartAddr = 0;
+    SPU_VOICES[voiceId].ad = 0x000f;
+    SPU_VOICES[voiceId].currentVolume = 0;
+    SPU_VOICES[voiceId].sampleRepeatAddr = 0;
+    SPU_VOICES[voiceId].sr = 0x0000;
 }
 
 static void SPUWaitIdle()
@@ -144,9 +144,6 @@ void SoundPlayer::setReverbEnabled()
 
     SPU_REVERB_LEFT = 0x2850;
     SPU_REVERB_RIGHT = 0x2850;
-
-    SPU_REVERB_EN_LOW = 0xFFFF;
-    SPU_REVERB_EN_HIGH = 0xFFFF;
 }
 
 void SoundPlayer::setStopState()
@@ -171,8 +168,6 @@ void SoundPlayer::setSpuState(std::uint16_t spuState)
         SPU_CTRL |= SPU_REVERB_ENABLE;
     } else {
         SPU_CTRL &= ~SPU_REVERB_ENABLE;
-        SPU_REVERB_EN_LOW = 0x0000;
-        SPU_REVERB_EN_HIGH = 0x0000;
     }
 }
 
@@ -193,23 +188,23 @@ static void SPUKeyOn(std::uint32_t voiceBits)
     SPU_KEY_ON_HIGH = voiceBits >> 16;
 }
 
-void SoundPlayer::playSound(int channel, const Sound& sound, std::uint16_t pitch)
+void SoundPlayer::playSound(int voiceId, const Sound& sound, std::uint16_t pitch)
 {
     setSpuState(0xc000);
 
-    SPU_VOICES[channel].volumeLeft = 0xF00;
-    SPU_VOICES[channel].volumeRight = 0xF00;
-    SPU_VOICES[channel].sampleStartAddr = sound.startAddr >> 3;
-    SPU_VOICES[channel].sampleRate = pitch;
+    SPU_VOICES[voiceId].volumeLeft = 0xF00;
+    SPU_VOICES[voiceId].volumeRight = 0xF00;
+    SPU_VOICES[voiceId].sampleStartAddr = sound.startAddr >> 3;
+    SPU_VOICES[voiceId].sampleRate = pitch;
     // SPU_VOICES[channel].sampleRepeatAddr = 0;
 
     SPUWaitIdle();
 
-    SPUKeyOn(1 << channel);
+    SPUKeyOn(1 << voiceId);
 }
 
 void SoundPlayer::playSound(
-    int channel,
+    int voiceId,
     std::uint32_t startAddr,
     std::uint8_t velocity,
     std::uint16_t pitch,
@@ -235,13 +230,13 @@ void SoundPlayer::playSound(
     volR *= velo * volMul;
 
     // TODO: proper velocity calculation
-    SPU_VOICES[channel].volumeLeft = volL.value;
-    SPU_VOICES[channel].volumeRight = volR.value;
+    SPU_VOICES[voiceId].volumeLeft = volL.value;
+    SPU_VOICES[voiceId].volumeRight = volR.value;
 
-    SPU_VOICES[channel].ad = toneAttrib.ad;
-    SPU_VOICES[channel].sr = toneAttrib.sr;
-    SPU_VOICES[channel].sampleStartAddr = startAddr >> 3;
-    SPU_VOICES[channel].sampleRate = pitch;
+    SPU_VOICES[voiceId].ad = toneAttrib.ad;
+    SPU_VOICES[voiceId].sr = toneAttrib.sr;
+    SPU_VOICES[voiceId].sampleStartAddr = startAddr >> 3;
+    SPU_VOICES[voiceId].sampleRate = pitch;
     // SPUWaitIdle();
     // SPUKeyOn(1 << channel);
 }
@@ -406,4 +401,13 @@ void SoundPlayer::clearReverbArea(std::uint32_t reverbAreaStartAddr, const uint3
         }
         uploadSound(startAddr, zeros.data(), size);
     }
+}
+
+void SoundPlayer::setReverbChannels(std::uint32_t reverbMask)
+{
+    SPU_REVERB_EN_LOW = reverbMask;
+    SPU_REVERB_EN_HIGH = reverbMask >> 16;
+
+    SPU_REVERB_EN_LOW = 0xFFFF;
+    SPU_REVERB_EN_HIGH = 0xFFFF;
 }

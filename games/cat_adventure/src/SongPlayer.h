@@ -22,11 +22,14 @@ struct SongPlayer {
     void updateMusic();
 
     int findChannel(std::uint8_t trackId, std::uint8_t noteId);
-    void freeChannel(std::uint8_t trackId, std::uint8_t noteId);
+    int freeChannel(std::uint8_t trackId, std::uint8_t noteId);
 
     // data
     std::uint32_t voicesKeyOnMask{0};
     std::uint32_t voicesKeyOffMask{0};
+    std::uint32_t reverbEnableMask{0};
+
+    static constexpr uint32_t spuPCMStartAddr = 0x1010;
 
     static constexpr std::size_t SPU_VOICE_COUNT{24};
     eastl::array<bool, SPU_VOICE_COUNT> usedVoices;
@@ -55,5 +58,4 @@ struct SongPlayer {
 
     // TODO: move somewhere else?
     // This is where uploaded PCM samples start on SPU
-    static constexpr uint32_t spuPCMStartAddr = 0x1010;
 };

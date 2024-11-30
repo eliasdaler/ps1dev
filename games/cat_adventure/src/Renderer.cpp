@@ -126,6 +126,8 @@ void Renderer::drawMesh(const Mesh& mesh, const TextureInfo& texture)
     drawQuads<psyqo::Prim::GouraudQuad>(mesh, texture, mesh.numUntexturedQuads, vertexIdx);
     drawTris<psyqo::Prim::GouraudTexturedTriangle>(mesh, texture, mesh.numTris, vertexIdx);
     drawQuads<psyqo::Prim::GouraudTexturedQuad>(mesh, texture, mesh.numQuads, vertexIdx);
+
+    gpu.pumpCallbacks();
 }
 
 template<typename PrimType>

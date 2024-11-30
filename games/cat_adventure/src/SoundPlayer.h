@@ -34,10 +34,10 @@ struct Sound {
 struct SoundPlayer {
     void init();
 
-    void resetVoice(int voiceID);
-    void playSound(int channel, const Sound& sound, std::uint16_t pitch);
+    void resetVoice(int voiceId);
+    void playSound(int voiceId, const Sound& sound, std::uint16_t pitch);
     void playSound(
-        int channel,
+        int voiceId,
         std::uint32_t startAddr,
         std::uint8_t velocity,
         std::uint16_t pitch,
@@ -51,6 +51,7 @@ struct SoundPlayer {
     void setSpuState(std::uint16_t spuState);
 
     void setKeyOnOff(std::uint32_t keyOn, std::uint32_t keyOff);
+    void setReverbChannels(std::uint32_t reverbMask);
 
     void setReverbPreset(SpuReverbPreset preset);
     void setReverbSettings(eastl::span<const std::uint16_t> settings, std::uint16_t reverbSize);
