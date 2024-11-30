@@ -17,6 +17,8 @@
 
 #include <psyqo/fixed-point.hh>
 
+bool SoundPlayer::reverbEnabled = true;
+
 void SoundPlayer::resetVoice(int voiceID)
 {
     SPU_VOICES[voiceID].volumeLeft = 0;
@@ -51,9 +53,9 @@ void SoundPlayer::uploadSound(uint32_t SpuAddr, const uint8_t* data, uint32_t si
     SPU_RAM_DTA = SpuAddr >> 3;
 
     // Set SPUCNT to "DMA Write" (and wait until it is applied in SPUSTAT)
-    spuState = (spuState & ~0x0030) | 0x0020;
-    setSpuState(spuState);
-    // setDMAWriteState();
+    // spuState = (spuState & ~0x0030) | 0x0020;
+    // setSpuState(spuState);
+    setDMAWriteState();
 
     SBUS_DEV4_CTRL &= ~0x0f000000;
 
@@ -96,13 +98,45 @@ void SoundPlayer::init()
 
     for (unsigned i = 0; i < 24; i++)
         resetVoice(i);
+
+    setReverbEnabled();
+
+    // clang-format off
+    static const uint16_t reverbBits[] = {
+      0x00E3,0x00A9,0x6F60,0x4FA8,0xBCE0,0x4510,0xBEF0,0xA680,
+      0x5680,0x52C0,0x0DFB,0x0B58,0x0D09,0x0A3C,0x0BD9,0x0973,
+      0x0B59,0x08DA,0x08D9,0x05E9,0x07EC,0x04B0,0x06EF,0x03D2,
+      0x05EA,0x031D,0x031C,0x0238,0x0154,0x00AA,0x8000,0x8000,
+
+  /* 0x033D,0x0231,0x7E00,0x5000,0xB400,0xB000,0x4C00,0xB000,
+  0x6000,0x5400,0x1ED6,0x1A31,0x1D14,0x183B,0x1BC2,0x16B2,
+  0x1A32,0x15EF,0x15EE,0x1055,0x1334,0x0F2D,0x11F6,0x0C5D,
+  0x1056,0x0AE1,0x0AE0,0x07A2,0x0464,0x0232,0x8000,0x8000, */
+    };
+    for (int i = 0; i < 32; ++i) {
+    *(volatile uint16_t*)(0x1F801DC0 + i * 2)  = reverbBits[i];
+    }
+    // clang-format on
 }
 
 void SoundPlayer::setDMAWriteState()
 {
-    static constexpr auto mask = 0b11'111111'1'1'10'1111;
-    spuState &= mask;
+    static constexpr auto mask = 0b00'000000'0'0'10'0000;
+    spuState |= mask;
     setSpuState(spuState);
+}
+
+void SoundPlayer::setReverbEnabled()
+{
+    static constexpr auto mask = 0b00'000001'1'0'00'0000;
+    spuState |= mask;
+    setSpuState(spuState);
+
+    SPU_REVERB_LEFT = 0x2850;
+    SPU_REVERB_RIGHT = 0x2850;
+
+    *(volatile uint16_t*)(0x1F801DA2) = 0xf104;
+    *(volatile uint32_t*)(0x1F801D98) = 0xFFFFFFFF;
 }
 
 void SoundPlayer::setStopState()
@@ -120,6 +154,13 @@ void SoundPlayer::setSpuState(int spuState)
         while ((SPU_STATUS & 0b11111) != (SPU_CTRL & 0b11111)) {
             // wait until mode is applied
         }
+    }
+
+    // TODO: don't do it on each call!
+    if (reverbEnabled) {
+        *(volatile unsigned short*)0x1F801DAA |= (1 << 7);
+    } else {
+        *(volatile unsigned short*)0x1F801DAA &= ~(1 << 7);
     }
 }
 

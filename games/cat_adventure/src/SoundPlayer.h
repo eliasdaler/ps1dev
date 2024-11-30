@@ -32,10 +32,13 @@ struct SoundPlayer {
     void uploadSound(uint32_t SpuAddr, const uint8_t* data, uint32_t size);
 
     void setDMAWriteState();
+    void setReverbEnabled();
     void setStopState();
     void setSpuState(int spuState);
 
     void setKeyOnOff(int keyOn, int keyOff);
 
     uint16_t spuState = 0;
+
+    static bool reverbEnabled;
 };

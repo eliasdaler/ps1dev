@@ -146,6 +146,8 @@ void GameplayScene::processInput()
     if (!wasLeftPressed && pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Left)) {
         toneNum -= 1;
         wasLeftPressed = true;
+
+        SoundPlayer::reverbEnabled = !SoundPlayer::reverbEnabled;
     }
     if (!pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Left)) {
         wasLeftPressed = false;
@@ -316,9 +318,10 @@ void GameplayScene::drawDebugInfo()
         game.gpu(),
         {{.x = 16, .y = 64}},
         textCol,
-        "bpm=%d, t=%d",
+        "bpm=%d, t=%d, reverb = %d",
         (int)game.songPlayer.bpm,
-        (int)game.songPlayer.musicTime);
+        (int)game.songPlayer.musicTime,
+        (int)SoundPlayer::reverbEnabled);
 
     const auto fps = gpu().getRefreshRate() / frameDiff;
     fpsMovingAverageNew = alpha * fps + oneMinAlpha * fpsMovingAverageOld;
