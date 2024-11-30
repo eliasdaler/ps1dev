@@ -49,4 +49,5 @@ private:
     psyqo::FixedPoint<> lerpFactor{0.1};
 
     int toneNum{0};
+    int reverbPreset{0};
 };

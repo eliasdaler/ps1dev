@@ -2,10 +2,24 @@
 
 #include <cstdint>
 
+#include <EASTL/span.h>
 #include <EASTL/string_view.h>
 #include <EASTL/vector.h>
 
 struct ToneAttribute;
+
+enum class SpuReverbPreset : std::uint16_t {
+    Room,
+    StudioSmall,
+    StudioMedium,
+    StudioLarge,
+    Hall,
+    HalfEcho,
+    SpaceEcho,
+    ChaosEcho,
+    Delay,
+    Off,
+};
 
 struct Sound {
     eastl::vector<std::uint8_t> bytes;
@@ -34,9 +48,12 @@ struct SoundPlayer {
     void setDMAWriteState();
     void setReverbEnabled();
     void setStopState();
-    void setSpuState(int spuState);
+    void setSpuState(uint16_t spuState);
 
-    void setKeyOnOff(int keyOn, int keyOff);
+    void setKeyOnOff(uint32_t keyOn, uint32_t keyOff);
+
+    void setReverbPreset(SpuReverbPreset preset);
+    void setReverbSettings(eastl::span<const std::uint16_t> settings, std::uint16_t reverbSize);
 
     uint16_t spuState = 0;
 
