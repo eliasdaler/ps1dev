@@ -49,6 +49,23 @@ public:
 
     int bias{0};
 
+    void drawObjectAxes(const Object& object, const Camera& camera);
+
+    /* This function assumes that V*M is already loaded into R and T, e.g. call
+     * renderer.calculateViewModelMatrix(object, camera, true); before calling this
+     */
+    void drawLineLocalSpace(const psyqo::Vec3& a, const psyqo::Vec3& b, const psyqo::Color& c);
+
+    /*
+     * This function is kinda limited - can only draw lines that are ~16
+     * units long. But they can start and end at any world coord.
+     */
+    void drawLineWorldSpace(
+        const Camera& camera,
+        const psyqo::Vec3& a,
+        const psyqo::Vec3& b,
+        const psyqo::Color& c);
+
 private:
     psyqo::GPU& gpu;
     psyqo::Trig<> trig;

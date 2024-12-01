@@ -408,6 +408,6 @@ void SoundPlayer::setReverbChannels(std::uint32_t reverbMask)
     SPU_REVERB_EN_LOW = reverbMask;
     SPU_REVERB_EN_HIGH = reverbMask >> 16;
 
-    SPU_REVERB_EN_LOW = 0xFFFF;
-    SPU_REVERB_EN_HIGH = 0xFFFF;
+    // SPU_REVERB_EN_LOW = 0xFFFF;
+    // SPU_REVERB_EN_HIGH = 0xFFFF;
 }

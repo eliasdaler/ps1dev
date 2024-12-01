@@ -305,31 +305,6 @@ void GameplayScene::draw()
 
     gpu().chain(ot);
 
-    { // draw axes
-        auto drawLineLocalSpace =
-            [&](const psyqo::Vec3& a, const psyqo::Vec3& b, const psyqo::Color& c) {
-                auto& lineFrag = primBuffer.allocateFragment<psyqo::Prim::Line>();
-                auto& line = lineFrag.primitive;
-                line.setColor(c);
-
-                psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(a);
-                psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(b);
-                psyqo::GTE::Kernels::rtpt();
-
-                psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&line.pointA.packed);
-                psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&line.pointB.packed);
-
-                gpu().chain(lineFrag);
-            };
-
-        renderer.calculateViewModelMatrix(cato, camera, true);
-
-        constexpr auto axisLength = psyqo::FixedPoint<>(0.1f);
-        drawLineLocalSpace({}, {axisLength, 0.f, 0.f}, {.r = 255, .g = 0, .b = 0});
-        drawLineLocalSpace({}, {0.f, axisLength, 0.f}, {.r = 0, .g = 255, .b = 0});
-        drawLineLocalSpace({}, {0.f, 0.f, axisLength}, {.r = 0, .g = 0, .b = 255});
-    }
-
     // dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
 
     drawDebugInfo();
@@ -337,6 +312,17 @@ void GameplayScene::draw()
 
 void GameplayScene::drawDebugInfo()
 {
+    renderer.drawObjectAxes(cato, camera);
+
+    { // draw some test lines in world space
+        renderer.drawLineWorldSpace(
+            camera, {0.f, 0.f, -0.4f}, {0.f, -0.1f, -0.4f}, {.r = 255, .g = 255, .b = 255});
+        renderer.drawLineWorldSpace(
+            camera, {0.f, -0.1f, -0.4f}, {0.1f, -0.12f, -0.4f}, {.r = 255, .g = 0, .b = 255});
+        renderer.drawLineWorldSpace(
+            camera, {0.1f, -0.12f, -0.4f}, {0.2f, -0.2f, -0.2f}, {.r = 0, .g = 255, .b = 255});
+    }
+
     static const psyqo::Color textCol = {{.r = 255, .g = 255, .b = 255}};
 
     game.romFont.chainprintf(

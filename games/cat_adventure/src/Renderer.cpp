@@ -9,6 +9,8 @@
 
 #include <common/syscalls/syscalls.h>
 
+#include <psyqo/primitives/lines.hh>
+
 namespace
 {
 
@@ -274,4 +276,62 @@ void Renderer::drawQuads(
     }
 
     outVertIdx = vertexIdx;
+}
+
+void Renderer::drawObjectAxes(const Object& object, const Camera& camera)
+{
+    calculateViewModelMatrix(object, camera, true);
+
+    constexpr auto axisLength = psyqo::FixedPoint<>(0.1f);
+    drawLineLocalSpace({}, {axisLength, 0.f, 0.f}, {.r = 255, .g = 0, .b = 0});
+    drawLineLocalSpace({}, {0.f, axisLength, 0.f}, {.r = 0, .g = 255, .b = 0});
+    drawLineLocalSpace({}, {0.f, 0.f, axisLength}, {.r = 0, .g = 0, .b = 255});
+}
+
+void Renderer::drawLineLocalSpace(const psyqo::Vec3& a, const psyqo::Vec3& b, const psyqo::Color& c)
+{
+    auto& primBuffer = getPrimBuffer();
+
+    auto& lineFrag = primBuffer.allocateFragment<psyqo::Prim::Line>();
+    auto& line = lineFrag.primitive;
+    line.setColor(c);
+
+    psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(a);
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(b);
+    psyqo::GTE::Kernels::rtpt();
+
+    psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&line.pointA.packed);
+    psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&line.pointB.packed);
+
+    gpu.chain(lineFrag);
+}
+
+void Renderer::drawLineWorldSpace(
+    const Camera& camera,
+    const psyqo::Vec3& a,
+    const psyqo::Vec3& b,
+    const psyqo::Color& c)
+{
+    auto& primBuffer = getPrimBuffer();
+
+    // TODO: allow to not do this over and over?
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(camera.viewRot);
+
+    // what 4th column would be if we did V * M
+    auto posCamSpace = a - camera.position;
+    psyqo::SoftMath::matrixVecMul3(camera.viewRot, posCamSpace, &posCamSpace);
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(posCamSpace);
+
+    auto& lineFrag = primBuffer.allocateFragment<psyqo::Prim::Line>();
+    auto& line = lineFrag.primitive;
+    line.setColor(c);
+
+    psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(psyqo::Vec3{}); // a is origin
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(b - a); // b relative to a
+    psyqo::GTE::Kernels::rtpt();
+
+    psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&line.pointA.packed);
+    psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&line.pointB.packed);
+
+    gpu.chain(lineFrag);
 }
