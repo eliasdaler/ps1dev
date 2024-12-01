@@ -60,7 +60,7 @@ void GameplayScene::start(StartReason reason)
 
         if (game.levelId == 0) {
             cato.position = {0.0, 0.22, 0.0};
-            cato.rotation = {0.0, 0.2};
+            cato.rotation = {0.0, 0.0};
             camera.position = {0.59, 0, -0.84};
             camera.rotation = {0.f, -0.25f};
 
@@ -305,34 +305,29 @@ void GameplayScene::draw()
 
     gpu().chain(ot);
 
-    {
-        auto& lineFrag = primBuffer.allocateFragment<psyqo::Prim::Line>();
-        auto& line = lineFrag.primitive;
+    { // draw axes
+        auto drawLineLocalSpace =
+            [&](const psyqo::Vec3& a, const psyqo::Vec3& b, const psyqo::Color& c) {
+                auto& lineFrag = primBuffer.allocateFragment<psyqo::Prim::Line>();
+                auto& line = lineFrag.primitive;
+                line.setColor(c);
 
-        auto pointWorldA = psyqo::Vec3{};
-        pointWorldA.x = 0.f;
-        pointWorldA.y = 0.f;
-        pointWorldA.z = 0.f;
+                psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(a);
+                psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(b);
+                psyqo::GTE::Kernels::rtpt();
 
-        auto pointWorldB = psyqo::Vec3{};
-        pointWorldB.x = 0.f;
-        pointWorldB.y = -0.5f;
-        pointWorldB.z = 0.f;
+                psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&line.pointA.packed);
+                psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&line.pointB.packed);
 
-        const auto& object = cato;
+                gpu().chain(lineFrag);
+            };
 
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(camera.viewRot);
-        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(pointWorldA);
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(pointWorldB);
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(pointWorldB);
-        psyqo::GTE::Kernels::rtpt();
+        renderer.calculateViewModelMatrix(cato, camera, true);
 
-        line.setColor({.r = 0, .g = 255, .b = 0});
-
-        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&line.pointA.packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&line.pointB.packed);
-
-        gpu().chain(lineFrag);
+        constexpr auto axisLength = psyqo::FixedPoint<>(0.1f);
+        drawLineLocalSpace({}, {axisLength, 0.f, 0.f}, {.r = 255, .g = 0, .b = 0});
+        drawLineLocalSpace({}, {0.f, axisLength, 0.f}, {.r = 0, .g = 255, .b = 0});
+        drawLineLocalSpace({}, {0.f, 0.f, axisLength}, {.r = 0, .g = 0, .b = 255});
     }
 
     // dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
@@ -348,10 +343,10 @@ void GameplayScene::drawDebugInfo()
         game.gpu(),
         {{.x = 16, .y = 16}},
         textCol,
-        "cat pos = (%.2f, %.2f, %.2f)",
-        cato.position.x,
-        cato.position.y,
-        cato.position.z);
+        "cam pos = (%.2f, %.2f, %.2f)",
+        camera.position.x,
+        camera.position.y,
+        camera.position.z);
 
     game.romFont.chainprintf(
         game.gpu(),
