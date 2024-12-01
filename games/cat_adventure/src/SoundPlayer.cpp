@@ -65,11 +65,11 @@ static void SPUWaitIdle()
 
 void SoundPlayer::uploadSound(std::uint32_t SpuAddr, const std::uint8_t* data, std::uint32_t size)
 {
-    ramsyscall_printf(
+    /* ramsyscall_printf(
         "SPU Upload: (RAM) 0x%08X -> (SPU) 0x%04X, size=%d\n",
         (std::uint32_t)data,
         (SpuAddr >> 3),
-        size);
+        size); */
     // Set SPUCNT to "Stop" (and wait until it is applied in SPUSTAT)
     setStopState();
 

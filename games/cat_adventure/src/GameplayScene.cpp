@@ -59,7 +59,7 @@ void GameplayScene::start(StartReason reason)
         car.model = &game.carModel;
 
         if (game.levelId == 0) {
-            cato.position = {0.0, 0.22, -0.4};
+            cato.position = {0.0, 0.22, 0.0};
             cato.rotation = {0.0, 0.2};
             camera.position = {0.59, 0, -0.84};
             camera.rotation = {0.f, -0.25f};
@@ -67,7 +67,7 @@ void GameplayScene::start(StartReason reason)
             car.position = {0.0, 0.0, 5.0};
 
         } else if (game.levelId == 1) {
-            cato.position = {0.0, 0.0, 0.0};
+            cato.position = {0.5, 0.0, 0.5};
 
             car.position = {0.0, 0.0, 0.5};
             car.rotation = {0.0, 0.2};
@@ -108,10 +108,10 @@ void GameplayScene::processInput()
 
     // yaw
     if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Left)) {
-        // camera.rotation.y -= rotateSpeed;
+        camera.rotation.y -= rotateSpeed;
     }
     if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Right)) {
-        // camera.rotation.y += rotateSpeed;
+        camera.rotation.y += rotateSpeed;
     }
 
     // pitch
@@ -149,12 +149,12 @@ void GameplayScene::processInput()
 
         wasLeftPressed = true;
 
-        SoundPlayer::reverbEnabled = !SoundPlayer::reverbEnabled;
+        /* SoundPlayer::reverbEnabled = !SoundPlayer::reverbEnabled;
         if (!SoundPlayer::reverbEnabled) {
             game.soundPlayer.setReverbPreset(SpuReverbPreset::Off);
         } else {
             game.soundPlayer.setReverbPreset(SpuReverbPreset::StudioLarge);
-        }
+        } */
     }
     if (!pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Left)) {
         wasLeftPressed = false;
@@ -165,7 +165,7 @@ void GameplayScene::processInput()
         toneNum += 1;
 
         reverbPreset += 1;
-        game.soundPlayer.setReverbPreset((SpuReverbPreset)reverbPreset);
+        // game.soundPlayer.setReverbPreset((SpuReverbPreset)reverbPreset);
 
         wasRightPressed = true;
     }
@@ -197,7 +197,9 @@ void GameplayScene::update()
 
     // spin the cat
     cato.rotation.y += 0.01;
-    // cato.rotation.x = 0.25;
+    cato.rotation.x = 0.25;
+
+    cato.calculateWorldMatrix();
 
     dialogueBox.update();
 }
@@ -250,6 +252,7 @@ void GameplayScene::draw()
                 object.position.x.value = x * 4096;
                 object.position.y.value = 0;
                 object.position.z.value = z * 4096;
+                object.calculateWorldMatrix();
                 renderer.drawMeshObject(object, camera, game.catoTexture);
             }
         }
@@ -259,6 +262,7 @@ void GameplayScene::draw()
         for (int i = 0; i < 10; ++i) {
             object.position.x.value = i * 4096;
             object.position.z.value = 1 * 4096;
+            object.calculateWorldMatrix();
             renderer.drawMeshObject(object, camera, game.catoTexture);
         }
 
@@ -267,6 +271,7 @@ void GameplayScene::draw()
         for (int i = 0; i < 10; ++i) {
             object.position.x.value = i * 4096;
             object.position.z.value = -1 * 4096;
+            object.calculateWorldMatrix();
             renderer.drawMeshObject(object, camera, game.catoTexture);
         }
 
@@ -275,6 +280,7 @@ void GameplayScene::draw()
         object.mesh = car;
         object.position = {};
         object.position.x = 1.f;
+        object.calculateWorldMatrix();
         renderer.drawMeshObject(object, camera, game.catoTexture);
     }
 
@@ -299,7 +305,37 @@ void GameplayScene::draw()
 
     gpu().chain(ot);
 
-    dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
+    {
+        auto& lineFrag = primBuffer.allocateFragment<psyqo::Prim::Line>();
+        auto& line = lineFrag.primitive;
+
+        auto pointWorldA = psyqo::Vec3{};
+        pointWorldA.x = 0.f;
+        pointWorldA.y = 0.f;
+        pointWorldA.z = 0.f;
+
+        auto pointWorldB = psyqo::Vec3{};
+        pointWorldB.x = 0.f;
+        pointWorldB.y = -0.5f;
+        pointWorldB.z = 0.f;
+
+        const auto& object = cato;
+
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(camera.viewRot);
+        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(pointWorldA);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(pointWorldB);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(pointWorldB);
+        psyqo::GTE::Kernels::rtpt();
+
+        line.setColor({.r = 0, .g = 255, .b = 0});
+
+        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&line.pointA.packed);
+        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&line.pointB.packed);
+
+        gpu().chain(lineFrag);
+    }
+
+    // dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
 
     drawDebugInfo();
 }
@@ -312,7 +348,7 @@ void GameplayScene::drawDebugInfo()
         game.gpu(),
         {{.x = 16, .y = 16}},
         textCol,
-        "cam pos = (%.2f, %.2f, %.2f)",
+        "cat pos = (%.2f, %.2f, %.2f)",
         cato.position.x,
         cato.position.y,
         cato.position.z);

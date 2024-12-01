@@ -46,52 +46,21 @@ void interpColor3(
 Renderer::Renderer(psyqo::GPU& gpu) : gpu(gpu)
 {}
 
-namespace
+void Renderer::calculateViewModelMatrix(const Object& object, const Camera& camera, bool setViewRot)
 {
-
-void calculateGTEMatrices(
-    const psyqo::Trig<> trig,
-    const Object& object,
-    const Camera& camera,
-    bool setViewRot = true)
-{
-    if (object.rotation.x == 0.0 && object.rotation.y == 0.0) {
-        if (setViewRot) {
-            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(camera.viewRot);
-        }
-    } else {
-        // yaw
-        auto objectRotMat = psyqo::SoftMath::
-            generateRotationMatrix33(object.rotation.y, psyqo::SoftMath::Axis::Y, trig);
-
-        if (object.rotation.x != 0.0) { // pitch
-            const auto rotX = psyqo::SoftMath::
-                generateRotationMatrix33(object.rotation.x, psyqo::SoftMath::Axis::X, trig);
-            // psyqo::SoftMath::multiplyMatrix33(objectRotMat, rotX, &objectRotMat);
-            psyqo::GTE::Math::multiplyMatrix33<
-                psyqo::GTE::PseudoRegister::Rotation,
-                psyqo::GTE::PseudoRegister::V0>(objectRotMat, rotX, &objectRotMat);
-        }
-
-        // psyqo::SoftMath::multiplyMatrix33(camera.viewRot, objectRotMat, &objectRotMat);
+    if (setViewRot) { // otherwise we assume that the object has no rotation
+        // V * M
+        psyqo::Matrix33 viewModelMatrix;
         psyqo::GTE::Math::multiplyMatrix33<
             psyqo::GTE::PseudoRegister::Rotation,
-            psyqo::GTE::PseudoRegister::V0>(camera.viewRot, objectRotMat, &objectRotMat);
-
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(objectRotMat);
+            psyqo::GTE::PseudoRegister::V0>(camera.viewRot, object.worldMatrix, &viewModelMatrix);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(viewModelMatrix);
     }
 
+    // what 4th column would be if we did V * M
     auto posCamSpace = object.position - camera.position;
     psyqo::SoftMath::matrixVecMul3(camera.viewRot, posCamSpace, &posCamSpace);
-
-    // TODO: make matrixVecMul3 take GTE::PackedVec3 to show that you'll have precision loss
-    // Note: can't use Rotation matrix here as objectRotMat is currently uploaded there
-    /* psyqo::GTE::Math::matrixVecMul3<
-        psyqo::GTE::PseudoRegister::Light,
-        psyqo::GTE::PseudoRegister::V0>(camera.viewRot, posCamSpace, &posCamSpace); */
-
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(posCamSpace);
-}
 }
 
 void Renderer::drawModelObject(
@@ -99,7 +68,7 @@ void Renderer::drawModelObject(
     const Camera& camera,
     const TextureInfo& texture)
 {
-    calculateGTEMatrices(trig, object, camera);
+    calculateViewModelMatrix(object, camera, true);
     drawModel(*object.model, texture);
 }
 
@@ -108,7 +77,7 @@ void Renderer::drawMeshObject(
     const Camera& camera,
     const TextureInfo& texture)
 {
-    calculateGTEMatrices(trig, object, camera, false);
+    calculateViewModelMatrix(object, camera, false);
     drawMesh(*object.mesh, texture);
 }
 

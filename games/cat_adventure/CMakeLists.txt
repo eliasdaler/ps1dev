@@ -20,6 +20,7 @@ add_executable(game
   src/VabFile.cpp
   src/DialogueBox.cpp
   src/SongPlayer.cpp
+  src/Object.cpp
 
   src/Game.cpp
 

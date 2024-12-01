@@ -42,6 +42,11 @@ public:
 
     psyqo::GPU& getGPU() { return gpu; }
 
+    void calculateViewModelMatrix(
+        const Object& object,
+        const Camera& camera,
+        bool setViewRot = true);
+
     int bias{0};
 
 private:
