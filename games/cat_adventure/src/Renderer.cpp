@@ -155,6 +155,10 @@ void Renderer::drawTris(
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&tri2d.pointB.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&tri2d.pointC.packed);
 
+        /* tri2d.pointA.y = -tri2d.pointA.y;
+        tri2d.pointB.y = -tri2d.pointB.y;
+        tri2d.pointC.y = -tri2d.pointC.y; */
+
         const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
         const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
         const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
@@ -239,6 +243,11 @@ void Renderer::drawQuads(
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointC.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
 
+        /* quad2d.pointA.y = -quad2d.pointA.y;
+        quad2d.pointB.y = -quad2d.pointB.y;
+        quad2d.pointC.y = -quad2d.pointC.y;
+        quad2d.pointD.y = -quad2d.pointD.y; */
+
         { // per vertex interpolation
             const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
             const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
@@ -288,7 +297,7 @@ void Renderer::drawObjectAxes(const Object& object, const Camera& camera)
 {
     calculateViewModelMatrix(object, camera, true);
 
-    constexpr auto axisLength = psyqo::FixedPoint<>(0.1f);
+    constexpr auto axisLength = psyqo::FixedPoint<>(0.025f);
     drawLineLocalSpace({}, {axisLength, 0.f, 0.f}, {.r = 255, .g = 0, .b = 0});
     drawLineLocalSpace({}, {0.f, axisLength, 0.f}, {.r = 0, .g = 255, .b = 0});
     drawLineLocalSpace({}, {0.f, 0.f, axisLength}, {.r = 0, .g = 0, .b = 255});

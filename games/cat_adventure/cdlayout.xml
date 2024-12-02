@@ -22,7 +22,6 @@
                 <file name="BRICKS.TIM" type="data" source="assets/bricks.tim"/>
                 <file name="LEVEL.BIN" type="data" source="assets/house_psx.bin"/>
                 <file name="LEVEL2.BIN" type="data" source="assets/level_new.bin"/>
-                <file name="HUMAN.BIN" type="data" source="assets/human.bin"/>
                 <file name="CATO.BIN" type="data" source="assets/cato.bin"/>
                 <file name="CATO.TIM" type="data" source="assets/cato.tim"/>
                 <file name="CAR.BIN" type="data" source="assets/car.bin"/>

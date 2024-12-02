@@ -103,8 +103,8 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
 
                 psxFace[i].pos = {
                     .x = floatToFixed4_12(pos.x, params.scale), // X = X
-                    .y = floatToFixed4_12(-pos.z, params.scale), // Z = -Y
-                    .z = floatToFixed4_12(pos.y, params.scale), // Y = Z
+                    .y = floatToFixed4_12(pos.z, params.scale), // Z = -Y
+                    .z = floatToFixed4_12(-pos.y, params.scale), // Y = Z
                 };
 
                 /* printf(

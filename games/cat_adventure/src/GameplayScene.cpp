@@ -57,21 +57,22 @@ void GameplayScene::start(StartReason reason)
             cato.position = {0.0, 0.0, 0.0};
             cato.rotation = {0.0, 0.0};
 
-            camera.position = {0.59, ToWorldCoords(-1.5f), -0.84};
-            camera.rotation = {0.f, -0.25f};
+            camera.position = {0.12, ToWorldCoords(1.5f), 0.81};
+            camera.rotation = {0.0, 1.0};
 
             // skeleton debug
-            camera.position = {-0.05, -0.09, -0.31};
-            camera.rotation = {-0.01, 0.1};
+            // camera.position = {-0.05, -0.09, -0.31};
+            // camera.rotation = {-0.01, 0.1};
 
             // car.position = {0.0, 0.0, 5.0};
         } else if (game.levelId == 1) {
             cato.position = {0.5, 0.0, 0.5};
+            cato.rotation = {0.0, 1.0};
 
             car.position = {0.0, 0.0, 0.5};
             car.rotation = {0.0, 0.2};
 
-            camera.position = {0.f, ToWorldCoords(-1.5f), -1.f};
+            camera.position = {0.f, ToWorldCoords(1.5f), -1.f};
             camera.rotation = {0.0, 0.0};
         }
     }
@@ -106,26 +107,26 @@ void GameplayScene::processInput()
 
     // yaw
     if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Left)) {
-        camera.rotation.y -= rotateSpeed;
+        camera.rotation.y += rotateSpeed;
     }
     if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Right)) {
-        camera.rotation.y += rotateSpeed;
+        camera.rotation.y -= rotateSpeed;
     }
 
     // pitch
     if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::L2)) {
-        camera.rotation.x -= rotateSpeed;
+        camera.rotation.x += rotateSpeed;
     }
     if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::R2)) {
-        camera.rotation.x += rotateSpeed;
+        camera.rotation.x -= rotateSpeed;
     }
 
     // go up/down
     if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::L1)) {
-        camera.position.y += walkSpeed;
+        camera.position.y -= walkSpeed;
     }
     if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::R1)) {
-        camera.position.y -= walkSpeed;
+        camera.position.y += walkSpeed;
     }
 
     // go forward/backward
@@ -187,6 +188,11 @@ void GameplayScene::updateCamera()
     /* psyqo::GTE::Math::multiplyMatrix33<
         psyqo::GTE::PseudoRegister::Rotation,
         psyqo::GTE::PseudoRegister::V0>(viewRotX, camera.viewRot, &camera.viewRot); */
+
+    // PS1 has Y-down, so here's a fix for that
+    // (basically, this is the same as doing 180-degree roll)
+    camera.viewRot.vs[0] = -camera.viewRot.vs[0];
+    camera.viewRot.vs[1] = -camera.viewRot.vs[1];
 }
 
 void GameplayScene::update()
@@ -314,22 +320,20 @@ void GameplayScene::drawDebugInfo()
 {
     renderer.drawObjectAxes(cato, camera);
     renderer.drawLineLocalSpace(
-        {0, ToWorldCoords(-0.34), 0},
-        {0, ToWorldCoords(-0.34 - 0.3), 0},
+        {0, ToWorldCoords(0.34), 0},
+        {0, ToWorldCoords(0.34 + 0.3), 0},
         {.r = 255, .g = 255, .b = 0});
 
     renderer.drawLineLocalSpace(
-        {0, ToWorldCoords(-0.85), 0},
-        {0, ToWorldCoords(-0.85 - 0.3), 0},
-        {.r = 255, .g = 0, .b = 0});
+        {0, ToWorldCoords(0.85), 0}, {0, ToWorldCoords(0.85 + 0.3), 0}, {.r = 255, .g = 0, .b = 0});
 
     { // draw some test lines in world space
         renderer.drawLineWorldSpace(
-            camera, {0., 0., -0.4}, {0., -0.1, -0.4}, {.r = 255, .g = 255, .b = 255});
+            camera, {0., 0., -0.4}, {0., 0.1, -0.4}, {.r = 255, .g = 255, .b = 255});
         renderer.drawLineWorldSpace(
-            camera, {0., -0.1, -0.4}, {0.1, -0.12, -0.4}, {.r = 255, .g = 0, .b = 255});
+            camera, {0., 0.1, -0.4}, {0.1, 0.12, -0.4}, {.r = 255, .g = 0, .b = 255});
         renderer.drawLineWorldSpace(
-            camera, {0.1, -0.12, -0.4}, {0.2, -0.2, -0.2}, {.r = 0, .g = 255, .b = 255});
+            camera, {0.1, 0.12, -0.4}, {0.2, 0.2, -0.2}, {.r = 0, .g = 255, .b = 255});
     }
 
     static const psyqo::Color textCol = {{.r = 255, .g = 255, .b = 255}};
@@ -347,7 +351,7 @@ void GameplayScene::drawDebugInfo()
         game.gpu(),
         {{.x = 16, .y = 32}},
         textCol,
-        "cam rot=(%.2f, %.2f)",
+        "cam rot=(%.2a, %.2a)",
         camera.rotation.x,
         camera.rotation.y);
 
@@ -368,11 +372,11 @@ void GameplayScene::drawDebugInfo()
     // lerp
     avgFPS = avgFPS + lerpFactor * (newFPS - avgFPS);
 
-    game.romFont.chainprintf(
+    /* game.romFont.chainprintf(
         game.gpu(),
         {{.x = 16, .y = 48}},
         textCol,
         "FPS: %.2f, avg: %.2f",
         fpsMovingAverageNew,
-        avgFPS);
+        avgFPS); */
 }
