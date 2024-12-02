@@ -2,12 +2,8 @@
 #include <filesystem>
 #include <iostream>
 
-#include "FastModel.h"
-#include "Json2FastModel.h"
 #include "Json2PsxConverter.h"
 #include "ModelJsonFile.h"
-#include "Obj2PsxConverter.h"
-#include "ObjFile.h"
 #include "PsxModel.h"
 
 #include <CLI/CLI.hpp>
@@ -49,19 +45,16 @@ int main(int argc, char* argv[])
         .scale = 1.f,
     };
 
-    if (inputFilePath.extension() == ".obj") {
-        const auto objModel = parseObjFile(inputFilePath);
-        const auto psxModel = objToPsxModel(objModel, conversionParams);
-        writePsxModel(psxModel, outputFilePath);
-    } else if (inputFilePath.extension() == ".json") {
+    if (inputFilePath.extension() == ".json") {
         const auto modelJson = parseJsonFile(inputFilePath, assetDirPath);
         if (fastModel) {
-            auto fm = makeFastModel(modelJson);
-            writeFastModel(fm, outputFilePath);
+            assert(false && "not implemented");
         } else {
             const auto psxModel = jsonToPsxModel(modelJson, conversionParams);
             writePsxModel(psxModel, outputFilePath);
         }
+    } else {
+        assert(false && "unsupported format");
     }
 
     std::cout << "Done!" << std::endl;

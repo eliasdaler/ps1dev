@@ -29,12 +29,8 @@ project(
 
 add_executable(model_converter
   model_converter/src/PsxModel.cpp
-  model_converter/src/Obj2PsxConverter.cpp
-  model_converter/src/ObjFile.cpp
   model_converter/src/ModelJsonFile.cpp
   model_converter/src/Json2PsxConverter.cpp
-  model_converter/src/Json2FastModel.cpp
-  model_converter/src/FastModel.cpp
   model_converter/src/main.cpp
 )
 

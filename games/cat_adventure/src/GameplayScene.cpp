@@ -15,20 +15,6 @@
 
 #include <common/syscalls/syscalls.h>
 
-namespace
-{
-void SetFogNearFar(int a, int b, int h)
-{
-    // TODO: check params + add asserts?
-    const auto dqa = ((-a * b / (b - a)) << 8) / h;
-    const auto dqaF = eastl::clamp(dqa, -32767, 32767);
-    const auto dqbF = ((b << 12) / (b - a) << 12);
-
-    psyqo::GTE::write<psyqo::GTE::Register::DQA, psyqo::GTE::Unsafe>(dqaF);
-    psyqo::GTE::write<psyqo::GTE::Register::DQB, psyqo::GTE::Safe>(dqbF);
-}
-}
-
 GameplayScene::GameplayScene(Game& game, Renderer& renderer) : game(game), renderer(renderer)
 {}
 
@@ -47,7 +33,7 @@ void GameplayScene::start(StartReason reason)
     psyqo::GTE::write<psyqo::GTE::Register::ZSF3, psyqo::GTE::Unsafe>(1024 / 3);
     psyqo::GTE::write<psyqo::GTE::Register::ZSF4, psyqo::GTE::Unsafe>(1024 / 4);
 
-    SetFogNearFar(1500, 12800, SCREEN_WIDTH / 2);
+    renderer.setFogNearFar(2500, 12800, SCREEN_WIDTH / 2);
     // far color
     const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
     psyqo::GTE::write<psyqo::GTE::Register::RFC, psyqo::GTE::Unsafe>(farColor.r);
@@ -196,10 +182,11 @@ void GameplayScene::update()
     updateCamera();
 
     // spin the cat
-    cato.rotation.y += 0.01;
-    cato.rotation.x = 0.25;
+    // cato.rotation.y += 0.01;
+    // cato.rotation.x = 0.25;
 
     cato.calculateWorldMatrix();
+    car.calculateWorldMatrix();
 
     dialogueBox.update();
 }
@@ -297,7 +284,7 @@ void GameplayScene::draw()
         }
 
         {
-            // renderer.drawModelObject(car, camera, game.carTexture);
+            renderer.drawModelObject(car, camera, game.carTexture);
         }
     }
 
@@ -313,6 +300,9 @@ void GameplayScene::draw()
 void GameplayScene::drawDebugInfo()
 {
     renderer.drawObjectAxes(cato, camera);
+    auto test = psyqo::FixedPoint<>{};
+    test = -0.22;
+    renderer.drawLineLocalSpace({0, test, 0}, {0, test - 0.1f, 0}, {.r = 255, .g = 255, .b = 0});
 
     { // draw some test lines in world space
         renderer.drawLineWorldSpace(

@@ -25,13 +25,6 @@ void Model::load(const eastl::vector<uint8_t>& data)
         mesh.numTris = fr.GetUInt16();
         mesh.numQuads = fr.GetUInt16();
 
-        if (i == 21) {
-            mesh.numQuads = mesh.numQuads;
-        }
-        if (i == 21) {
-            // return;
-        }
-
         const auto numVertices = mesh.numUntexturedTris * 3 + mesh.numUntexturedQuads * 4 +
                                  mesh.numTris * 3 + mesh.numQuads * 4;
         mesh.vertices.resize(numVertices);
@@ -50,10 +43,10 @@ void Model::load(const eastl::vector<uint8_t>& data)
         fr.ReadArr(verticesPtr, mesh.numQuads * 4);
         verticesPtr += mesh.numQuads * 4;
 
-        auto last = &mesh.vertices[mesh.vertices.size()];
-        if (last != verticesPtr) {
-            ramsyscall_printf("WHAT: %d\n", (int)i);
-        }
+        /* for (const auto& vertex : mesh.vertices) {
+            ramsyscall_printf(
+                "%d, %d, %d\n", vertex.pos.x.raw(), vertex.pos.y.raw(), vertex.pos.z.raw());
+        } */
 
         meshes.push_back(std::move(mesh));
     }

@@ -43,6 +43,18 @@ void interpColor3(
     psyqo::GTE::read<psyqo::GTE::Register::RGB2>(&prim.colorC.packed);
 }
 
+void interpColor(const psyqo::Color& input, uint32_t p, psyqo::Color* out)
+{
+    auto max = 0x1FFFF;
+    if (p > max) {
+        p = max;
+    }
+    psyqo::GTE::write<psyqo::GTE::Register::IR0>(&p);
+    psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(&input.packed);
+    psyqo::GTE::Kernels::dpcs();
+    psyqo::GTE::read<psyqo::GTE::Register::RGB2>(&out->packed);
+}
+
 }
 
 Renderer::Renderer(psyqo::GPU& gpu) : gpu(gpu)
@@ -143,8 +155,22 @@ void Renderer::drawTris(
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&tri2d.pointB.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&tri2d.pointC.packed);
 
+        const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
+        const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
+        const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
+
+        const auto p0 = calcInterpFactor(sz0);
+        const auto p1 = calcInterpFactor(sz1);
+        const auto p2 = calcInterpFactor(sz2);
+
         // psyqo version - broken!
-        tri2d.interpolateColors(&v0.col, &v1.col, &v2.col);
+        // tri2d.interpolateColors(&v0.col, &v1.col, &v2.col);
+
+        psyqo::Color col;
+        interpColor(v0.col, p0, &col);
+        tri2d.setColorA(col);
+        interpColor(v1.col, p1, &tri2d.colorB);
+        interpColor(v2.col, p2, &tri2d.colorC);
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedTriangle>) {
             tri2d.uvA.u = v0.uv.vx;
@@ -212,38 +238,15 @@ void Renderer::drawQuads(
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointC.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
 
-        auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
-        auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
-        auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
-        auto sz3 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
+        const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
+        const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
+        const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
+        const auto sz3 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
 
-        const auto calcP = [](uint32_t sz) {
-            if (sz == 0) {
-                sz = 1;
-            }
-
-            const auto dqa = -2718;
-            const auto dqb = 1900134;
-            const auto h = 300;
-            const auto mac0 = (((h * 0x20000) / sz + 1) / 2) * dqa + dqb;
-            return mac0 / 0x1000;
-        };
-
-        auto p0 = calcP(sz0);
-        auto p1 = calcP(sz1);
-        auto p2 = calcP(sz2);
-        auto p3 = calcP(sz3);
-
-        auto interpColor = [](const psyqo::Color& input, uint32_t p, psyqo::Color* out) {
-            auto max = 0x1FFFF;
-            if (p > max) {
-                p = max;
-            }
-            psyqo::GTE::write<psyqo::GTE::Register::IR0>(&p);
-            psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(&input.packed);
-            psyqo::GTE::Kernels::dpcs();
-            psyqo::GTE::read<psyqo::GTE::Register::RGB2>(&out->packed);
-        };
+        const auto p0 = calcInterpFactor(sz0);
+        const auto p1 = calcInterpFactor(sz1);
+        const auto p2 = calcInterpFactor(sz2);
+        const auto p3 = calcInterpFactor(sz3);
 
         psyqo::Color col;
         interpColor(v0.col, p0, &col);
@@ -251,7 +254,6 @@ void Renderer::drawQuads(
         interpColor(v1.col, p1, &quad2d.colorB);
         interpColor(v2.col, p2, &quad2d.colorC);
         interpColor(v3.col, p3, &quad2d.colorD);
-        // ramsyscall_printf("%d %d %d %d\n", p0, p1, p2, p3);
 
         // TEMP: psyqo's interpolateColors is broken
         // interpColor3(v0.col, v1.col, v2.col, quad2d);
@@ -334,4 +336,33 @@ void Renderer::drawLineWorldSpace(
     psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&line.pointB.packed);
 
     gpu.chain(lineFrag);
+}
+
+void Renderer::setFogNearFar(int a, int b, int h)
+{
+    // TODO: check params + add asserts?
+    const auto dqa = ((-a * b / (b - a)) << 8) / h;
+    const auto dqaF = eastl::clamp(dqa, -32767, 32767);
+    const auto dqbF = ((b << 12) / (b - a) << 12);
+
+    psyqo::GTE::write<psyqo::GTE::Register::DQA, psyqo::GTE::Unsafe>(dqaF);
+    psyqo::GTE::write<psyqo::GTE::Register::DQB, psyqo::GTE::Safe>(dqbF);
+
+    this->dqa = dqaF;
+    this->dqb = dqbF;
+}
+
+uint32_t Renderer::calcInterpFactor(uint32_t sz)
+{
+    // this is what GTE does when rtpt/rtps
+    if (sz == 0) {
+        sz = 1;
+    }
+
+    dqa = psyqo::GTE::readRaw<psyqo::GTE::Register::DQA>();
+    dqb = psyqo::GTE::readRaw<psyqo::GTE::Register::DQB>();
+
+    const auto h = 300;
+    const auto mac0 = (((h * 0x20000) / sz + 1) / 2) * dqa + dqb;
+    return mac0 / 0x1000;
 }

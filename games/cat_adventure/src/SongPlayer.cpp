@@ -72,7 +72,8 @@ void SongPlayer::init(MidiFile& song, VabFile& vab)
     musicTimer = gpu.armPeriodicTimer(
         waitHBlanks * psyqo::GPU::US_PER_HBLANK / 2, [this, waitHBlanks](uint32_t) {
             updateMusic();
-            musicTime += waitHBlanks * psyqo::GPU::US_PER_HBLANK / 2; // FIXME: use newWaitHBlanks!
+            musicTime += waitHBlanks * psyqo::GPU::US_PER_HBLANK / 2; // FIXME: use
+            // newWaitHBlanks!
 
             const auto newWaitHBlanks = calculateHBlanks(bpm);
             gpu.changeTimerPeriod(musicTimer, newWaitHBlanks * psyqo::GPU::US_PER_HBLANK / 2);

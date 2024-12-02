@@ -8,9 +8,17 @@
 
 namespace
 {
-std::int16_t floatToInt16(float v, float scaleFactor)
+std::int16_t floatToFixed4_12(float v, float scaleFactor)
 {
-    return (std::int16_t)std::clamp(v * scaleFactor, (float)INT16_MIN, (float)INT16_MAX);
+    constexpr auto scale = 1 << 12;
+    float ld = v * scaleFactor;
+    if (std::abs(ld) > 8) {
+        throw std::runtime_error("some vertex position is out of 4.12 range:" + std::to_string(ld));
+    }
+    bool negative = ld < 0;
+    std::uint16_t integer = negative ? -ld : ld;
+    std::uint16_t fraction = ld * scale - integer * scale + (negative ? -0.5 : 0.5);
+    return integer * scale + fraction;
 }
 
 std::uint8_t uvToInt8(float v)
@@ -94,13 +102,21 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
                 const auto pos = glm::vec3{tm * glm::vec4{v.position, 1.f}};
 
                 psxFace[i].pos = {
-                    .x = floatToInt16(pos.x, params.scale),
-                    .y = floatToInt16(-pos.z, params.scale), // FLIP Y!
-                    .z = floatToInt16(pos.y, params.scale), // FLIP Z!
+                    .x = floatToFixed4_12(pos.x, params.scale), // X = X
+                    .y = floatToFixed4_12(-pos.z, params.scale), // Z = -Y
+                    .z = floatToFixed4_12(pos.y, params.scale), // Y = Z
                 };
 
+                /* printf(
+                    "(%.4f, %.4f, %.4f) -> (%d, %d, %d)\n",
+                    pos.x,
+                    pos.y,
+                    pos.z,
+                    psxFace[i].pos.x,
+                    psxFace[i].pos.y,
+                    psxFace[i].pos.z); */
+
                 float offset = 0;
-                // float offset = 0;
 
                 if (hasTexture) {
                     const auto texWidth = material.imageData.width;

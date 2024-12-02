@@ -66,6 +66,9 @@ public:
         const psyqo::Vec3& b,
         const psyqo::Color& c);
 
+    void setFogNearFar(int a, int b, int h);
+    uint32_t calcInterpFactor(uint32_t sz);
+
 private:
     psyqo::GPU& gpu;
     psyqo::Trig<> trig;
@@ -83,4 +86,7 @@ private:
         const TextureInfo& texture,
         int numFaces,
         std::size_t& outVertIdx);
+
+    uint32_t dqa{};
+    uint32_t dqb{};
 };

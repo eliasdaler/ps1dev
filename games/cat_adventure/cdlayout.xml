@@ -29,9 +29,9 @@
                 <file name="CAR.TIM" type="data" source="assets/car.tim"/>
                 <file name="FONT.TIM" type="data" source="assets/font.tim"/>
                 <file name="FONT.FNT" type="data" source="assets/font.fnt"/>
-                <file name="SONG.MID" type="data" source="assets/songs/b2/song.mid"/>
-                <file name="INST.VAB" type="data" source="assets/songs/b2/inst.vab"/>
-                <file name="SMPL.PCM" type="data" source="assets/songs/b2/smpl.pcm"/>
+                <file name="SONG.MID" type="data" source="assets/songs/l3/song.mid"/>
+                <file name="INST.VAB" type="data" source="assets/songs/l3/inst.vab"/>
+                <file name="SMPL.PCM" type="data" source="assets/songs/l3/smpl.pcm"/>
                 <dummy sectors="1024"/>
             </directory_tree>
         </track>
