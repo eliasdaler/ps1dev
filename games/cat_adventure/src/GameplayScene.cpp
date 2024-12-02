@@ -15,6 +15,15 @@
 
 #include <common/syscalls/syscalls.h>
 
+namespace
+{
+constexpr auto worldScale = 8.0;
+consteval long double ToWorldCoords(long double d)
+{
+    return d / 8.0;
+}
+}
+
 GameplayScene::GameplayScene(Game& game, Renderer& renderer) : game(game), renderer(renderer)
 {}
 
@@ -45,9 +54,9 @@ void GameplayScene::start(StartReason reason)
         car.model = &game.carModel;
 
         if (game.levelId == 0) {
-            cato.position = {0.0, 0.22, 0.0};
+            cato.position = {0.0, 0.0, 0.0};
             cato.rotation = {0.0, 0.0};
-            camera.position = {0.59, 0, -0.84};
+            camera.position = {0.59, -1.5f / 8.f, -0.84};
             camera.rotation = {0.f, -0.25f};
 
             car.position = {0.0, 0.0, 5.0};
@@ -58,7 +67,7 @@ void GameplayScene::start(StartReason reason)
             car.position = {0.0, 0.0, 0.5};
             car.rotation = {0.0, 0.2};
 
-            camera.position = {0.f, -0.25f, -1.f};
+            camera.position = {0.f, -1.5f / 8.f, -1.f};
             camera.rotation = {0.0, 0.0};
         }
     }
@@ -195,20 +204,21 @@ void GameplayScene::draw()
 {
     auto& ot = renderer.getOrderingTable();
     auto& primBuffer = renderer.getPrimBuffer();
+    auto& gp = gpu();
+
     primBuffer.reset();
 
     // set dithering ON globally
     auto& tpage = primBuffer.allocateFragment<psyqo::Prim::TPage>();
     tpage.primitive.attr.setDithering(true);
-    gpu().chain(tpage);
+    gp.chain(tpage);
 
     // clear
     psyqo::Color bg{{.r = 33, .g = 14, .b = 58}};
+    // psyqo::Color bg{{.r = 0, .g = 0, .b = 0}};
     auto& fill = primBuffer.allocateFragment<psyqo::Prim::FastFill>();
-    gpu().getNextClear(fill.primitive, bg);
-    gpu().chain(fill);
-
-    const auto& gp = gpu();
+    gp.getNextClear(fill.primitive, bg);
+    gp.chain(fill);
 
     // draw static objects
     if (game.levelId == 0) {
@@ -236,9 +246,9 @@ void GameplayScene::draw()
                 } else {
                     object.mesh = meshB;
                 }
-                object.position.x.value = x * 4096;
-                object.position.y.value = 0;
-                object.position.z.value = z * 4096;
+                object.position.x = psyqo::FixedPoint(x, 0);
+                object.position.y = 0.0;
+                object.position.z = psyqo::FixedPoint(z, 0);
                 object.calculateWorldMatrix();
                 renderer.drawMeshObject(object, camera, game.catoTexture);
             }
@@ -247,8 +257,8 @@ void GameplayScene::draw()
         auto* tree = &game.levelModel.meshes[4];
         object.mesh = tree;
         for (int i = 0; i < 10; ++i) {
-            object.position.x.value = i * 4096;
-            object.position.z.value = 1 * 4096;
+            object.position.x = psyqo::FixedPoint(i, 0);
+            object.position.z = ToWorldCoords(8.0);
             object.calculateWorldMatrix();
             renderer.drawMeshObject(object, camera, game.catoTexture);
         }
@@ -256,8 +266,8 @@ void GameplayScene::draw()
         auto* lamp = &game.levelModel.meshes[2];
         object.mesh = lamp;
         for (int i = 0; i < 10; ++i) {
-            object.position.x.value = i * 4096;
-            object.position.z.value = -1 * 4096;
+            object.position.x = psyqo::FixedPoint(i, 0);
+            object.position.z = ToWorldCoords(-8.0);
             object.calculateWorldMatrix();
             renderer.drawMeshObject(object, camera, game.catoTexture);
         }
@@ -266,12 +276,12 @@ void GameplayScene::draw()
         renderer.bias = -100;
         object.mesh = car;
         object.position = {};
-        object.position.x = 1.f;
+        object.position.x = ToWorldCoords(8.0);
         object.calculateWorldMatrix();
         renderer.drawMeshObject(object, camera, game.catoTexture);
     }
 
-    gpu().pumpCallbacks();
+    gp.pumpCallbacks();
 
     renderer.bias = 0;
     // draw dynamic objects
@@ -283,14 +293,14 @@ void GameplayScene::draw()
             renderer.drawModelObject(cato, camera, game.catoTexture);
         }
 
-        {
+        if (game.levelId == 1) {
             renderer.drawModelObject(car, camera, game.carTexture);
         }
     }
 
-    gpu().pumpCallbacks();
+    gp.pumpCallbacks();
 
-    gpu().chain(ot);
+    gp.chain(ot);
 
     // dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
 
@@ -301,16 +311,16 @@ void GameplayScene::drawDebugInfo()
 {
     renderer.drawObjectAxes(cato, camera);
     auto test = psyqo::FixedPoint<>{};
-    test = -0.22;
-    renderer.drawLineLocalSpace({0, test, 0}, {0, test - 0.1f, 0}, {.r = 255, .g = 255, .b = 0});
+    test = ToWorldCoords(-1.31);
+    renderer.drawLineLocalSpace({0, test, 0}, {0, test - 0.1, 0}, {.r = 255, .g = 255, .b = 0});
 
     { // draw some test lines in world space
         renderer.drawLineWorldSpace(
-            camera, {0.f, 0.f, -0.4f}, {0.f, -0.1f, -0.4f}, {.r = 255, .g = 255, .b = 255});
+            camera, {0., 0., -0.4}, {0., -0.1, -0.4}, {.r = 255, .g = 255, .b = 255});
         renderer.drawLineWorldSpace(
-            camera, {0.f, -0.1f, -0.4f}, {0.1f, -0.12f, -0.4f}, {.r = 255, .g = 0, .b = 255});
+            camera, {0., -0.1, -0.4}, {0.1, -0.12, -0.4}, {.r = 255, .g = 0, .b = 255});
         renderer.drawLineWorldSpace(
-            camera, {0.1f, -0.12f, -0.4f}, {0.2f, -0.2f, -0.2f}, {.r = 0, .g = 255, .b = 255});
+            camera, {0.1, -0.12, -0.4}, {0.2, -0.2, -0.2}, {.r = 0, .g = 255, .b = 255});
     }
 
     static const psyqo::Color textCol = {{.r = 255, .g = 255, .b = 255}};

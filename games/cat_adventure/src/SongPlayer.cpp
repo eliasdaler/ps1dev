@@ -103,6 +103,12 @@ void SongPlayer::findBPM(MidiFile& song)
 
 void SongPlayer::updateMusic()
 {
+    // for debug
+    const auto musicMuted = true;
+    if (musicMuted) {
+        return;
+    }
+
     auto& spu = this->spu;
     const auto& tracks = song->tracks;
     const auto numTracks = tracks.size();
@@ -112,9 +118,6 @@ void SongPlayer::updateMusic()
     voicesKeyOffMask = 0;
 
     const auto tickTime = microsecondsPerClick / song->ticksPerQuarter;
-
-    static int update = 0;
-    ++update;
 
     for (int trackIdx = 0; trackIdx < numTracks; ++trackIdx) {
         const auto& track = tracks[trackIdx];

@@ -42,7 +42,7 @@ int main(int argc, char* argv[])
 
     // convert
     ConversionParams conversionParams{
-        .scale = 1.f,
+        .scale = 1.f / 8.f,
     };
 
     if (inputFilePath.extension() == ".json") {
