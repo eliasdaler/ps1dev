@@ -159,18 +159,19 @@ void Renderer::drawTris(
         const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
         const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
 
-        const auto p0 = calcInterpFactor(sz0);
-        const auto p1 = calcInterpFactor(sz1);
-        const auto p2 = calcInterpFactor(sz2);
+        { // per vertex interpolation
+            const auto p0 = calcInterpFactor(sz0);
+            const auto p1 = calcInterpFactor(sz1);
+            const auto p2 = calcInterpFactor(sz2);
 
-        // psyqo version - broken!
+            psyqo::Color col;
+            interpColor(v0.col, p0, &col);
+            tri2d.setColorA(col);
+            interpColor(v1.col, p1, &tri2d.colorB);
+            interpColor(v2.col, p2, &tri2d.colorC);
+        }
+        // this uses one p per quad
         // tri2d.interpolateColors(&v0.col, &v1.col, &v2.col);
-
-        psyqo::Color col;
-        interpColor(v0.col, p0, &col);
-        tri2d.setColorA(col);
-        interpColor(v1.col, p1, &tri2d.colorB);
-        interpColor(v2.col, p2, &tri2d.colorC);
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedTriangle>) {
             tri2d.uvA.u = v0.uv.vx;
@@ -238,23 +239,26 @@ void Renderer::drawQuads(
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointC.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
 
-        const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
-        const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
-        const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
-        const auto sz3 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
+        { // per vertex interpolation
+            const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
+            const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
+            const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
+            const auto sz3 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
 
-        const auto p0 = calcInterpFactor(sz0);
-        const auto p1 = calcInterpFactor(sz1);
-        const auto p2 = calcInterpFactor(sz2);
-        const auto p3 = calcInterpFactor(sz3);
+            const auto p0 = calcInterpFactor(sz0);
+            const auto p1 = calcInterpFactor(sz1);
+            const auto p2 = calcInterpFactor(sz2);
+            const auto p3 = calcInterpFactor(sz3);
 
-        psyqo::Color col;
-        interpColor(v0.col, p0, &col);
-        quad2d.setColorA(col);
-        interpColor(v1.col, p1, &quad2d.colorB);
-        interpColor(v2.col, p2, &quad2d.colorC);
-        interpColor(v3.col, p3, &quad2d.colorD);
+            psyqo::Color col;
+            interpColor(v0.col, p0, &col);
+            quad2d.setColorA(col);
+            interpColor(v1.col, p1, &quad2d.colorB);
+            interpColor(v2.col, p2, &quad2d.colorC);
+            interpColor(v3.col, p3, &quad2d.colorD);
+        }
 
+        // this uses one p per quad
         // TEMP: psyqo's interpolateColors is broken
         // interpColor3(v0.col, v1.col, v2.col, quad2d);
         // interpColorD(v3.col, quad2d);
@@ -358,9 +362,6 @@ uint32_t Renderer::calcInterpFactor(uint32_t sz)
     if (sz == 0) {
         sz = 1;
     }
-
-    dqa = psyqo::GTE::readRaw<psyqo::GTE::Register::DQA>();
-    dqb = psyqo::GTE::readRaw<psyqo::GTE::Register::DQB>();
 
     const auto h = 300;
     const auto mac0 = (((h * 0x20000) / sz + 1) / 2) * dqa + dqb;

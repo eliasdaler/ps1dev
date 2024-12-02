@@ -56,18 +56,22 @@ void GameplayScene::start(StartReason reason)
         if (game.levelId == 0) {
             cato.position = {0.0, 0.0, 0.0};
             cato.rotation = {0.0, 0.0};
-            camera.position = {0.59, -1.5f / 8.f, -0.84};
+
+            camera.position = {0.59, ToWorldCoords(-1.5f), -0.84};
             camera.rotation = {0.f, -0.25f};
 
-            car.position = {0.0, 0.0, 5.0};
+            // skeleton debug
+            camera.position = {-0.05, -0.09, -0.31};
+            camera.rotation = {-0.01, 0.1};
 
+            // car.position = {0.0, 0.0, 5.0};
         } else if (game.levelId == 1) {
             cato.position = {0.5, 0.0, 0.5};
 
             car.position = {0.0, 0.0, 0.5};
             car.rotation = {0.0, 0.2};
 
-            camera.position = {0.f, -1.5f / 8.f, -1.f};
+            camera.position = {0.f, ToWorldCoords(-1.5f), -1.f};
             camera.rotation = {0.0, 0.0};
         }
     }
@@ -98,7 +102,6 @@ void GameplayScene::processInput()
     const auto& trig = game.trig;
 
     constexpr auto walkSpeed = 0.02;
-    // constexpr auto walkSpeed = 2.0;
     constexpr auto rotateSpeed = 0.01;
 
     // yaw
@@ -310,9 +313,15 @@ void GameplayScene::draw()
 void GameplayScene::drawDebugInfo()
 {
     renderer.drawObjectAxes(cato, camera);
-    auto test = psyqo::FixedPoint<>{};
-    test = ToWorldCoords(-1.31);
-    renderer.drawLineLocalSpace({0, test, 0}, {0, test - 0.1, 0}, {.r = 255, .g = 255, .b = 0});
+    renderer.drawLineLocalSpace(
+        {0, ToWorldCoords(-0.34), 0},
+        {0, ToWorldCoords(-0.34 - 0.3), 0},
+        {.r = 255, .g = 255, .b = 0});
+
+    renderer.drawLineLocalSpace(
+        {0, ToWorldCoords(-0.85), 0},
+        {0, ToWorldCoords(-0.85 - 0.3), 0},
+        {.r = 255, .g = 0, .b = 0});
 
     { // draw some test lines in world space
         renderer.drawLineWorldSpace(
@@ -342,14 +351,14 @@ void GameplayScene::drawDebugInfo()
         camera.rotation.x,
         camera.rotation.y);
 
-    game.romFont.chainprintf(
+    /* game.romFont.chainprintf(
         game.gpu(),
         {{.x = 16, .y = 64}},
         textCol,
         "bpm=%d, t=%d, reverb = %d",
         (int)game.songPlayer.bpm,
         (int)game.songPlayer.musicTime,
-        (int)SoundPlayer::reverbEnabled);
+        (int)SoundPlayer::reverbEnabled); */
 
     const auto fps = gpu().getRefreshRate() / frameDiff;
     fpsMovingAverageNew = alpha * fps + oneMinAlpha * fpsMovingAverageOld;
