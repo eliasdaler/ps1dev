@@ -11,9 +11,12 @@
 #include "Common.h"
 #include "Game.h"
 #include "Renderer.h"
+
 #include "gte-math.h"
 
 #include <common/syscalls/syscalls.h>
+
+#include <psyqo/xprintf.h>
 
 namespace
 {
@@ -22,7 +25,8 @@ consteval long double ToWorldCoords(long double d)
 {
     return d / 8.0;
 }
-}
+
+} // end of anonymous namespace
 
 GameplayScene::GameplayScene(Game& game, Renderer& renderer) : game(game), renderer(renderer)
 {}
@@ -61,8 +65,8 @@ void GameplayScene::start(StartReason reason)
             camera.rotation = {0.0, 1.0};
 
             // skeleton debug
-            // camera.position = {-0.05, -0.09, -0.31};
-            // camera.rotation = {-0.01, 0.1};
+            camera.position = {-0.13, 0.10, 0.24};
+            camera.rotation = {0.0, 0.83};
 
             // car.position = {0.0, 0.0, 5.0};
         } else if (game.levelId == 1) {
@@ -78,6 +82,13 @@ void GameplayScene::start(StartReason reason)
     }
 
     game.songPlayer.init(game.midi, game.vab);
+
+    skeleton.makeTestSkeleton();
+
+    startRotation = skeleton.getRootJoint().localTransform.rotation;
+    targetRotation = {0, 0, 0, 1};
+
+    slerpFactor = 0.0;
 }
 
 void GameplayScene::onResourcesLoaded()
@@ -88,6 +99,16 @@ void GameplayScene::frame()
     const auto currentFrameCounter = gpu().getFrameCount();
     frameDiff = currentFrameCounter - lastFrameCounter;
     lastFrameCounter = currentFrameCounter;
+
+    slerpFactor += 0.005;
+    if (slerpFactor > 1.0) {
+        slerpFactor = 0.0;
+    }
+
+    skeleton.getRootJoint().localTransform.rotation =
+        slerp(startRotation, targetRotation, slerpFactor);
+
+    skeleton.calculateTransforms();
 
     processInput();
     update();
@@ -319,22 +340,31 @@ void GameplayScene::draw()
 void GameplayScene::drawDebugInfo()
 {
     renderer.drawObjectAxes(cato, camera);
-    renderer.drawLineLocalSpace(
-        {0, ToWorldCoords(0.34), 0},
-        {0, ToWorldCoords(0.34 + 0.3), 0},
-        {.r = 255, .g = 255, .b = 0});
 
-    renderer.drawLineLocalSpace(
+    /* renderer.drawLineLocalSpace(
+        {0, ToWorldCoords(1.31), 0},
+        {0, ToWorldCoords(1.31 + 0.3), 0},
+        {.r = 255, .g = 255, .b = 0}); */
+
+    skeleton.drawDebug(renderer);
+
+    /* static eastl::fixed_string<char, 512> str;
+    auto test = psyqo::Vec4{1.0, 2.0, 3.0, 4.0};
+    fsprintf(str, "%.2f, %.2f, %.2f, %.2f\n", test.x, test.y, test.z, test.w);
+    ramsyscall_printf("vec = %s\n", str.c_str()); */
+
+    /* renderer.drawLineLocalSpace(
         {0, ToWorldCoords(0.85), 0}, {0, ToWorldCoords(0.85 + 0.3), 0}, {.r = 255, .g = 0, .b = 0});
+     */
 
-    { // draw some test lines in world space
+    /* { // draw some test lines in world space
         renderer.drawLineWorldSpace(
             camera, {0., 0., -0.4}, {0., 0.1, -0.4}, {.r = 255, .g = 255, .b = 255});
         renderer.drawLineWorldSpace(
             camera, {0., 0.1, -0.4}, {0.1, 0.12, -0.4}, {.r = 255, .g = 0, .b = 255});
         renderer.drawLineWorldSpace(
             camera, {0.1, 0.12, -0.4}, {0.2, 0.2, -0.2}, {.r = 0, .g = 255, .b = 255});
-    }
+    } */
 
     static const psyqo::Color textCol = {{.r = 255, .g = 255, .b = 255}};
 

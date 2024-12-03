@@ -5,6 +5,8 @@
 #include "Camera.h"
 #include "DialogueBox.h"
 #include "Object.h"
+#include "Quaternion.h"
+#include "Skeleton.h"
 
 class Game;
 class Renderer;
@@ -50,4 +52,10 @@ private:
 
     int toneNum{0};
     int reverbPreset{0};
+
+    Quaternion startRotation;
+    Quaternion targetRotation;
+    psyqo::FixedPoint<12, std::int16_t> slerpFactor{};
+
+    Skeleton skeleton;
 };

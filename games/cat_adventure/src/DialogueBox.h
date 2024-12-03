@@ -61,7 +61,4 @@ private:
     int wavePhase{0};
     int waveMax{5};
     int waveOffsets[6] = {-2, -1, 0, 1, 0, -1};
-
-    // rainbow text
-    eastl::array<psyqo::Color, 8> rainbowColors;
 };

@@ -12,6 +12,12 @@ add_executable(game
   src/Timer.cpp
   src/Bouncer.cpp
 
+  src/Quaternion.cpp
+  src/Transform.cpp
+
+  src/Skeleton.cpp
+
+  src/RainbowColors.cpp
   src/Model.cpp
   src/TimFile.cpp
   src/MidiFile.cpp
