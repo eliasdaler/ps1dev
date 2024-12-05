@@ -73,6 +73,7 @@ void offsetRectUV(std::array<PsxVert, 4>& quad)
 PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& params)
 {
     PsxModel psxModel;
+
     for (const auto& object : modelJson.objects) {
         PsxSubmesh psxMesh;
         const auto& mesh = modelJson.meshes[object.mesh];
@@ -102,6 +103,7 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
                 // calculate world pos
                 const auto pos = glm::vec3{tm * glm::vec4{v.position, 1.f}};
 
+                psxFace[i].originalIndex = face.vertices[i];
                 psxFace[i].pos = {
                     .x = floatToFixed4_12(pos.x, params.scale), // X = X
                     .y = floatToFixed4_12(pos.z, params.scale), // Z = -Y
@@ -182,7 +184,8 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
     if (!modelJson.armature.joints.empty()) {
         auto& armature = psxModel.armature;
         const auto& armatureJson = modelJson.armature;
-        armature.joints.reserve(armatureJson.joints.size());
+        const auto numJoints = armatureJson.joints.size();
+        armature.joints.reserve(numJoints);
         for (const auto& joint : armatureJson.joints) {
             PsxJoint psxJoint;
             psxJoint.translation = {
@@ -199,7 +202,6 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
             };
             armature.joints.push_back(std::move(psxJoint));
         }
-        armature.boneInfluences = armatureJson.boneInfluences;
 
         std::stack<std::uint8_t> jointsToProcess;
         jointsToProcess.push(0);
@@ -221,6 +223,49 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
                                                                        joint.children[i + 1];
                 jointsToProcess.push(childId);
             }
+        }
+
+        // This is where things get complicated
+        // Vertices in the binary files are stored per-face, so
+        // the original vertex can end up in mesh.triFaces[35][2] or something
+        // We need to iterate through all the vertices and find the correspondence
+        // between old vertex index (from Blender) and new vertex index (in PSX mesh)
+        std::vector<std::vector<std::uint16_t>> newInfluences;
+        newInfluences.resize(numJoints);
+
+        auto& mesh = psxModel.submeshes[0]; // FIXME: handle multiple meshes
+        for (int jointId = 0; jointId < numJoints; ++jointId) {
+            const auto& boneInfluences = armatureJson.boneInfluences[jointId];
+            for (const auto vid : boneInfluences) {
+                int newVertexId{0};
+                auto findInfluencedVertex = [&]<typename T>(const T& facesVector) {
+                    for (const auto& face : facesVector) {
+                        for (int j = 0; j < face.size(); ++j) {
+                            if (face[j].originalIndex == vid) {
+                                newInfluences[jointId].push_back(newVertexId);
+                            }
+                            ++newVertexId;
+                        }
+                    }
+                };
+                findInfluencedVertex(mesh.untexturedTriFaces);
+                findInfluencedVertex(mesh.untexturedQuadFaces);
+                findInfluencedVertex(mesh.triFaces);
+                findInfluencedVertex(mesh.quadFaces);
+            }
+        }
+
+        // store "spans" into boneInfluences array (offset + size)
+        auto boneInfluencesOffset = 0;
+        for (int i = 0; i < armatureJson.joints.size(); ++i) {
+            auto& psxJoint = armature.joints[i];
+            auto& boneInfluences = newInfluences[i];
+            psxJoint.boneInfluencesOffset = boneInfluencesOffset;
+            psxJoint.boneInfluencesSize = boneInfluences.size();
+            // append joint's influences to the end
+            armature.boneInfluences.insert(
+                armature.boneInfluences.end(), boneInfluences.begin(), boneInfluences.end());
+            boneInfluencesOffset += boneInfluences.size();
         }
     }
     return psxModel;

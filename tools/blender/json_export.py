@@ -161,6 +161,8 @@ def find_root_bone(pose):
 def swizzle_rotation(rot):
     return Quaternion((rot[0], rot[1], rot[3], -rot[2]))
 
+# TODO: investigate how this really works...
+# X' = X, Y' = -Z, Z' = Y
 axis_basis_change = mathutils.Matrix(
             ((1.0, 0.0, 0.0, 0.0), 
              (0.0, 0.0, 1.0, 0.0), 
@@ -171,6 +173,7 @@ def get_bone_data_json(bone, bone_name_to_id):
     transform_local = (axis_basis_change @ bone.matrix) if bone.parent == None else \
                       (bone.parent.matrix.inverted_safe() @ bone.matrix)
     translation, rotation, scale = transform_local.decompose()
+    # TODO: glTF export plugin swizzles rotation here... but it works without it somehow?
     # rotation = swizzle_rotation(rotation)
     bone_data = {
             "name": bone.name,

@@ -64,9 +64,12 @@ void GameplayScene::start(StartReason reason)
             camera.position = {0.12, ToWorldCoords(1.5f), 0.81};
             camera.rotation = {0.0, 1.0};
 
-            // skeleton debug
-            camera.position = {-0.13, 0.10, 0.24};
-            camera.rotation = {0.0, 0.83};
+            // armature debug
+            // camera.position = {-0.13, 0.10, 0.24};
+            // camera.rotation = {0.0, 0.83};
+
+            camera.position = {0.19, 0.28, 0.28};
+            camera.rotation = {0.11, 1.17};
 
             // car.position = {0.0, 0.0, 5.0};
         } else if (game.levelId == 1) {
@@ -83,10 +86,13 @@ void GameplayScene::start(StartReason reason)
 
     game.songPlayer.init(game.midi, game.vab);
 
-    auto& skeleton = game.catoModel.skeleton;
-    // skeleton.makeTestSkeleton();
-    startRotation = skeleton.getRootJoint().localTransform.rotation;
+    auto& armature = game.catoModel.armature;
+    startRotation = armature.getRootJoint().localTransform.rotation;
     targetRotation = {1, 0, 0, 0};
+
+    armature.selectedJoint = 0;
+    auto& mesh = game.catoModel.meshes[0];
+    armature.highlightMeshInfluences(mesh, armature.selectedJoint);
 
     slerpFactor = 0.0;
 }
@@ -105,13 +111,13 @@ void GameplayScene::frame()
         slerpFactor = 0.0;
     }
 
-    auto& skeleton = game.catoModel.skeleton;
+    auto& armature = game.catoModel.armature;
 #if 0
-    skeleton.getRootJoint().localTransform.rotation =
+    armature.getRootJoint().localTransform.rotation =
         slerp(startRotation, targetRotation, slerpFactor);
 #endif
 
-    skeleton.calculateTransforms();
+    armature.calculateTransforms();
 
     processInput();
     update();
@@ -131,10 +137,10 @@ void GameplayScene::processInput()
 
     // yaw
     if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Left)) {
-        camera.rotation.y += rotateSpeed;
+        // camera.rotation.y += rotateSpeed;
     }
     if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Right)) {
-        camera.rotation.y -= rotateSpeed;
+        // camera.rotation.y -= rotateSpeed;
     }
 
     // pitch
@@ -166,11 +172,12 @@ void GameplayScene::processInput()
     static bool wasLeftPressed = false;
     if (!wasLeftPressed && pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Left)) {
         toneNum -= 1;
-
         reverbPreset -= 1;
         // game.soundPlayer.setReverbPreset((SpuReverbPreset)reverbPreset);
 
         wasLeftPressed = true;
+
+        --game.catoModel.armature.selectedJoint;
 
         /* SoundPlayer::reverbEnabled = !SoundPlayer::reverbEnabled;
         if (!SoundPlayer::reverbEnabled) {
@@ -186,14 +193,24 @@ void GameplayScene::processInput()
     static bool wasRightPressed = false;
     if (!wasRightPressed && pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Right)) {
         toneNum += 1;
-
         reverbPreset += 1;
         // game.soundPlayer.setReverbPreset((SpuReverbPreset)reverbPreset);
+
+        ++game.catoModel.armature.selectedJoint;
 
         wasRightPressed = true;
     }
     if (!pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Right)) {
         wasRightPressed = false;
+    }
+
+    if (wasLeftPressed || wasRightPressed) {
+        const auto& armature = game.catoModel.armature;
+        const auto prevSelectedJointId =
+            wasLeftPressed ? armature.selectedJoint + 1 : armature.selectedJoint - 1;
+        auto& mesh = game.catoModel.meshes[0];
+        armature.dehighlightMeshInfluences(mesh, prevSelectedJointId);
+        armature.highlightMeshInfluences(mesh, armature.selectedJoint);
     }
 
     dialogueBox.handleInput(game.pad);
@@ -349,8 +366,8 @@ void GameplayScene::drawDebugInfo()
         {0, ToWorldCoords(1.31 + 0.3), 0},
         {.r = 255, .g = 255, .b = 0}); */
 
-    auto& skeleton = game.catoModel.skeleton;
-    skeleton.drawDebug(renderer);
+    auto& armature = game.catoModel.armature;
+    armature.drawDebug(renderer);
 
     /* static eastl::fixed_string<char, 512> str;
     auto test = psyqo::Vec4{1.0, 2.0, 3.0, 4.0};
@@ -397,6 +414,9 @@ void GameplayScene::drawDebugInfo()
         (int)game.songPlayer.bpm,
         (int)game.songPlayer.musicTime,
         (int)SoundPlayer::reverbEnabled); */
+
+    game.romFont.chainprintf(
+        game.gpu(), {{.x = 16, .y = 64}}, textCol, "joint=%d", (int)armature.selectedJoint);
 
     auto& rot = startRotation;
 

@@ -2,11 +2,11 @@
 
 #include <psyqo/scene.hh>
 
+#include "Armature.h"
 #include "Camera.h"
 #include "DialogueBox.h"
 #include "Object.h"
 #include "Quaternion.h"
-#include "Skeleton.h"
 
 class Game;
 class Renderer;

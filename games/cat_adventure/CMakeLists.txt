@@ -15,7 +15,7 @@ add_executable(game
   src/Quaternion.cpp
   src/Transform.cpp
 
-  src/Skeleton.cpp
+  src/Armature.cpp
 
   src/RainbowColors.cpp
   src/Model.cpp

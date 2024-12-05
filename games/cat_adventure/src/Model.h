@@ -8,7 +8,7 @@
 
 #include <cstdint>
 
-#include "Skeleton.h"
+#include "Armature.h"
 
 struct Object;
 
@@ -35,7 +35,7 @@ struct Mesh {
 
 struct Model {
     eastl::vector<Mesh> meshes;
-    Skeleton skeleton;
+    Armature armature;
 
     void load(const eastl::vector<uint8_t>& data);
 };

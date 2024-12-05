@@ -56,9 +56,10 @@ void Model::load(const eastl::vector<uint8_t>& data)
     }
 
     const auto numJoints = fr.GetUInt16();
-    skeleton.joints.resize(numJoints);
+    armature.joints.resize(numJoints);
     for (int i = 0; i < numJoints; ++i) {
-        auto& joint = skeleton.joints[i];
+        auto& joint = armature.joints[i];
+        joint.id = i;
 
         auto& translation = joint.localTransform.translation;
         translation.x.value = fr.GetInt16();
@@ -74,5 +75,11 @@ void Model::load(const eastl::vector<uint8_t>& data)
 
         joint.firstChild = fr.GetUInt8();
         joint.nextSibling = fr.GetUInt8();
+        joint.boneInfluencesOffset = fr.GetUInt16();
+        joint.boneInfluencesSize = fr.GetUInt16();
     }
+
+    const auto numInfluences = fr.GetUInt16();
+    armature.boneInfluences.resize(numInfluences);
+    fr.ReadArr(armature.boneInfluences.data(), numInfluences);
 }
