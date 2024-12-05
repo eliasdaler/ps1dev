@@ -31,6 +31,8 @@ struct Mesh {
     int numTris{0};
     int numQuads{0};
     bool subdivide{false}; // TODO: flags std::uint16_t
+
+    eastl::vector<Vertex> ogVertices;
 };
 
 struct Model {

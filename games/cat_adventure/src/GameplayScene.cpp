@@ -87,10 +87,18 @@ void GameplayScene::start(StartReason reason)
     game.songPlayer.init(game.midi, game.vab);
 
     auto& armature = game.catoModel.armature;
-    startRotation = armature.getRootJoint().localTransform.rotation;
-    targetRotation = {1, 0, 0, 0};
+    armature.calculateTransforms();
 
-    armature.selectedJoint = 0;
+    auto& joint = armature.joints[5];
+
+    startRotation = joint.localTransform.rotation;
+    targetRotation =
+        {0.8381617665290833, 0.09838240593671799, 0.3444676995277405, -0.41127580404281616};
+
+    armature.calculateTransforms();
+    armature.applySkinning(game.catoModel.meshes[0]);
+
+    armature.selectedJoint = 5;
     auto& mesh = game.catoModel.meshes[0];
     armature.highlightMeshInfluences(mesh, armature.selectedJoint);
 
@@ -106,18 +114,16 @@ void GameplayScene::frame()
     frameDiff = currentFrameCounter - lastFrameCounter;
     lastFrameCounter = currentFrameCounter;
 
-    slerpFactor += 0.005;
+    auto& armature = game.catoModel.armature;
+    slerpFactor += 0.0075;
     if (slerpFactor > 1.0) {
         slerpFactor = 0.0;
     }
 
-    auto& armature = game.catoModel.armature;
-#if 0
-    armature.getRootJoint().localTransform.rotation =
-        slerp(startRotation, targetRotation, slerpFactor);
-#endif
+    armature.joints[5].localTransform.rotation = slerp(startRotation, targetRotation, slerpFactor);
 
     armature.calculateTransforms();
+    armature.applySkinning(game.catoModel.meshes[0]);
 
     processInput();
     update();
@@ -137,10 +143,10 @@ void GameplayScene::processInput()
 
     // yaw
     if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Left)) {
-        // camera.rotation.y += rotateSpeed;
+        camera.rotation.y += rotateSpeed;
     }
     if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Right)) {
-        // camera.rotation.y -= rotateSpeed;
+        camera.rotation.y -= rotateSpeed;
     }
 
     // pitch
@@ -209,8 +215,8 @@ void GameplayScene::processInput()
         const auto prevSelectedJointId =
             wasLeftPressed ? armature.selectedJoint + 1 : armature.selectedJoint - 1;
         auto& mesh = game.catoModel.meshes[0];
-        armature.dehighlightMeshInfluences(mesh, prevSelectedJointId);
-        armature.highlightMeshInfluences(mesh, armature.selectedJoint);
+        // armature.dehighlightMeshInfluences(mesh, prevSelectedJointId);
+        // armature.highlightMeshInfluences(mesh, armature.selectedJoint);
     }
 
     dialogueBox.handleInput(game.pad);
@@ -418,19 +424,17 @@ void GameplayScene::drawDebugInfo()
     game.romFont.chainprintf(
         game.gpu(), {{.x = 16, .y = 64}}, textCol, "joint=%d", (int)armature.selectedJoint);
 
-    auto& rot = startRotation;
+    auto& rot = armature.joints[armature.selectedJoint].localTransform.rotation;
 
-    /*
     game.romFont.chainprintf(
         game.gpu(),
-        {{.x = 16, .y = 64}},
+        {{.x = 16, .y = 80}},
         textCol,
-        "quat = (%.2a, %.2a, %.2a, %.2a)",
-        rot.w,
-        rot.x,
-        rot.y,
-        rot.z);
-        */
+        "q = (%.3f, %.3f, %.3f, %.3f)",
+        psyqo::FixedPoint<>(rot.w),
+        psyqo::FixedPoint<>(rot.x),
+        psyqo::FixedPoint<>(rot.y),
+        psyqo::FixedPoint<>(rot.z));
 
     const auto fps = gpu().getRefreshRate() / frameDiff;
     fpsMovingAverageNew = alpha * fps + oneMinAlpha * fpsMovingAverageOld;
@@ -440,11 +444,11 @@ void GameplayScene::drawDebugInfo()
     // lerp
     avgFPS = avgFPS + lerpFactor * (newFPS - avgFPS);
 
-    /* game.romFont.chainprintf(
+    game.romFont.chainprintf(
         game.gpu(),
         {{.x = 16, .y = 48}},
         textCol,
         "FPS: %.2f, avg: %.2f",
         fpsMovingAverageNew,
-        avgFPS); */
+        avgFPS);
 }

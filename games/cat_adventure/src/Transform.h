@@ -7,8 +7,8 @@
 
 struct TransformMatrix {
     psyqo::Matrix33 rotation{};
-    psyqo::Vec3 translation{};
     std::uint16_t pad;
+    psyqo::Vec3 translation{};
 
     psyqo::Vec3 transformPoint(const psyqo::Vec3& localPoint) const;
 };

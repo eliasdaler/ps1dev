@@ -150,37 +150,34 @@ def get_material_json(material):
     return material_data
 
 
-def find_root_bone(pose):
-    root_bones = [b for b in pose.bones if b.parent == None]
+def find_root_bone(armature):
+    root_bones = [b for b in armature.data.bones if b.parent == None]
     if len(root_bones) == 0:
         raise ValueError(f"{pose} doesn't have any bones")
     elif len(root_bones) > 1:
         raise ValueError(f"{pose} has multiple roots")
     return root_bones[0]
 
-def swizzle_rotation(rot):
-    return Quaternion((rot[0], rot[1], rot[3], -rot[2]))
-
-# TODO: investigate how this really works...
-# X' = X, Y' = -Z, Z' = Y
+# Go from Blender's coordinate system into glTF's coordinate system:
+#   X' =  X
+#   Y' = -Z
+#   Z' =  Y 
 axis_basis_change = mathutils.Matrix(
-            ((1.0, 0.0, 0.0, 0.0), 
-             (0.0, 0.0, 1.0, 0.0), 
+            ((1.0,  0.0, 0.0, 0.0), 
+             (0.0,  0.0, 1.0, 0.0), 
              (0.0, -1.0, 0.0, 0.0), 
-             (0.0, 0.0, 0.0, 1.0)))
+             (0.0,  0.0, 0.0, 1.0))
+            )
 
 def get_bone_data_json(bone, bone_name_to_id):
-    transform_local = (axis_basis_change @ bone.matrix) if bone.parent == None else \
-                      (bone.parent.matrix.inverted_safe() @ bone.matrix)
+    transform_local = (axis_basis_change @ bone.matrix_local) if bone.parent == None else \
+                      (bone.parent.matrix_local.inverted_safe() @ bone.matrix_local)
     translation, rotation, scale = transform_local.decompose()
-    # TODO: glTF export plugin swizzles rotation here... but it works without it somehow?
-    # rotation = swizzle_rotation(rotation)
     bone_data = {
             "name": bone.name,
-            # TODO: check if this is right? seems like we only care about "Y" here?
-            "translation": [translation[0], translation[1], translation[2]],
-            "rotation": [rotation.w, rotation.x, rotation.y, rotation.z],
-            "scale": [scale[0], scale[1], scale[2]],
+            "translation": [translation.x, translation.y, translation.z],
+            "rotation":    [rotation.w, rotation.x, rotation.y, rotation.z],
+            "scale":       [scale.x, scale.y, scale.z],
     }
     if bone.children:
         bone_data["children"] = [ bone_name_to_id[c.name] for c in bone.children ]
@@ -207,20 +204,20 @@ def write_psxtools_json(context, filepath):
     obj_list = collect_objects(scene)
 
     data = {
-        "objects": [get_object_data_json(obj, meshes_idx_map)
-                    for obj in obj_list],
+        "objects":   [get_object_data_json(obj, meshes_idx_map)
+                      for obj in obj_list],
         "materials": [get_material_json(mat)
                       for mat in material_list],
-        "meshes": [get_mesh_json(mesh, material_idx_map)
-                   for mesh in meshes_list],
+        "meshes":    [get_mesh_json(mesh, material_idx_map)
+                      for mesh in meshes_list],
     }
 
     armature = scene.objects['Armature.Test']
     if armature:
         bone_name_to_id = {}
-        pose = armature.pose
-        root_bone = find_root_bone(pose)
-        for idx, bone in enumerate(pose.bones):
+        root_bone = find_root_bone(armature)
+        bones = armature.data.bones
+        for idx, bone in enumerate(bones):
             if bone.name in bone_name_to_id:
                 raise ValueError('Repeated bone name: {bone.name}')
             bone_name_to_id[bone.name] = idx
@@ -228,21 +225,32 @@ def write_psxtools_json(context, filepath):
             raise ValueError('Root bone did not get id = 0')
 
         armature_data = {
-            "joints": [get_bone_data_json(b, bone_name_to_id) for b in pose.bones],
+            "joints": [get_bone_data_json(b, bone_name_to_id) for b in bones],
         }
+
+        inverse_bind_matrices = [None] * len(bones)
+        for idx, bone in enumerate(bones):
+            ib = (axis_basis_change @ bone.matrix_local).inverted_safe()
+            inverse_bind_matrices[idx] = [
+                    [ib[0][0], ib[0][1], ib[0][2], ib[0][3]],
+                    [ib[1][0], ib[1][1], ib[1][2], ib[1][3]],
+                    [ib[2][0], ib[2][1], ib[2][2], ib[2][3]],
+                    [ib[3][0], ib[3][1], ib[3][2], ib[3][3]],
+                ]
+        armature_data["inverseBindMatrices"] = inverse_bind_matrices
 
         # bone influences
         # TODO: check if this child exists
         if armature.children:
             obj = armature.children[0]
-            bone_influences = [None] * len(pose.bones)
-            for idx, bone in enumerate(pose.bones):
+            bone_influences = [None] * len(bones)
+            for idx, bone in enumerate(bones):
                 gid = obj.vertex_groups[bone.name].index
                 bone_influences[idx] = [v.index for v in obj.data.vertices \
                                         if gid in [g.group for g in v.groups]]
             armature_data["bone_influences"] = bone_influences
         else:
-            bone_influences = [[0]] * len(pose.bones)
+            bone_influences = [[0]] * len(bones)
             armature_data["bone_influences"] = bone_influences
 
         data["armature"] = armature_data

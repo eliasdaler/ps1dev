@@ -42,7 +42,7 @@ struct Quaternion {
 
 struct Vertex {
     Vec3 pos;
-    s16 pad1;
+    u16 pad1;
     
     u8 uv[2];
     u16 pad2;

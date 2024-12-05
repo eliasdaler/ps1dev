@@ -82,4 +82,6 @@ void Model::load(const eastl::vector<uint8_t>& data)
     const auto numInfluences = fr.GetUInt16();
     armature.boneInfluences.resize(numInfluences);
     fr.ReadArr(armature.boneInfluences.data(), numInfluences);
+
+    meshes[0].ogVertices = meshes[0].vertices;
 }

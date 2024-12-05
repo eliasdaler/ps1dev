@@ -9,16 +9,20 @@
 
 namespace
 {
-std::int16_t floatToFixed4_12(float v, float scaleFactor)
+template<typename T>
+std::int16_t floatToFixed(float v, float scaleFactor)
 {
     constexpr auto scale = 1 << 12;
     float ld = v * scaleFactor;
     if (std::abs(ld) > 8) {
-        throw std::runtime_error("some vertex position is out of 4.12 range:" + std::to_string(ld));
+        static const auto fpTypeName = sizeof(T) == 2 ? "4.12" : "20.12";
+        throw std::runtime_error(
+            std::string("some vertex position is out of ") + fpTypeName + std::string("range:") +
+            std::to_string(ld));
     }
     bool negative = ld < 0;
-    std::uint16_t integer = negative ? -ld : ld;
-    std::uint16_t fraction = ld * scale - integer * scale + (negative ? -0.5 : 0.5);
+    T integer = negative ? -ld : ld;
+    T fraction = ld * scale - integer * scale + (negative ? -0.5 : 0.5);
     return integer * scale + fraction;
 }
 
@@ -105,9 +109,9 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
 
                 psxFace[i].originalIndex = face.vertices[i];
                 psxFace[i].pos = {
-                    .x = floatToFixed4_12(pos.x, params.scale), // X = X
-                    .y = floatToFixed4_12(pos.z, params.scale), // Z = -Y
-                    .z = floatToFixed4_12(-pos.y, params.scale), // Y = Z
+                    .x = floatToFixed<FixedPoint4_12>(pos.x, params.scale), // X' = X
+                    .y = floatToFixed<FixedPoint4_12>(pos.z, params.scale), // Y' = Z
+                    .z = floatToFixed<FixedPoint4_12>(-pos.y, params.scale), // Z' = -Y
                 };
 
                 /* printf(
@@ -189,16 +193,16 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
         for (const auto& joint : armatureJson.joints) {
             PsxJoint psxJoint;
             psxJoint.translation = {
-                .x = floatToFixed4_12(joint.translation.x, params.scale),
-                .y = floatToFixed4_12(joint.translation.y, params.scale),
-                .z = floatToFixed4_12(joint.translation.z, params.scale),
+                .x = floatToFixed<FixedPoint4_12>(joint.translation.x, params.scale),
+                .y = floatToFixed<FixedPoint4_12>(joint.translation.y, params.scale),
+                .z = floatToFixed<FixedPoint4_12>(joint.translation.z, params.scale),
             };
 
             psxJoint.rotation = {
-                .x = floatToFixed4_12(joint.rotation.w, 1.f),
-                .y = floatToFixed4_12(joint.rotation.x, 1.f),
-                .z = floatToFixed4_12(joint.rotation.y, 1.f),
-                .w = floatToFixed4_12(joint.rotation.z, 1.f),
+                .x = floatToFixed<FixedPoint4_12>(joint.rotation.w, 1.f),
+                .y = floatToFixed<FixedPoint4_12>(joint.rotation.x, 1.f),
+                .z = floatToFixed<FixedPoint4_12>(joint.rotation.y, 1.f),
+                .w = floatToFixed<FixedPoint4_12>(joint.rotation.z, 1.f),
             };
             armature.joints.push_back(std::move(psxJoint));
         }
@@ -225,6 +229,13 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
             }
         }
 
+        armature.inverseBindMatrices.resize(numJoints);
+        for (int jointId = 0; jointId < numJoints; ++jointId) {
+            auto& ibPSX = armature.inverseBindMatrices[jointId];
+            const auto& ib = armature.inverseBindMatrices[jointId];
+            // TODO?
+        }
+
         // This is where things get complicated
         // Vertices in the binary files are stored per-face, so
         // the original vertex can end up in mesh.triFaces[35][2] or something
@@ -234,18 +245,34 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
         newInfluences.resize(numJoints);
 
         auto& mesh = psxModel.submeshes[0]; // FIXME: handle multiple meshes
+        auto& meshJson = modelJson.meshes[0];
+        const auto tm = modelJson.objects[0].transform.asMatrix();
         for (int jointId = 0; jointId < numJoints; ++jointId) {
             const auto& boneInfluences = armatureJson.boneInfluences[jointId];
+            auto& ib = armatureJson.inverseBindMatrices[jointId];
             for (const auto vid : boneInfluences) {
                 int newVertexId{0};
-                auto findInfluencedVertex = [&]<typename T>(const T& facesVector) {
-                    for (const auto& face : facesVector) {
+                auto findInfluencedVertex = [&]<typename T>(T& facesVector) {
+                    int faceIndex = 0;
+                    for (auto& face : facesVector) {
                         for (int j = 0; j < face.size(); ++j) {
                             if (face[j].originalIndex == vid) {
                                 newInfluences[jointId].push_back(newVertexId);
+
+                                const auto& v = meshJson.vertices[vid];
+                                // from Blender to glTF
+                                const auto position =
+                                    glm::vec3{v.position.x, v.position.z, -v.position.y};
+                                const auto pos = glm::vec3{ib * tm * glm::vec4{position, 1.f}};
+                                face[j].pos = {
+                                    .x = floatToFixed<FixedPoint4_12>(pos.x, params.scale),
+                                    .y = floatToFixed<FixedPoint4_12>(pos.y, params.scale),
+                                    .z = floatToFixed<FixedPoint4_12>(pos.z, params.scale),
+                                };
                             }
                             ++newVertexId;
                         }
+                        ++faceIndex;
                     }
                 };
                 findInfluencedVertex(mesh.untexturedTriFaces);

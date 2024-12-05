@@ -2,6 +2,12 @@
 
 #include <psyqo/soft-math.hh>
 
+#include <EASTL/fixed_string.h>
+#include <common/syscalls/syscalls.h>
+#include <psyqo/gte-kernels.hh>
+#include <psyqo/gte-registers.hh>
+#include <psyqo/xprintf.h>
+
 psyqo::Matrix33 Quaternion::toRotationMatrix() const
 {
     const auto x2 = x * x;
@@ -42,23 +48,53 @@ psyqo::FixedPoint<12, std::int16_t> lerp(
     return a + factor * (b - a);
 }
 
+/* static eastl::fixed_string<char, 512> str;
+fsprintf(str, "s = %.4f, 1/sqrt(s) = %.4f", s, r);
+ramsyscall_printf("%s\n", str.c_str()); */
+
 void Quaternion::normalize()
 {
-    auto x = this->x;
-    auto y = this->y;
-    auto z = this->z;
-    auto w = this->w;
-    const auto s = x * x + y * y + z * z + w * w;
-    const auto r = psyqo::FixedPoint<12, std::int16_t>(
-        psyqo::SoftMath::inverseSquareRoot((psyqo::FixedPoint<>{s})));
-    x *= r;
-    y *= r;
-    z *= r;
+    auto x = psyqo::FixedPoint<>(this->x);
+    auto y = psyqo::FixedPoint<>(this->y);
+    auto z = psyqo::FixedPoint<>(this->z);
+    auto w = psyqo::FixedPoint<>(this->w);
+
+    // sq = (x*x, y*y, z*z)
+    psyqo::GTE::write<psyqo::GTE::Register::IR1, psyqo::GTE::Unsafe>(x.value);
+    psyqo::GTE::write<psyqo::GTE::Register::IR2, psyqo::GTE::Unsafe>(y.value);
+    psyqo::GTE::write<psyqo::GTE::Register::IR3, psyqo::GTE::Safe>(z.value);
+    psyqo::GTE::Kernels::sqr();
+    psyqo::Vec3 sq;
+    psyqo::GTE::read<psyqo::GTE::PseudoRegister::LV>(sq);
+
+    // s = x * x + y * y + z * z + w * w
+    const auto s = sq.x + sq.y + sq.z + w * w;
+
+    // r = 1 / sqrt(s)
+    psyqo::GTE::write<psyqo::GTE::Register::LZCS, psyqo::GTE::Unsafe>(s.raw());
+    const auto approx = 1 << (psyqo::GTE::readRaw<psyqo::GTE::Register::LZCR>() - 9);
+    const auto approxFP = psyqo::FixedPoint<>(approx, psyqo::FixedPoint<>::RAW);
+    const auto r = psyqo::SoftMath::inverseSquareRoot(s, approxFP);
+
+    /*
+        x *= r;
+        y *= r;
+        z *= r;
+    */
+    psyqo::GTE::write<psyqo::GTE::Register::IR0, psyqo::GTE::Unsafe>(r.value);
+    psyqo::GTE::write<psyqo::GTE::Register::IR1, psyqo::GTE::Unsafe>(x.value);
+    psyqo::GTE::write<psyqo::GTE::Register::IR2, psyqo::GTE::Unsafe>(y.value);
+    psyqo::GTE::write<psyqo::GTE::Register::IR3, psyqo::GTE::Safe>(z.value);
+    x.value = psyqo::GTE::readRaw<psyqo::GTE::Register::IR1, psyqo::GTE::Unsafe>();
+    y.value = psyqo::GTE::readRaw<psyqo::GTE::Register::IR2, psyqo::GTE::Unsafe>();
+    z.value = psyqo::GTE::readRaw<psyqo::GTE::Register::IR3, psyqo::GTE::Unsafe>();
+
     w *= r;
-    this->x = x;
-    this->y = y;
-    this->z = z;
-    this->w = w;
+
+    this->x = psyqo::FixedPoint<12, std::int16_t>(x);
+    this->y = psyqo::FixedPoint<12, std::int16_t>(y);
+    this->z = psyqo::FixedPoint<12, std::int16_t>(z);
+    this->w = psyqo::FixedPoint<12, std::int16_t>(w);
 }
 
 Quaternion slerp(

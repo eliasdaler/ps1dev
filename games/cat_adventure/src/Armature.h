@@ -26,6 +26,9 @@ struct Armature {
     eastl::vector<Joint> joints;
     eastl::vector<std::uint16_t> boneInfluences;
 
+    void applySkinning(Mesh& mesh);
+    void applySkinning(Mesh& mesh, const Joint& joint);
+
     void calculateTransforms();
     void calculateTransforms(Joint& joint, const Joint& parentJoint, bool isRoot = false);
 

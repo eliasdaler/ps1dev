@@ -7,8 +7,11 @@
 #include <filesystem>
 #include <vector>
 
+using FixedPoint4_12 = std::int16_t;
+using FixedPoint20_12 = std::int32_t;
+
 struct PsxVert {
-    Vec3<std::int16_t> pos;
+    Vec3<FixedPoint4_12> pos;
     Vec2<std::uint8_t> uv;
     Vec3<std::uint8_t> color;
     std::uint16_t originalIndex;
@@ -30,16 +33,23 @@ struct PsxJoint {
     using JointId = std::uint8_t;
     static constexpr JointId NULL_JOINT_ID = 0xFF;
 
-    Vec3<std::int16_t> translation;
-    Vec4<std::int16_t> rotation;
+    Vec3<FixedPoint4_12> translation;
+    Vec4<FixedPoint4_12> rotation;
     JointId firstChild{NULL_JOINT_ID};
     JointId nextSibling{NULL_JOINT_ID};
     std::uint16_t boneInfluencesOffset;
     std::uint16_t boneInfluencesSize;
 };
 
+struct PsxMatrix {
+    std::array<FixedPoint4_12, 9> rotation;
+    std::int16_t pad;
+    Vec3<FixedPoint20_12> translation;
+};
+
 struct PsxArmature {
     std::vector<PsxJoint> joints;
+    std::vector<PsxMatrix> inverseBindMatrices;
     std::vector<std::uint16_t> boneInfluences;
 };
 

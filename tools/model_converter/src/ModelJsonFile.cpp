@@ -167,6 +167,23 @@ ModelJson parseJsonFile(
             const auto& boneInfluenceArr = boneInfluencesArr[idx];
             armature.boneInfluences[idx] = boneInfluenceArr.get<std::vector<std::uint16_t>>();
         }
+
+        armature.inverseBindMatrices.resize(numJoints);
+        const auto& ibsObj = armatureObj.at("inverseBindMatrices");
+        for (std::uint32_t idx = 0; idx < numJoints; ++idx) {
+            auto& ib = armature.inverseBindMatrices[idx];
+            const auto& ibObj = ibsObj[idx];
+            for (int i = 0; i < 4; ++i) {
+                for (int j = 0; j < 4; ++j) {
+                    // glm's matrices are column major
+                    ib[j][i] = ibObj[i][j];
+                }
+            }
+        }
+
+        auto vpos2 = glm::vec4{0.0000, 0.8387, 0.0624, 1.0};
+        auto test = armature.inverseBindMatrices[0] * vpos2;
+        printf("test: %.2f, %.2f, %.2f\n", test.x, test.y, test.z);
     }
 
     return model;
