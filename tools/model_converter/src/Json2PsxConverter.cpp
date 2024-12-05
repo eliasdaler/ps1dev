@@ -5,6 +5,7 @@
 
 #include <format>
 #include <iostream>
+#include <stack>
 
 namespace
 {
@@ -176,6 +177,51 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
             std::cout << "____\n"; */
         }
         psxModel.submeshes.push_back(std::move(psxMesh));
+    }
+
+    if (!modelJson.armature.joints.empty()) {
+        auto& armature = psxModel.armature;
+        const auto& armatureJson = modelJson.armature;
+        armature.joints.reserve(armatureJson.joints.size());
+        for (const auto& joint : armatureJson.joints) {
+            PsxJoint psxJoint;
+            psxJoint.translation = {
+                .x = floatToFixed4_12(joint.translation.x, params.scale),
+                .y = floatToFixed4_12(joint.translation.y, params.scale),
+                .z = floatToFixed4_12(joint.translation.z, params.scale),
+            };
+
+            psxJoint.rotation = {
+                .x = floatToFixed4_12(joint.rotation.w, 1.f),
+                .y = floatToFixed4_12(joint.rotation.x, 1.f),
+                .z = floatToFixed4_12(joint.rotation.y, 1.f),
+                .w = floatToFixed4_12(joint.rotation.z, 1.f),
+            };
+            armature.joints.push_back(std::move(psxJoint));
+        }
+        armature.boneInfluences = armatureJson.boneInfluences;
+
+        std::stack<std::uint8_t> jointsToProcess;
+        jointsToProcess.push(0);
+        while (!jointsToProcess.empty()) {
+            const auto id = jointsToProcess.top();
+            jointsToProcess.pop();
+
+            auto& joint = armatureJson.joints[id];
+            if (joint.children.empty()) {
+                continue;
+            }
+
+            auto& psxJoint = armature.joints[id];
+            psxJoint.firstChild = joint.children[0];
+            for (int i = 0; i < joint.children.size(); ++i) {
+                const auto childId = joint.children[i];
+                auto& child = armature.joints[childId];
+                child.nextSibling = (i == joint.children.size() - 1) ? PsxJoint::NULL_JOINT_ID :
+                                                                       joint.children[i + 1];
+                jointsToProcess.push(childId);
+            }
+        }
     }
     return psxModel;
 }

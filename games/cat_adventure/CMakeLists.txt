@@ -86,6 +86,7 @@ set(models
   "${ASSETS_DIR_RAW}/house_psx.blend"
   "${ASSETS_DIR_RAW}/level_new.blend"
   "${ASSETS_DIR_RAW}/cato.blend"
+  "${ASSETS_DIR_RAW}/human.blend"
   "${ASSETS_DIR_RAW}/car.blend"
 )
 

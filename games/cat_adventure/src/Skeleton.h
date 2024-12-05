@@ -10,17 +10,13 @@ struct Joint {
     Transform localTransform;
     TransformMatrix globalTransform;
 
-    using JointId = std::uint16_t;
-    static constexpr JointId NULL_JOINT_ID{0xFFFF};
-    JointId id{NULL_JOINT_ID};
-    JointId parent{NULL_JOINT_ID};
+    using JointId = std::uint8_t;
+    static constexpr JointId NULL_JOINT_ID{0xFF};
     JointId firstChild{NULL_JOINT_ID};
     JointId nextSibling{NULL_JOINT_ID};
 };
 
 struct Skeleton {
-    void makeTestSkeleton();
-
     Joint& getRootJoint() { return joints[0]; }
 
     eastl::vector<Joint> joints;

@@ -6,7 +6,7 @@
 #include <psyqo/matrix.hh>
 
 struct Quaternion {
-    psyqo::FixedPoint<12, std::int16_t> x, y, z, w;
+    psyqo::FixedPoint<12, std::int16_t> w{1.0}, x{0.0}, y{0.0}, z{0.0};
 
     psyqo::Matrix33 toRotationMatrix() const;
     void normalize();

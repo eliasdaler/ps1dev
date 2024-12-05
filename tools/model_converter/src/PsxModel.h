@@ -24,8 +24,24 @@ struct PsxSubmesh {
     std::vector<PsxQuadFace> quadFaces;
 };
 
+struct PsxJoint {
+    using JointId = std::uint8_t;
+    static constexpr JointId NULL_JOINT_ID = 0xFF;
+
+    Vec3<std::int16_t> translation;
+    Vec4<std::int16_t> rotation;
+    JointId firstChild{NULL_JOINT_ID};
+    JointId nextSibling{NULL_JOINT_ID};
+};
+
+struct PsxArmature {
+    std::vector<PsxJoint> joints;
+    std::vector<std::vector<std::uint16_t>> boneInfluences;
+};
+
 struct PsxModel {
     std::vector<PsxSubmesh> submeshes;
+    PsxArmature armature;
 };
 
 void writePsxModel(const PsxModel& model, const std::filesystem::path& path);

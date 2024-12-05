@@ -1,6 +1,7 @@
 import bpy
 import json
 import sys
+import mathutils
 
 from operator import attrgetter
 
@@ -67,10 +68,8 @@ def collect_materials(scene):
     material_list.sort(key=attrgetter("name"))
     return material_list
 
-
 identity_quat = Quaternion()
 identity_scale = Vector((1.0, 1.0, 1.0))
-
 
 def get_object_data_json(obj, meshes_idx_map):
     object_data = {
@@ -151,6 +150,40 @@ def get_material_json(material):
     return material_data
 
 
+def find_root_bone(pose):
+    root_bones = [b for b in pose.bones if b.parent == None]
+    if len(root_bones) == 0:
+        raise ValueError(f"{pose} doesn't have any bones")
+    elif len(root_bones) > 1:
+        raise ValueError(f"{pose} has multiple roots")
+    return root_bones[0]
+
+def swizzle_rotation(rot):
+    return Quaternion((rot[0], rot[1], rot[3], -rot[2]))
+
+axis_basis_change = mathutils.Matrix(
+            ((1.0, 0.0, 0.0, 0.0), 
+             (0.0, 0.0, 1.0, 0.0), 
+             (0.0, -1.0, 0.0, 0.0), 
+             (0.0, 0.0, 0.0, 1.0)))
+
+def get_bone_data_json(bone, bone_name_to_id):
+    transform_local = (axis_basis_change @ bone.matrix) if bone.parent == None else \
+                      (bone.parent.matrix.inverted_safe() @ bone.matrix)
+    translation, rotation, scale = transform_local.decompose()
+    # rotation = swizzle_rotation(rotation)
+    bone_data = {
+            "name": bone.name,
+            # TODO: check if this is right? seems like we only care about "Y" here?
+            "translation": [translation[0], translation[1], translation[2]],
+            "rotation": [rotation.w, rotation.x, rotation.y, rotation.z],
+            "scale": [scale[0], scale[1], scale[2]],
+    }
+    if bone.children:
+        bone_data["children"] = [ bone_name_to_id[c.name] for c in bone.children ]
+    return bone_data
+
+
 def write_psxtools_json(context, filepath):
     f = open(filepath, 'w', encoding='utf-8')
 
@@ -178,6 +211,38 @@ def write_psxtools_json(context, filepath):
         "meshes": [get_mesh_json(mesh, material_idx_map)
                    for mesh in meshes_list],
     }
+
+    armature = scene.objects['Armature.Test']
+    if armature:
+        bone_name_to_id = {}
+        pose = armature.pose
+        root_bone = find_root_bone(pose)
+        for idx, bone in enumerate(pose.bones):
+            if bone.name in bone_name_to_id:
+                raise ValueError('Repeated bone name: {bone.name}')
+            bone_name_to_id[bone.name] = idx
+        if bone_name_to_id[root_bone.name] != 0:
+            raise ValueError('Root bone did not get id = 0')
+
+        armature_data = {
+            "joints": [get_bone_data_json(b, bone_name_to_id) for b in pose.bones],
+        }
+
+        # bone influences
+        # TODO: check if this child exists
+        if armature.children:
+            obj = armature.children[0]
+            bone_influences = [None] * len(pose.bones)
+            for idx, bone in enumerate(pose.bones):
+                gid = obj.vertex_groups[bone.name].index
+                bone_influences[idx] = [v.index for v in obj.data.vertices \
+                                        if gid in [g.group for g in v.groups]]
+            armature_data["bone_influences"] = bone_influences
+        else:
+            bone_influences = [[0]] * len(pose.bones)
+            armature_data["bone_influences"] = bone_influences
+
+        data["armature"] = armature_data
 
     json.dump(data, f, indent=4)
     f.close()

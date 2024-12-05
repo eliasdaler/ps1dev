@@ -53,4 +53,31 @@ void writePsxModel(const PsxModel& model, const std::filesystem::path& path)
         writePsxModelVerts(file, mesh.triFaces);
         writePsxModelVerts(file, mesh.quadFaces);
     }
+
+    if (!model.armature.joints.empty()) {
+        fsutil::binaryWrite(file, static_cast<std::uint16_t>(model.armature.joints.size()));
+        for (const auto& joint : model.armature.joints) {
+            fsutil::binaryWrite(file, joint.translation.x);
+            fsutil::binaryWrite(file, joint.translation.y);
+            fsutil::binaryWrite(file, joint.translation.z);
+            fsutil::binaryWrite(file, pad16);
+
+            fsutil::binaryWrite(file, joint.rotation.x);
+            fsutil::binaryWrite(file, joint.rotation.y);
+            fsutil::binaryWrite(file, joint.rotation.z);
+            fsutil::binaryWrite(file, joint.rotation.w);
+            fsutil::binaryWrite(file, joint.firstChild);
+            fsutil::binaryWrite(file, joint.nextSibling);
+        }
+
+        for (const auto& verticesArr : model.armature.boneInfluences) {
+            fsutil::binaryWrite(file, static_cast<std::uint16_t>(verticesArr.size()));
+        }
+
+        for (const auto& verticesArr : model.armature.boneInfluences) {
+            for (const auto& v : verticesArr) {
+                fsutil::binaryWrite(file, v);
+            }
+        }
+    }
 }

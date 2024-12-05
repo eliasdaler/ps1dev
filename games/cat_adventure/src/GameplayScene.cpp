@@ -83,10 +83,10 @@ void GameplayScene::start(StartReason reason)
 
     game.songPlayer.init(game.midi, game.vab);
 
-    skeleton.makeTestSkeleton();
-
+    auto& skeleton = game.catoModel.skeleton;
+    // skeleton.makeTestSkeleton();
     startRotation = skeleton.getRootJoint().localTransform.rotation;
-    targetRotation = {0, 0, 0, 1};
+    targetRotation = {1, 0, 0, 0};
 
     slerpFactor = 0.0;
 }
@@ -105,8 +105,11 @@ void GameplayScene::frame()
         slerpFactor = 0.0;
     }
 
+    auto& skeleton = game.catoModel.skeleton;
+#if 0
     skeleton.getRootJoint().localTransform.rotation =
         slerp(startRotation, targetRotation, slerpFactor);
+#endif
 
     skeleton.calculateTransforms();
 
@@ -346,6 +349,7 @@ void GameplayScene::drawDebugInfo()
         {0, ToWorldCoords(1.31 + 0.3), 0},
         {.r = 255, .g = 255, .b = 0}); */
 
+    auto& skeleton = game.catoModel.skeleton;
     skeleton.drawDebug(renderer);
 
     /* static eastl::fixed_string<char, 512> str;
@@ -393,6 +397,20 @@ void GameplayScene::drawDebugInfo()
         (int)game.songPlayer.bpm,
         (int)game.songPlayer.musicTime,
         (int)SoundPlayer::reverbEnabled); */
+
+    auto& rot = startRotation;
+
+    /*
+    game.romFont.chainprintf(
+        game.gpu(),
+        {{.x = 16, .y = 64}},
+        textCol,
+        "quat = (%.2a, %.2a, %.2a, %.2a)",
+        rot.w,
+        rot.x,
+        rot.y,
+        rot.z);
+        */
 
     const auto fps = gpu().getRefreshRate() / frameDiff;
     fpsMovingAverageNew = alpha * fps + oneMinAlpha * fpsMovingAverageOld;

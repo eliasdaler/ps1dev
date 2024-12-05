@@ -139,5 +139,35 @@ ModelJson parseJsonFile(
         model.materials.push_back(std::move(material));
     }
 
+    const auto armatureIt = root.find("armature");
+    if (armatureIt != root.end()) {
+        auto& armature = model.armature;
+
+        const auto& armatureObj = *armatureIt;
+        const auto& jointsArr = armatureObj.at("joints");
+        const auto numJoints = jointsArr.size();
+        const auto& boneInfluencesArr = armatureObj.at("bone_influences");
+
+        armature.joints.resize(numJoints);
+        armature.boneInfluences.resize(numJoints);
+
+        for (std::uint32_t idx = 0; idx < numJoints; ++idx) {
+            // load joint
+            const auto& jointObj = jointsArr[idx];
+            auto& joint = armature.joints[idx];
+            joint.name = jointObj.at("name");
+            joint.translation = getVec3(jointObj, "translation", glm::vec3{});
+            joint.rotation = getQuat(jointObj, "rotation", glm::identity<glm::quat>());
+
+            if (jointObj.contains("children")) {
+                joint.children = jointObj.at("children").get<std::vector<std::uint8_t>>();
+            }
+
+            // load bone influences
+            const auto& boneInfluenceArr = boneInfluencesArr[idx];
+            armature.boneInfluences[idx] = boneInfluenceArr.get<std::vector<std::uint16_t>>();
+        }
+    }
+
     return model;
 }

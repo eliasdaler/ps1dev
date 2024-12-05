@@ -46,10 +46,25 @@ struct Material {
     ImageData imageData;
 };
 
+struct Joint {
+    std::string name;
+    std::uint32_t index{0};
+    // transform
+    glm::vec3 translation{};
+    glm::quat rotation{glm::identity<glm::quat>()};
+    std::vector<std::uint8_t> children;
+};
+
+struct Armature {
+    std::vector<Joint> joints;
+    std::vector<std::vector<std::uint16_t>> boneInfluences;
+};
+
 struct ModelJson {
     std::vector<Object> objects;
     std::vector<Mesh> meshes;
     std::vector<Material> materials;
+    Armature armature;
 };
 
 ModelJson parseJsonFile(

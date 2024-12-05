@@ -56,6 +56,4 @@ private:
     Quaternion startRotation;
     Quaternion targetRotation;
     psyqo::FixedPoint<12, std::int16_t> slerpFactor{};
-
-    Skeleton skeleton;
 };

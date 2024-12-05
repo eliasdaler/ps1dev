@@ -50,4 +50,29 @@ void Model::load(const eastl::vector<uint8_t>& data)
 
         meshes.push_back(std::move(mesh));
     }
+
+    if (fr.cursor == data.size()) {
+        return;
+    }
+
+    const auto numJoints = fr.GetUInt16();
+    skeleton.joints.resize(numJoints);
+    for (int i = 0; i < numJoints; ++i) {
+        auto& joint = skeleton.joints[i];
+
+        auto& translation = joint.localTransform.translation;
+        translation.x.value = fr.GetInt16();
+        translation.y.value = fr.GetInt16();
+        translation.z.value = fr.GetInt16();
+        fr.SkipBytes(2); // pad
+
+        auto& rotation = joint.localTransform.rotation;
+        rotation.w.value = fr.GetInt16();
+        rotation.x.value = fr.GetInt16();
+        rotation.y.value = fr.GetInt16();
+        rotation.z.value = fr.GetInt16();
+
+        joint.firstChild = fr.GetUInt8();
+        joint.nextSibling = fr.GetUInt8();
+    }
 }
