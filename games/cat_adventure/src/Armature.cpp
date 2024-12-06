@@ -25,30 +25,10 @@ void Armature::applySkinning(Mesh& mesh, const Joint& joint)
          i < joint.boneInfluencesOffset + joint.boneInfluencesSize;
          ++i) {
         const auto vid = boneInfluences[i];
-        const auto& posStart = mesh.ogVertices[vid].pos;
-        auto newPos = psyqo::Vec3{};
-        newPos.x.value = posStart.x.value;
-        newPos.y.value = posStart.y.value;
-        newPos.z.value = posStart.z.value;
+        psyqo::Vec3 newPos = mesh.ogVertices[vid].pos;
+        // TODO: transformPoint for psyqo::GTE::PackedVec3
         newPos = joint.globalTransform.transformPoint(newPos);
-        /* if (joint.id == 11) {
-            static eastl::fixed_string<char, 512> str;
-            fsprintf(
-                str,
-                "%d, (%.4f, %.4f, %.4f) -> (%.4f, %.4f, %.4f)",
-                (int)boneInfluences[i],
-                psyqo::FixedPoint<>(posStart.x),
-                psyqo::FixedPoint<>(posStart.y),
-                psyqo::FixedPoint<>(posStart.z),
-                psyqo::FixedPoint<>(newPos.x),
-                psyqo::FixedPoint<>(newPos.y),
-                psyqo::FixedPoint<>(newPos.z));
-            ramsyscall_printf("vec = %s\n", str.c_str());
-        } */
-        auto& posNew = mesh.vertices[vid].pos;
-        posNew.x.value = newPos.x.value;
-        posNew.y.value = newPos.y.value;
-        posNew.z.value = newPos.z.value;
+        mesh.vertices[vid].pos = psyqo::GTE::PackedVec3{newPos};
     }
 
     auto currentJointId = joint.firstChild;
