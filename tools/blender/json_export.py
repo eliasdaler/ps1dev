@@ -2,6 +2,8 @@ import bpy
 import json
 import sys
 import mathutils
+import itertools
+from enum import Enum
 
 from operator import attrgetter
 
@@ -174,37 +176,115 @@ axis_basis_change = mathutils.Matrix(
 q_base = axis_basis_change.decompose()[1]
 q_test = Quaternion((0.806, 0.085, -0.245, 0.532))
 
-def get_bone_data_json(bone, bone_name_to_id):
-    transform_local = (axis_basis_change @ bone.matrix_local) if bone.parent == None else \
+class Joint():
+    def __init__(self, name, transform, translation, rotation, scale, children):
+        self.name = name
+        self.transform = transform
+        self.translation = translation
+        self.rotation = rotation
+        self.scale = scale
+        self.children = children
+
+def get_joint_data(bone, joint_name_to_id):
+    transform_global = (axis_basis_change @ bone.matrix_local) if bone.parent == None else \
                       (bone.parent.matrix_local.inverted_safe() @ bone.matrix_local)
-    translation, rotation, scale = transform_local.decompose()
-    # if bone.name == "LowerArm.L":
-    #     rotation = rotation @ q_test
-    bone_data = {
-            "name": bone.name,
-            "translation": [translation.x, translation.y, translation.z],
-            "rotation":    [rotation.w, rotation.x, rotation.y, rotation.z],
-            "scale":       [scale.x, scale.y, scale.z],
+    translation, rotation, scale = transform_global.decompose()
+    joint_data = Joint(bone.name, transform_global,
+                       translation, rotation, scale,
+                       [ joint_name_to_id[c.name] for c in bone.children ])
+    return joint_data
+
+class JointFCurves():
+    def __init__(self):
+        self.translation = [None] * 3
+        self.rotation = [None] * 4
+
+def get_joint_data_json(joint, joint_name_to_id):
+    joint_data = {
+            "name": joint.name,
+            "translation": [joint.translation.x, joint.translation.y, joint.translation.z],
+            "rotation":    [joint.rotation.w, joint.rotation.x, joint.rotation.y, joint.rotation.z],
+            "scale":       [joint.scale.x, joint.scale.y, joint.scale.z],
     }
-    if bone.children:
-        bone_data["children"] = [ bone_name_to_id[c.name] for c in bone.children ]
-    return bone_data
+    if joint.children:
+        joint_data["children"] = joint.children
+    return joint_data
 
+def find_unique_times(tracks):
+    return set(itertools.chain.from_iterable(
+            [
+                [k.co[0] for k in keys.keyframe_points] 
+                 for keys in tracks
+            ]
+        ))
 
-def write_action(bone_data, bone_name_to_id, action):
-    print(q_base)
-    joint_name = 'UpperArm.L'
-    quat_arr = bone_data["joints"][bone_name_to_id[joint_name]]["rotation"]
-    q_global = Quaternion((quat_arr[0], quat_arr[1], quat_arr[2], quat_arr[3]))
-    print(q_global)
-    print("FPS = ", bpy.context.scene.render.fps)
-    print(f"{action.name} - frame range = from {action.frame_range[0]} to {action.frame_range[1]}")
+class TrackType(Enum):
+    ROTATION = 0
+    TRANSLATION = 1
+    SCALE = 2
+
+class Track():
+    def __init__(self, track_type : TrackType, joint_id, keys):
+        self.track_type = track_type
+        self.joint_id = joint_id
+        self.keys = keys
+    
+    def toJSON(self):
+        return {
+            "track_type": self.track_type.value,
+            "joint_id": self.joint_id,
+            "keys": self.keys
+        }
+
+def get_action_json(joints, joint_name_to_id, action):
+    num_joints = len(joints)
+    curves = { }
     for idx, fcurve in enumerate(action.fcurves):
-        if fcurve.group.name == joint_name:
-            print(f"{idx}: {fcurve.data_path}[{fcurve.array_index}]")
-            for k in fcurve.keyframe_points:
-                print(k.co)
-            print("___")
+        joint_id = joint_name_to_id[fcurve.group.name]
+        if joint_id == None:
+            continue
+
+        joint_curves = None
+        if joint_id not in curves:
+            joint_curves = JointFCurves()
+        else:
+            joint_curves = curves[joint_id]
+
+        if fcurve.data_path.endswith('location'):
+            joint_curves.translation[fcurve.array_index] = fcurve
+        elif fcurve.data_path.endswith('rotation_quaternion'):
+            joint_curves.rotation[fcurve.array_index] = fcurve
+        # skip scale keys for now
+        curves[joint_id] = joint_curves
+
+    final_tracks = []
+    for joint_id, cv in curves.items():
+        joint = joints[joint_id]
+        translation_track_times = find_unique_times(cv.translation)
+        translation_track = []
+        for t in translation_track_times:
+            t_local = Vector((0.0, 0.0, 0.0))
+            for i in range(3):
+                t_local[i] = cv.translation[i].evaluate(t)
+            t_global = joint.transform @ t_local
+            translation_track.append([t, [t_global.x, t_global.y, t_global.z]])
+
+        rotation_track_times = find_unique_times(cv.translation)
+        rotation_track = []
+        for t in rotation_track_times:
+            q_local = Quaternion()
+            for i in range(4):
+                q_local[i] = cv.rotation[i].evaluate(t)
+            q_global = joint.rotation @ q_local
+            rotation_track.append([t, [q_global.w, q_global.x, q_global.y, q_global.z]])
+
+        final_tracks.append(Track(TrackType.TRANSLATION, joint_id, translation_track))
+        final_tracks.append(Track(TrackType.ROTATION, joint_id, rotation_track))
+
+    anim_json_data = [t.toJSON() for t in final_tracks]
+    return anim_json_data
+    print(json.dumps(anim_json_data, indent = 2))
+
 
 def write_psxtools_json(context, filepath):
     f = open(filepath, 'w', encoding='utf-8')
@@ -239,18 +319,22 @@ def write_psxtools_json(context, filepath):
 
     if 'Armature' in scene.objects:
         armature = scene.objects['Armature']
-        bone_name_to_id = {}
+        joint_name_to_id = {}
         root_bone = find_root_bone(armature)
         bones = armature.data.bones
         for idx, bone in enumerate(bones):
-            if bone.name in bone_name_to_id:
+            if bone.name in joint_name_to_id:
                 raise ValueError('Repeated bone name: {bone.name}')
-            bone_name_to_id[bone.name] = idx
-        if bone_name_to_id[root_bone.name] != 0:
+            joint_name_to_id[bone.name] = idx
+        if joint_name_to_id[root_bone.name] != 0:
             raise ValueError('Root bone did not get id = 0')
 
+        joints = [None] * len(bones)
+        for idx, bone in enumerate(bones):
+            joints[idx] = get_joint_data(bone, joint_name_to_id)
+
         armature_data = {
-            "joints": [get_bone_data_json(b, bone_name_to_id) for b in bones],
+            "joints": [get_joint_data_json(j, joint_name_to_id) for j in joints],
         }
 
         inverse_bind_matrices = [None] * len(bones)
@@ -280,10 +364,14 @@ def write_psxtools_json(context, filepath):
 
         data["armature"] = armature_data
 
+        data["animations"] = []
         if 'Wave' in bpy.data.actions:
-            write_action(armature_data, bone_name_to_id, bpy.data.actions['Wave'])
+            data["animations"].append({
+                "name": "Wave",
+                "tracks": get_action_json(joints, joint_name_to_id, bpy.data.actions['Wave']),
+            })
 
-    json.dump(data, f, indent=4)
+    json.dump(data, f, indent=2)
     f.close()
     return {'FINISHED'}
 
