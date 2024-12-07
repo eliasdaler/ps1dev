@@ -65,9 +65,6 @@ void GameplayScene::start(StartReason reason)
             camera.rotation = {0.0, 1.0};
 
             // armature debug
-            // camera.position = {-0.13, 0.10, 0.24};
-            // camera.rotation = {0.0, 0.83};
-
             camera.position = {0.19, 0.28, 0.28};
             camera.rotation = {0.11, 1.17};
 
@@ -87,22 +84,96 @@ void GameplayScene::start(StartReason reason)
     game.songPlayer.init(game.midi, game.vab);
 
     auto& armature = game.catoModel.armature;
-    armature.calculateTransforms();
-
-    auto& joint = armature.joints[5];
-
-    startRotation = joint.localTransform.rotation;
-    targetRotation =
-        {0.8381617665290833, 0.09838240593671799, 0.3444676995277405, -0.41127580404281616};
-
-    armature.calculateTransforms();
-    armature.applySkinning(game.catoModel.meshes[0]);
 
     armature.selectedJoint = 5;
     auto& mesh = game.catoModel.meshes[0];
     armature.highlightMeshInfluences(mesh, armature.selectedJoint);
 
-    slerpFactor = 0.0;
+    animation.numTracks = 2;
+    animation.tracks = {
+        AnimationTrack{
+            .info = TRACK_TYPE_ROTATION,
+            .joint = 5,
+            .keys =
+                {
+                    AnimationKey{
+                        .frame = 0.0,
+                        .data =
+                            {.rotation =
+                                 {0.40784579515457153,
+                                  0.1731782704591751,
+                                  0.18558774888515472,
+                                  -0.8770566582679749}},
+                    },
+                    AnimationKey{
+                        .frame = 40.0,
+                        .data =
+                            {.rotation =
+                                 {0.43177539110183716,
+                                  -0.09940928220748901,
+                                  -0.365030437707901,
+                                  -0.8188331723213196}},
+
+                    },
+                    AnimationKey{
+                        .frame = 100.0,
+                        .data =
+                            {.rotation =
+                                 {0.40784579515457153,
+                                  0.1731782704591751,
+                                  0.18558774888515472,
+                                  -0.8770566582679749}},
+                    },
+                },
+        },
+        AnimationTrack{
+            .info = TRACK_TYPE_ROTATION,
+            .joint = 6,
+            .keys =
+                {
+                    AnimationKey{
+                        .frame = 0.0,
+                        .data =
+                            {.rotation =
+                                 {0.8614282011985779,
+                                  0.08229127526283264,
+                                  0.48894357681274414,
+                                  0.11001735180616379}},
+                    },
+                    AnimationKey{
+                        .frame = 40.0,
+                        .data =
+                            {.rotation =
+                                 {0.7485783100128174,
+                                  0.42662039399147034,
+                                  0.14861111342906952,
+                                  0.4852322041988373}},
+
+                    },
+                    AnimationKey{
+                        .frame = 100.0,
+                        .data =
+                            {.rotation =
+                                 {0.8614282011985779,
+                                  0.08229127526283264,
+                                  0.48894357681274414,
+                                  0.11001735180616379}},
+                    },
+                },
+        },
+    };
+    normalizedAnimTime = 0.0;
+
+    // apply initial pose
+    for (const auto& track : animation.tracks) {
+        auto& joint = armature.joints[track.joint];
+        auto& startKey = track.keys[0];
+        // assume rotation for now
+        joint.localTransform.rotation = startKey.data.rotation;
+    }
+
+    armature.calculateTransforms();
+    armature.applySkinning(game.catoModel.meshes[0]);
 }
 
 void GameplayScene::onResourcesLoaded()
@@ -115,12 +186,13 @@ void GameplayScene::frame()
     lastFrameCounter = currentFrameCounter;
 
     auto& armature = game.catoModel.armature;
-    slerpFactor += 0.0075;
-    if (slerpFactor > 1.0) {
-        slerpFactor = 0.0;
+
+    normalizedAnimTime += 0.016;
+    if (normalizedAnimTime > 1.0) { // loop
+        normalizedAnimTime -= 1.0;
     }
 
-    armature.joints[5].localTransform.rotation = slerp(startRotation, targetRotation, slerpFactor);
+    animateArmature(armature, animation, normalizedAnimTime);
 
     armature.calculateTransforms();
     armature.applySkinning(game.catoModel.meshes[0]);
@@ -426,7 +498,7 @@ void GameplayScene::drawDebugInfo()
 
     auto& rot = armature.joints[armature.selectedJoint].localTransform.rotation;
 
-    game.romFont.chainprintf(
+    /* game.romFont.chainprintf(
         game.gpu(),
         {{.x = 16, .y = 80}},
         textCol,
@@ -434,7 +506,10 @@ void GameplayScene::drawDebugInfo()
         psyqo::FixedPoint<>(rot.w),
         psyqo::FixedPoint<>(rot.x),
         psyqo::FixedPoint<>(rot.y),
-        psyqo::FixedPoint<>(rot.z));
+        psyqo::FixedPoint<>(rot.z)); */
+
+    game.romFont
+        .chainprintf(game.gpu(), {{.x = 16, .y = 80}}, textCol, "t = (%.3f)", normalizedAnimTime);
 
     const auto fps = gpu().getRefreshRate() / frameDiff;
     fpsMovingAverageNew = alpha * fps + oneMinAlpha * fpsMovingAverageOld;

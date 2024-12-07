@@ -85,7 +85,8 @@ void Quaternion::normalize()
     psyqo::GTE::write<psyqo::GTE::Register::IR1, psyqo::GTE::Unsafe>(x.value);
     psyqo::GTE::write<psyqo::GTE::Register::IR2, psyqo::GTE::Unsafe>(y.value);
     psyqo::GTE::write<psyqo::GTE::Register::IR3, psyqo::GTE::Safe>(z.value);
-    x.value = psyqo::GTE::readRaw<psyqo::GTE::Register::IR1, psyqo::GTE::Unsafe>();
+    psyqo::GTE::Kernels::gpf();
+    x.value = psyqo::GTE::readRaw<psyqo::GTE::Register::IR1, psyqo::GTE::Safe>();
     y.value = psyqo::GTE::readRaw<psyqo::GTE::Register::IR2, psyqo::GTE::Unsafe>();
     z.value = psyqo::GTE::readRaw<psyqo::GTE::Register::IR3, psyqo::GTE::Unsafe>();
 

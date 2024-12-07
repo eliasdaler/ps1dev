@@ -8,6 +8,11 @@
 #include <EASTL/fixed_string.h>
 #include <psyqo/xprintf.h>
 
+#define USE_GTE_MATH
+
+using namespace psyqo::GTE;
+using namespace psyqo::GTE::Kernels;
+
 void Armature::calculateTransforms()
 {
     calculateTransforms(getRootJoint(), getRootJoint(), true);
@@ -21,12 +26,15 @@ void Armature::applySkinning(Mesh& mesh)
 void Armature::applySkinning(Mesh& mesh, const Joint& joint)
 {
     const auto& boneInfluences = this->boneInfluences;
+#ifdef USE_GTE_MATH
+    psyqo::GTE::writeUnsafe<JOINT_ROTATION_MATRIX_REGISTER>(joint.globalTransform.rotation);
+#endif
     for (int i = joint.boneInfluencesOffset;
          i < joint.boneInfluencesOffset + joint.boneInfluencesSize;
          ++i) {
         const auto vid = boneInfluences[i];
         psyqo::Vec3 newPos = mesh.ogVertices[vid].pos;
-        // TODO: transformPoint for psyqo::GTE::PackedVec3
+        // TODO: transformPoint for psyqo::GTE::PackedVec3?
         newPos = joint.globalTransform.transformPoint(newPos);
         mesh.vertices[vid].pos = psyqo::GTE::PackedVec3{newPos};
     }
@@ -65,6 +73,9 @@ void Armature::drawDebug(Renderer& renderer)
 
 void Armature::drawDebug(Renderer& renderer, const Joint& joint, Joint::JointId childId)
 {
+#ifdef USE_GTE_MATH
+    psyqo::GTE::writeUnsafe<JOINT_ROTATION_MATRIX_REGISTER>(joint.globalTransform.rotation);
+#endif
     static const auto boneStartLocal = psyqo::Vec3{};
     static const auto boneEndNull = psyqo::Vec3{0.0, 0.1f / 8.f, 0.0};
     const auto boneStart = joint.globalTransform.transformPoint(boneStartLocal);

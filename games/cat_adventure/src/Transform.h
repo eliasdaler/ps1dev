@@ -3,7 +3,13 @@
 #include <psyqo/matrix.hh>
 #include <psyqo/vector.hh>
 
+#include <psyqo/gte-registers.hh>
+
 #include "Quaternion.h"
+
+// we expect joint rotation matrix to be in L because
+// R is used for rendering lines
+inline constexpr auto JOINT_ROTATION_MATRIX_REGISTER{psyqo::GTE::PseudoRegister::Light};
 
 struct TransformMatrix {
     psyqo::Matrix33 rotation{};

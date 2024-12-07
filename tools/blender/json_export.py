@@ -24,6 +24,8 @@ def apply_modifiers(obj):
     ctx = bpy.context.copy()
     ctx['object'] = obj
     for _, m in enumerate(obj.modifiers):
+        if m.name == 'Armature':
+            continue
         try:
             ctx['modifier'] = m
             with bpy.context.temp_override(**ctx):
@@ -93,7 +95,7 @@ def mesh_has_materials_with_textures(mesh):
 
 
 def get_mesh_json(mesh, material_idx_map):
-    uv_layer = mesh.uv_layers.active.data
+    uv_layer = mesh.uv_layers[0].data
     vertex_colors = None
     if mesh.color_attributes:
         vertex_colors = mesh.color_attributes[0].data
@@ -169,10 +171,15 @@ axis_basis_change = mathutils.Matrix(
              (0.0,  0.0, 0.0, 1.0))
             )
 
+q_base = axis_basis_change.decompose()[1]
+q_test = Quaternion((0.806, 0.085, -0.245, 0.532))
+
 def get_bone_data_json(bone, bone_name_to_id):
     transform_local = (axis_basis_change @ bone.matrix_local) if bone.parent == None else \
                       (bone.parent.matrix_local.inverted_safe() @ bone.matrix_local)
     translation, rotation, scale = transform_local.decompose()
+    # if bone.name == "LowerArm.L":
+    #     rotation = rotation @ q_test
     bone_data = {
             "name": bone.name,
             "translation": [translation.x, translation.y, translation.z],
@@ -184,10 +191,28 @@ def get_bone_data_json(bone, bone_name_to_id):
     return bone_data
 
 
+def write_action(bone_data, bone_name_to_id, action):
+    print(q_base)
+    joint_name = 'UpperArm.L'
+    quat_arr = bone_data["joints"][bone_name_to_id[joint_name]]["rotation"]
+    q_global = Quaternion((quat_arr[0], quat_arr[1], quat_arr[2], quat_arr[3]))
+    print(q_global)
+    print("FPS = ", bpy.context.scene.render.fps)
+    print(f"{action.name} - frame range = from {action.frame_range[0]} to {action.frame_range[1]}")
+    for idx, fcurve in enumerate(action.fcurves):
+        if fcurve.group.name == joint_name:
+            print(f"{idx}: {fcurve.data_path}[{fcurve.array_index}]")
+            for k in fcurve.keyframe_points:
+                print(k.co)
+            print("___")
+
 def write_psxtools_json(context, filepath):
     f = open(filepath, 'w', encoding='utf-8')
 
     scene = context.scene
+
+    # in Edit/Pose/etc. modes some things don't work properly
+    bpy.ops.object.mode_set(mode='OBJECT') 
 
     # collect meshes
     meshes_list = collect_meshes(scene)
@@ -212,8 +237,8 @@ def write_psxtools_json(context, filepath):
                       for mesh in meshes_list],
     }
 
-    armature = scene.objects['Armature.Test']
-    if armature:
+    if 'Armature' in scene.objects:
+        armature = scene.objects['Armature']
         bone_name_to_id = {}
         root_bone = find_root_bone(armature)
         bones = armature.data.bones
@@ -254,6 +279,9 @@ def write_psxtools_json(context, filepath):
             armature_data["bone_influences"] = bone_influences
 
         data["armature"] = armature_data
+
+        if 'Wave' in bpy.data.actions:
+            write_action(armature_data, bone_name_to_id, bpy.data.actions['Wave'])
 
     json.dump(data, f, indent=4)
     f.close()

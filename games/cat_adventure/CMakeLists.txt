@@ -16,6 +16,7 @@ add_executable(game
   src/Transform.cpp
 
   src/Armature.cpp
+  src/SkeletalAnimation.cpp
 
   src/RainbowColors.cpp
   src/Model.cpp
