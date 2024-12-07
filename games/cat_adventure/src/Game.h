@@ -11,6 +11,7 @@
 #include "Font.h"
 #include "MidiFile.h"
 #include "Model.h"
+#include "SkeletalAnimation.h"
 #include "SongPlayer.h"
 #include "SoundPlayer.h"
 #include "TextureInfo.h"
@@ -31,6 +32,7 @@ public:
     void loadMIDI(eastl::string_view filename, MidiFile& midi);
     void loadInstruments(eastl::string_view filename, VabFile& vab);
     void loadRawPCM(eastl::string_view filename, uint32_t spuUploadAddr);
+    void loadAnimation(eastl::string_view filename, SkeletalAnimation& animation);
 
     [[nodiscard]] TextureInfo uploadTIM(const TimFile& tim);
 
@@ -52,6 +54,9 @@ public:
     TextureInfo bricksTexture;
     TextureInfo catoTexture;
     TextureInfo carTexture;
+
+    SkeletalAnimation animation;
+
     TextureInfo fontTexture;
     Font font;
 

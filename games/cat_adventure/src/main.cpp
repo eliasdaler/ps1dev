@@ -57,6 +57,9 @@ psyqo::Coroutine<> loadCoroutine(Game* game)
     game->loadFont("FONT.FNT;1", game->font);
     co_await awaiter;
 
+    game->loadAnimation("HUMAN.ANM;1", game->animation);
+    co_await awaiter;
+
     game->loadMIDI("SONG.MID;1", game->midi);
     co_await awaiter;
 

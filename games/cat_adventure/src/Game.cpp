@@ -87,6 +87,16 @@ void Game::loadRawPCM(eastl::string_view filename, uint32_t spuUploadAddr)
         });
 }
 
+void Game::loadAnimation(eastl::string_view filename, SkeletalAnimation& animation)
+{
+    cdromLoader
+        .readFile(filename, gpu(), isoParser, [this, &animation](eastl::vector<uint8_t>&& buffer) {
+            cdReadBuffer = eastl::move(buffer);
+            animation.load(cdReadBuffer);
+            cdLoadCoroutine.resume();
+        });
+}
+
 TextureInfo Game::uploadTIM(const TimFile& tim)
 {
     psyqo::Rect region =

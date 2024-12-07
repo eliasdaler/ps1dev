@@ -180,10 +180,43 @@ ModelJson parseJsonFile(
                 }
             }
         }
+    }
 
-        auto vpos2 = glm::vec4{0.0000, 0.8387, 0.0624, 1.0};
-        auto test = armature.inverseBindMatrices[0] * vpos2;
-        printf("test: %.2f, %.2f, %.2f\n", test.x, test.y, test.z);
+    const auto animationsIt = root.find("animations");
+    if (animationsIt != root.end()) {
+        const auto& animationsArr = *animationsIt;
+        model.animations.reserve(animationsArr.size());
+        for (const auto& anim : animationsArr) {
+            Animation animation;
+            animation.name = anim.at("name");
+            const auto& tracksArr = anim.at("tracks");
+            animation.tracks.reserve(tracksArr.size());
+            for (const auto& trackJson : tracksArr) {
+                AnimationTrack track;
+                track.trackType = trackJson.at("track_type");
+                track.jointId = trackJson.at("joint_id");
+                const auto& keysArr = trackJson.at("keys");
+                track.keys.reserve(keysArr.size());
+                for (const auto& keyJson : keysArr) {
+                    AnimationKey key{};
+                    key.frame = keyJson[0];
+                    const auto& keyData = keyJson[1];
+                    if (track.trackType == 0) {
+                        assert(keyData.size() == 4);
+                        key.data.rotation =
+                            glm::quat(keyData[0], keyData[1], keyData[2], keyData[3]);
+                    } else if (track.trackType == 1) {
+                        assert(keyData.size() == 3);
+                        key.data.translation = glm::vec3(keyData[0], keyData[1], keyData[2]);
+                    } else {
+                        assert(false && "unknown track type");
+                    }
+                    track.keys.push_back(std::move(key));
+                }
+                animation.tracks.push_back(std::move(track));
+            }
+            model.animations.push_back(std::move(animation));
+        }
     }
 
     return model;

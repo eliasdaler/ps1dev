@@ -89,7 +89,7 @@ void GameplayScene::start(StartReason reason)
     auto& mesh = game.catoModel.meshes[0];
     armature.highlightMeshInfluences(mesh, armature.selectedJoint);
 
-    animation.numTracks = 2;
+    /* animation.numTracks = 2;
     animation.tracks = {
         AnimationTrack{
             .info = TRACK_TYPE_ROTATION,
@@ -162,15 +162,12 @@ void GameplayScene::start(StartReason reason)
                 },
         },
     };
+*/
     normalizedAnimTime = 0.0;
 
     // apply initial pose
-    for (const auto& track : animation.tracks) {
-        auto& joint = armature.joints[track.joint];
-        auto& startKey = track.keys[0];
-        // assume rotation for now
-        joint.localTransform.rotation = startKey.data.rotation;
-    }
+    auto& animation = game.animation;
+    animateArmature(armature, animation, 0.0);
 
     armature.calculateTransforms();
     armature.applySkinning(game.catoModel.meshes[0]);
@@ -192,6 +189,7 @@ void GameplayScene::frame()
         normalizedAnimTime -= 1.0;
     }
 
+    auto& animation = game.animation;
     animateArmature(armature, animation, normalizedAnimTime);
 
     armature.calculateTransforms();

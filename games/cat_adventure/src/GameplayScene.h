@@ -54,7 +54,6 @@ private:
     int toneNum{0};
     int reverbPreset{0};
 
-    SkeletalAnimation animation;
     psyqo::FixedPoint<> normalizedAnimTime;
     psyqo::FixedPoint<> currentFrame;
 };

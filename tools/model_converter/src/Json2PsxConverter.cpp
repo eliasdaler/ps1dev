@@ -2,6 +2,7 @@
 
 #include "ModelJsonFile.h"
 #include "PsxModel.h"
+#include <FixedPoint.h>
 
 #include <format>
 #include <iostream>
@@ -9,22 +10,6 @@
 
 namespace
 {
-template<typename T>
-std::int16_t floatToFixed(float v, float scaleFactor)
-{
-    constexpr auto scale = 1 << 12;
-    float ld = v * scaleFactor;
-    if (std::abs(ld) > 8) {
-        static const auto fpTypeName = sizeof(T) == 2 ? "4.12" : "20.12";
-        throw std::runtime_error(
-            std::string("some vertex position is out of ") + fpTypeName + std::string("range:") +
-            std::to_string(ld));
-    }
-    bool negative = ld < 0;
-    T integer = negative ? -ld : ld;
-    T fraction = ld * scale - integer * scale + (negative ? -0.5 : 0.5);
-    return integer * scale + fraction;
-}
 
 std::uint8_t uvToInt8(float v)
 {
@@ -199,10 +184,10 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
             };
 
             psxJoint.rotation = {
-                .x = floatToFixed<FixedPoint4_12>(joint.rotation.w, 1.f),
-                .y = floatToFixed<FixedPoint4_12>(joint.rotation.x, 1.f),
-                .z = floatToFixed<FixedPoint4_12>(joint.rotation.y, 1.f),
-                .w = floatToFixed<FixedPoint4_12>(joint.rotation.z, 1.f),
+                .x = floatToFixed<FixedPoint4_12>(joint.rotation.w),
+                .y = floatToFixed<FixedPoint4_12>(joint.rotation.x),
+                .z = floatToFixed<FixedPoint4_12>(joint.rotation.y),
+                .w = floatToFixed<FixedPoint4_12>(joint.rotation.z),
             };
             armature.joints.push_back(std::move(psxJoint));
         }

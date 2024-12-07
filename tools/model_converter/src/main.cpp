@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <iostream>
 
+#include "AnimationWriter.h"
 #include "Json2PsxConverter.h"
 #include "ModelJsonFile.h"
 #include "PsxModel.h"
@@ -49,10 +50,16 @@ int main(int argc, char* argv[])
         const auto modelJson = parseJsonFile(inputFilePath, assetDirPath);
         if (fastModel) {
             assert(false && "not implemented");
-        } else {
-            const auto psxModel = jsonToPsxModel(modelJson, conversionParams);
-            writePsxModel(psxModel, outputFilePath);
         }
+
+        const auto psxModel = jsonToPsxModel(modelJson, conversionParams);
+        if (!modelJson.animations.empty()) {
+            auto outAnimPath = outputFilePath;
+            outAnimPath.replace_extension(".anm");
+            std::cout << "Writing animations to " << outAnimPath << std::endl;
+            writeAnimationsToFile(outAnimPath, modelJson.animations, conversionParams);
+        }
+        writePsxModel(psxModel, outputFilePath);
     } else {
         assert(false && "unsupported format");
     }

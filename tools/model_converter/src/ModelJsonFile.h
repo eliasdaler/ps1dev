@@ -61,11 +61,32 @@ struct Armature {
     std::vector<glm::mat4x4> inverseBindMatrices;
 };
 
+struct AnimationKey {
+    int frame;
+    union
+    {
+        glm::vec3 translation;
+        glm::quat rotation;
+    } data;
+};
+
+struct AnimationTrack {
+    std::uint8_t trackType;
+    std::uint32_t jointId;
+    std::vector<AnimationKey> keys;
+};
+
+struct Animation {
+    std::string name;
+    std::vector<AnimationTrack> tracks;
+};
+
 struct ModelJson {
     std::vector<Object> objects;
     std::vector<Mesh> meshes;
     std::vector<Material> materials;
     Armature armature;
+    std::vector<Animation> animations;
 };
 
 ModelJson parseJsonFile(

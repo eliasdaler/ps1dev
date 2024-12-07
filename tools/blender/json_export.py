@@ -211,12 +211,12 @@ def get_joint_data_json(joint, joint_name_to_id):
     return joint_data
 
 def find_unique_times(tracks):
-    return set(itertools.chain.from_iterable(
+    return sorted(set(itertools.chain.from_iterable(
             [
                 [k.co[0] for k in keys.keyframe_points] 
                  for keys in tracks
             ]
-        ))
+        )))
 
 class TrackType(Enum):
     ROTATION = 0
@@ -283,7 +283,6 @@ def get_action_json(joints, joint_name_to_id, action):
 
     anim_json_data = [t.toJSON() for t in final_tracks]
     return anim_json_data
-    print(json.dumps(anim_json_data, indent = 2))
 
 
 def write_psxtools_json(context, filepath):

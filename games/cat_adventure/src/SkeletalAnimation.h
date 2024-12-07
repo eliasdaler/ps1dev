@@ -37,6 +37,8 @@ struct SkeletalAnimation {
     std::uint8_t numConstTracks;
     std::uint16_t _pad;
     eastl::vector<AnimationTrack> tracks;
+
+    void load(const eastl::vector<uint8_t>& data);
 };
 
 void animateArmature(

@@ -31,6 +31,7 @@ add_executable(model_converter
   model_converter/src/PsxModel.cpp
   model_converter/src/ModelJsonFile.cpp
   model_converter/src/Json2PsxConverter.cpp
+  model_converter/src/AnimationWriter.cpp
   model_converter/src/main.cpp
 )
 
