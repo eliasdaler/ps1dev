@@ -83,6 +83,7 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
         for (const auto& face : mesh.faces) {
             std::array<PsxVert, 4> psxFace;
             if (face.vertices.size() != 3 && face.vertices.size() != 4) {
+                continue;
                 throw std::runtime_error(std::format(
                     "bad face in submesh {}: has {} vertices", object.name, face.vertices.size()));
             }

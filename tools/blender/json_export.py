@@ -191,13 +191,18 @@ def get_joint_data(bone, joint_name_to_id):
     translation, rotation, scale = transform_global.decompose()
     joint_data = Joint(bone.name, transform_global,
                        translation, rotation, scale,
-                       [ joint_name_to_id[c.name] for c in bone.children ])
+                       [ joint_name_to_id[c.name] for c in bone.children if not skip_bone(c) ])
     return joint_data
 
 class JointFCurves():
     def __init__(self):
         self.translation = [None] * 3
         self.rotation = [None] * 4
+
+def skip_bone(bone):
+    return (bone.name == "Root") or \
+           ("FK" in bone.name) or ("IK" in bone.name) or \
+           ("Pole" in bone.name)
 
 def get_joint_data_json(joint, joint_name_to_id):
     joint_data = {
@@ -284,7 +289,6 @@ def get_action_json(joints, joint_name_to_id, action):
     anim_json_data = [t.toJSON() for t in final_tracks]
     return anim_json_data
 
-
 def write_psxtools_json(context, filepath):
     f = open(filepath, 'w', encoding='utf-8')
 
@@ -319,27 +323,37 @@ def write_psxtools_json(context, filepath):
     if 'Armature' in scene.objects:
         armature = scene.objects['Armature']
         joint_name_to_id = {}
-        root_bone = find_root_bone(armature)
+        # root_bone = find_root_bone(armature)
+        root_bone = armature.data.bones['Hips']
         bones = armature.data.bones
+
+        jointIdx = 0
         for idx, bone in enumerate(bones):
+            if skip_bone(bone):
+                continue
             if bone.name in joint_name_to_id:
                 raise ValueError('Repeated bone name: {bone.name}')
-            joint_name_to_id[bone.name] = idx
+            joint_name_to_id[bone.name] = jointIdx
+            jointIdx += 1
         if joint_name_to_id[root_bone.name] != 0:
             raise ValueError('Root bone did not get id = 0')
 
-        joints = [None] * len(bones)
+        joints = [None] * len(joint_name_to_id)
         for idx, bone in enumerate(bones):
-            joints[idx] = get_joint_data(bone, joint_name_to_id)
+            if skip_bone(bone):
+                continue
+            joints[joint_name_to_id[bone.name]] = get_joint_data(bone, joint_name_to_id)
 
         armature_data = {
             "joints": [get_joint_data_json(j, joint_name_to_id) for j in joints],
         }
 
-        inverse_bind_matrices = [None] * len(bones)
+        inverse_bind_matrices = [None] * len(joint_name_to_id)
         for idx, bone in enumerate(bones):
+            if skip_bone(bone):
+                continue
             ib = (axis_basis_change @ bone.matrix_local).inverted_safe()
-            inverse_bind_matrices[idx] = [
+            inverse_bind_matrices[joint_name_to_id[bone.name]] = [
                     [ib[0][0], ib[0][1], ib[0][2], ib[0][3]],
                     [ib[1][0], ib[1][1], ib[1][2], ib[1][3]],
                     [ib[2][0], ib[2][1], ib[2][2], ib[2][3]],
@@ -352,8 +366,8 @@ def write_psxtools_json(context, filepath):
         if armature.children:
             obj = armature.children[0]
             bone_influences = [None] * len(bones)
-            for idx, bone in enumerate(bones):
-                gid = obj.vertex_groups[bone.name].index
+            for idx, joint in enumerate(joints):
+                gid = obj.vertex_groups[joint.name].index
                 bone_influences[idx] = [v.index for v in obj.data.vertices \
                                         if gid in [g.group for g in v.groups]]
             armature_data["bone_influences"] = bone_influences
@@ -364,10 +378,11 @@ def write_psxtools_json(context, filepath):
         data["armature"] = armature_data
 
         data["animations"] = []
-        if 'Wave' in bpy.data.actions:
+        action_name = "Action"
+        if action_name in bpy.data.actions:
             data["animations"].append({
-                "name": "Wave",
-                "tracks": get_action_json(joints, joint_name_to_id, bpy.data.actions['Wave']),
+                "name": action_name,
+                "tracks": get_action_json(joints, joint_name_to_id, bpy.data.actions[action_name]),
             })
 
     json.dump(data, f, indent=2)

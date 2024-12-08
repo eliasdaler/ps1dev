@@ -184,10 +184,21 @@ void GameplayScene::frame()
 
     auto& armature = game.catoModel.armature;
 
-    normalizedAnimTime += 0.016;
-    if (normalizedAnimTime > 1.0) { // loop
-        normalizedAnimTime -= 1.0;
+    normalizedAnimTime += 1.0;
+    // normalizedAnimTime += 0.016;
+    if (normalizedAnimTime > 31.0) { // loop
+        normalizedAnimTime = 0.0;
     }
+
+    // bad frames??
+#if 1
+    if (normalizedAnimTime == 3.0) {
+        normalizedAnimTime = 4.0;
+    }
+    if (normalizedAnimTime == 6.0) {
+        normalizedAnimTime = 7.0;
+    }
+#endif
 
     auto& animation = game.animation;
     animateArmature(armature, animation, normalizedAnimTime);
@@ -430,7 +441,7 @@ void GameplayScene::draw()
 
     // dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
 
-    drawDebugInfo();
+    // drawDebugInfo();
 }
 
 void GameplayScene::drawDebugInfo()
@@ -506,8 +517,13 @@ void GameplayScene::drawDebugInfo()
         psyqo::FixedPoint<>(rot.y),
         psyqo::FixedPoint<>(rot.z)); */
 
-    game.romFont
-        .chainprintf(game.gpu(), {{.x = 16, .y = 80}}, textCol, "t = (%.3f)", normalizedAnimTime);
+    game.romFont.chainprintf(
+        game.gpu(),
+        {{.x = 16, .y = 80}},
+        textCol,
+        "t = (%.3f), frame = (%.3f)",
+        normalizedAnimTime,
+        normalizedAnimTime * 31.f);
 
     const auto fps = gpu().getRefreshRate() / frameDiff;
     fpsMovingAverageNew = alpha * fps + oneMinAlpha * fpsMovingAverageOld;

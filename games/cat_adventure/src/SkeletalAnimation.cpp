@@ -5,18 +5,28 @@
 
 #include <common/syscalls/syscalls.h>
 
+namespace
+{
+psyqo::FixedPoint<> lerp(
+    const psyqo::FixedPoint<>& a,
+    const psyqo::FixedPoint<>& b,
+    const psyqo::FixedPoint<>& factor)
+{
+    return a + factor * (b - a);
+}
+
+}
+
 void animateArmature(
     Armature& armature,
     const SkeletalAnimation& animation,
     const psyqo::FixedPoint<>& normalizedAnimTime)
 {
     // TODO: multiply by numFrames
-    auto currentFrame = normalizedAnimTime * 100.f;
+    // auto currentFrame = normalizedAnimTime * 31.f;
+    auto currentFrame = normalizedAnimTime;
 
     for (const auto& track : animation.tracks) {
-        if (track.info == TRACK_TYPE_TRANSLATION) {
-            continue;
-        }
         auto& joint = armature.joints[track.joint];
         // TODO: use binary search instead
         int nextKeyIdx;
@@ -25,17 +35,38 @@ void animateArmature(
                 break;
             }
         }
+        bool atStart = false;
+        if (nextKeyIdx == -1) {
+            atStart = true;
+            nextKeyIdx = 1;
+        }
         const auto& prevKey = track.keys[nextKeyIdx - 1];
         const auto& nextKey = track.keys[nextKeyIdx];
 
         // TODO: precompute 1 / (nextKey.frame - prevKey.frame) ?
-        const auto lerpFactor = (nextKey.frame - currentFrame) / (nextKey.frame - prevKey.frame);
-        // const auto lerpFactor = psyqo::FixedPoint<>(0.0);
-        // TODO: for now only handle rotation keys
-        joint.localTransform.rotation = slerp(
-            prevKey.data.rotation,
-            nextKey.data.rotation,
-            psyqo::FixedPoint<12, std::int16_t>(lerpFactor));
+        auto lerpFactor = (nextKey.frame - currentFrame) / (nextKey.frame - prevKey.frame);
+        if (atStart) {
+            lerpFactor = 0.0;
+        }
+        if (track.info == TRACK_TYPE_ROTATION) {
+            joint.localTransform.rotation = slerp(
+                prevKey.data.rotation,
+                nextKey.data.rotation,
+                psyqo::FixedPoint<12, std::int16_t>(lerpFactor));
+        } else if (track.info == TRACK_TYPE_TRANSLATION) {
+            joint.localTransform.translation.x = lerp(
+                psyqo::FixedPoint<>(prevKey.data.translation.x),
+                psyqo::FixedPoint<>(nextKey.data.translation.x),
+                lerpFactor);
+            joint.localTransform.translation.y = lerp(
+                psyqo::FixedPoint<>(prevKey.data.translation.y),
+                psyqo::FixedPoint<>(nextKey.data.translation.y),
+                lerpFactor);
+            joint.localTransform.translation.z = lerp(
+                psyqo::FixedPoint<>(prevKey.data.translation.z),
+                psyqo::FixedPoint<>(nextKey.data.translation.z),
+                lerpFactor);
+        }
     }
 }
 
