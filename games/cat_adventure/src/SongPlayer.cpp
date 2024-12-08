@@ -104,7 +104,7 @@ void SongPlayer::findBPM(MidiFile& song)
 void SongPlayer::updateMusic()
 {
     // for debug
-    const auto musicMuted = true;
+    const auto musicMuted = false;
     if (musicMuted) {
         return;
     }

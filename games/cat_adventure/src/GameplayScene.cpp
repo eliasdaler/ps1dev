@@ -89,80 +89,6 @@ void GameplayScene::start(StartReason reason)
     auto& mesh = game.catoModel.meshes[0];
     armature.highlightMeshInfluences(mesh, armature.selectedJoint);
 
-    /* animation.numTracks = 2;
-    animation.tracks = {
-        AnimationTrack{
-            .info = TRACK_TYPE_ROTATION,
-            .joint = 5,
-            .keys =
-                {
-                    AnimationKey{
-                        .frame = 0.0,
-                        .data =
-                            {.rotation =
-                                 {0.40784579515457153,
-                                  0.1731782704591751,
-                                  0.18558774888515472,
-                                  -0.8770566582679749}},
-                    },
-                    AnimationKey{
-                        .frame = 40.0,
-                        .data =
-                            {.rotation =
-                                 {0.43177539110183716,
-                                  -0.09940928220748901,
-                                  -0.365030437707901,
-                                  -0.8188331723213196}},
-
-                    },
-                    AnimationKey{
-                        .frame = 100.0,
-                        .data =
-                            {.rotation =
-                                 {0.40784579515457153,
-                                  0.1731782704591751,
-                                  0.18558774888515472,
-                                  -0.8770566582679749}},
-                    },
-                },
-        },
-        AnimationTrack{
-            .info = TRACK_TYPE_ROTATION,
-            .joint = 6,
-            .keys =
-                {
-                    AnimationKey{
-                        .frame = 0.0,
-                        .data =
-                            {.rotation =
-                                 {0.8614282011985779,
-                                  0.08229127526283264,
-                                  0.48894357681274414,
-                                  0.11001735180616379}},
-                    },
-                    AnimationKey{
-                        .frame = 40.0,
-                        .data =
-                            {.rotation =
-                                 {0.7485783100128174,
-                                  0.42662039399147034,
-                                  0.14861111342906952,
-                                  0.4852322041988373}},
-
-                    },
-                    AnimationKey{
-                        .frame = 100.0,
-                        .data =
-                            {.rotation =
-                                 {0.8614282011985779,
-                                  0.08229127526283264,
-                                  0.48894357681274414,
-                                  0.11001735180616379}},
-                    },
-                },
-        },
-    };
-*/
     normalizedAnimTime = 0.0;
 
     // apply initial pose
@@ -184,25 +110,16 @@ void GameplayScene::frame()
 
     auto& armature = game.catoModel.armature;
 
-    normalizedAnimTime += 1.0;
-    // normalizedAnimTime += 0.016;
-    if (normalizedAnimTime > 31.0) { // loop
-        normalizedAnimTime = 0.0;
+    normalizedAnimTime += 0.03;
+    if (normalizedAnimTime > 1.0) { // loop
+        normalizedAnimTime -= 1.0;
     }
-
-    // bad frames??
-#if 1
-    if (normalizedAnimTime == 3.0) {
-        normalizedAnimTime = 4.0;
+    if (normalizedAnimTime < 0.0) {
+        normalizedAnimTime = 1.0;
     }
-    if (normalizedAnimTime == 6.0) {
-        normalizedAnimTime = 7.0;
-    }
-#endif
 
     auto& animation = game.animation;
     animateArmature(armature, animation, normalizedAnimTime);
-
     armature.calculateTransforms();
     armature.applySkinning(game.catoModel.meshes[0]);
 
@@ -256,51 +173,34 @@ void GameplayScene::processInput()
         camera.position.z -= trig.cos(camera.rotation.y) * walkSpeed;
     }
 
-    static bool wasLeftPressed = false;
-    if (!wasLeftPressed && pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Left)) {
-        toneNum -= 1;
-        reverbPreset -= 1;
-        // game.soundPlayer.setReverbPreset((SpuReverbPreset)reverbPreset);
-
-        wasLeftPressed = true;
-
-        --game.catoModel.armature.selectedJoint;
-
-        /* SoundPlayer::reverbEnabled = !SoundPlayer::reverbEnabled;
-        if (!SoundPlayer::reverbEnabled) {
-            game.soundPlayer.setReverbPreset(SpuReverbPreset::Off);
-        } else {
-            game.soundPlayer.setReverbPreset(SpuReverbPreset::StudioLarge);
-        } */
-    }
-    if (!pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Left)) {
-        wasLeftPressed = false;
-    }
-
-    static bool wasRightPressed = false;
-    if (!wasRightPressed && pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Right)) {
-        toneNum += 1;
-        reverbPreset += 1;
-        // game.soundPlayer.setReverbPreset((SpuReverbPreset)reverbPreset);
-
-        ++game.catoModel.armature.selectedJoint;
-
-        wasRightPressed = true;
-    }
-    if (!pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Right)) {
-        wasRightPressed = false;
-    }
-
-    if (wasLeftPressed || wasRightPressed) {
-        const auto& armature = game.catoModel.armature;
-        const auto prevSelectedJointId =
-            wasLeftPressed ? armature.selectedJoint + 1 : armature.selectedJoint - 1;
-        auto& mesh = game.catoModel.meshes[0];
-        // armature.dehighlightMeshInfluences(mesh, prevSelectedJointId);
-        // armature.highlightMeshInfluences(mesh, armature.selectedJoint);
-    }
-
     dialogueBox.handleInput(game.pad);
+
+    processDebugInput();
+}
+
+void GameplayScene::processDebugInput()
+{
+    const auto& pad = game.pad;
+    static bool wasCrossPressed = false;
+    if (!wasCrossPressed && pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Cross)) {
+        // HERE
+    }
+    if (!pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Cross)) {
+        wasCrossPressed = false;
+    }
+
+    static bool wasTrianglePressed = false;
+    if (!wasTrianglePressed &&
+        pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Triangle)) {
+        // HERE
+    }
+    if (!pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Triangle)) {
+        wasTrianglePressed = false;
+    }
+
+    if (wasCrossPressed || wasTrianglePressed) {
+        // DO STUFF
+    }
 }
 
 void GameplayScene::updateCamera()
@@ -311,11 +211,10 @@ void GameplayScene::updateCamera()
     const auto viewRotX = psyqo::SoftMath::
         generateRotationMatrix33(camera.rotation.x, psyqo::SoftMath::Axis::X, game.trig);
 
-    // only done once per frame - ok to do on CPU
-    psyqo::SoftMath::multiplyMatrix33(camera.viewRot, viewRotX, &camera.viewRot);
-    /* psyqo::GTE::Math::multiplyMatrix33<
+    // psyqo::SoftMath::multiplyMatrix33(camera.viewRot, viewRotX, &camera.viewRot);
+    psyqo::GTE::Math::multiplyMatrix33<
         psyqo::GTE::PseudoRegister::Rotation,
-        psyqo::GTE::PseudoRegister::V0>(viewRotX, camera.viewRot, &camera.viewRot); */
+        psyqo::GTE::PseudoRegister::V0>(viewRotX, camera.viewRot, &camera.viewRot);
 
     // PS1 has Y-down, so here's a fix for that
     // (basically, this is the same as doing 180-degree roll)
@@ -439,9 +338,9 @@ void GameplayScene::draw()
 
     gp.chain(ot);
 
-    // dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
+    dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
 
-    // drawDebugInfo();
+    drawDebugInfo();
 }
 
 void GameplayScene::drawDebugInfo()
@@ -517,13 +416,8 @@ void GameplayScene::drawDebugInfo()
         psyqo::FixedPoint<>(rot.y),
         psyqo::FixedPoint<>(rot.z)); */
 
-    game.romFont.chainprintf(
-        game.gpu(),
-        {{.x = 16, .y = 80}},
-        textCol,
-        "t = (%.3f), frame = (%.3f)",
-        normalizedAnimTime,
-        normalizedAnimTime * 31.f);
+    game.romFont
+        .chainprintf(game.gpu(), {{.x = 16, .y = 80}}, textCol, "t = (%.3f)", normalizedAnimTime);
 
     const auto fps = gpu().getRefreshRate() / frameDiff;
     fpsMovingAverageNew = alpha * fps + oneMinAlpha * fpsMovingAverageOld;

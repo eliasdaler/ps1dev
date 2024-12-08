@@ -11,12 +11,13 @@ using namespace psyqo::GTE::Kernels;
 
 psyqo::Vec3 TransformMatrix::transformPoint(const psyqo::Vec3& localPoint) const
 {
-    psyqo::Vec3 res = localPoint;
+    psyqo::Vec3 res;
 #ifdef USE_GTE_MATH
     // assume that rotation is in R
-    psyqo::GTE::Math::matrixVecMul3<JOINT_ROTATION_MATRIX_REGISTER, PseudoRegister::V0>(res, &res);
+    psyqo::GTE::Math::
+        matrixVecMul3<JOINT_ROTATION_MATRIX_REGISTER, PseudoRegister::V0>(localPoint, &res);
 #else
-    psyqo::SoftMath::matrixVecMul3(rotation, res, &res);
+    psyqo::SoftMath::matrixVecMul3(rotation, localPoint, &res);
 #endif
     res += translation;
     return res;
@@ -37,14 +38,13 @@ TransformMatrix combineTransforms(const TransformMatrix& parentTransform, const 
 #endif
 
     // T = T_parent + R_parent * T_local
-    result.translation = local.translation;
 #ifdef USE_GTE_MATH
     psyqo::GTE::Math::matrixVecMul3<
         PseudoRegister::Rotation,
-        PseudoRegister::V0>(result.translation, &result.translation);
+        PseudoRegister::V0>(local.translation, &result.translation);
 #else
     psyqo::SoftMath::
-        matrixVecMul3(parentTransform.rotation, result.translation, &result.translation);
+        matrixVecMul3(parentTransform.rotation, local.translation, &result.translation);
 #endif
 
     result.translation += parentTransform.translation;

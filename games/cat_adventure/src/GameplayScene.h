@@ -23,6 +23,7 @@ private:
     void frame() override;
 
     void processInput();
+    void processDebugInput();
     void update();
     void updateCamera();
 

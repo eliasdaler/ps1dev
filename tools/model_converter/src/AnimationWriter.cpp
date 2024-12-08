@@ -17,7 +17,8 @@ void writeAnimationsToFile(
     std::ofstream file(path, std::ios::binary);
     fsutil::binaryWrite(file, static_cast<std::uint32_t>(animations.size()));
     for (const auto& anim : animations) {
-        fsutil::binaryWrite(file, static_cast<std::uint32_t>(anim.tracks.size()));
+        fsutil::binaryWrite(file, static_cast<std::uint16_t>(anim.length));
+        fsutil::binaryWrite(file, static_cast<std::uint16_t>(anim.tracks.size()));
         for (const auto& track : anim.tracks) {
             fsutil::binaryWrite(file, static_cast<std::uint8_t>(track.trackType));
             fsutil::binaryWrite(file, static_cast<std::uint8_t>(track.jointId));

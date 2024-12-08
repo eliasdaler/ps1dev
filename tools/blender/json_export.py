@@ -160,7 +160,13 @@ def find_root_bone(armature):
         raise ValueError(f"{pose} doesn't have any bones")
     elif len(root_bones) > 1:
         raise ValueError(f"{pose} has multiple roots")
-    return root_bones[0]
+    root_bone = root_bones[0]
+    if len(root_bone.children) == 1:
+        return root_bone
+    # Root bone has children (IK, etc. - find first deform bone)
+    for bone in root_bone.children:
+        if not skip_bone(bone):
+            return bone
 
 # Go from Blender's coordinate system into glTF's coordinate system:
 #   X' =  X
@@ -241,6 +247,20 @@ class Track():
             "keys": self.keys
         }
 
+def vectors_close(a, b):
+    eps = 0.0001
+    for idx in range(len(a)):
+        if abs(a[idx] - b[idx]) > eps:
+            return False
+    return True
+
+def is_const_track(track):
+    first_key_value = track[0][1]
+    for key in track:
+        if not vectors_close(key[1], first_key_value):
+            return False
+    return True
+
 def get_action_json(joints, joint_name_to_id, action):
     num_joints = len(joints)
     curves = { }
@@ -274,6 +294,9 @@ def get_action_json(joints, joint_name_to_id, action):
             t_global = joint.transform @ t_local
             translation_track.append([t, [t_global.x, t_global.y, t_global.z]])
 
+        if is_const_track(translation_track):
+            translation_track = [translation_track[0]]
+
         rotation_track_times = find_unique_times(cv.translation)
         rotation_track = []
         for t in rotation_track_times:
@@ -283,11 +306,21 @@ def get_action_json(joints, joint_name_to_id, action):
             q_global = joint.rotation @ q_local
             rotation_track.append([t, [q_global.w, q_global.x, q_global.y, q_global.z]])
 
+        if is_const_track(rotation_track):
+            rotation_track = [rotation_track[0]]
+
         final_tracks.append(Track(TrackType.TRANSLATION, joint_id, translation_track))
         final_tracks.append(Track(TrackType.ROTATION, joint_id, rotation_track))
 
-    anim_json_data = [t.toJSON() for t in final_tracks]
-    return anim_json_data
+
+    if (action.frame_range[0] != 0):
+        raise ValueError('Animation does not start from 0 frame')
+    action_length = action.frame_range[1]
+    return {
+            "name": action.name,
+            "length": action_length,
+            "tracks": [t.toJSON() for t in final_tracks]
+    }
 
 def write_psxtools_json(context, filepath):
     f = open(filepath, 'w', encoding='utf-8')
@@ -323,8 +356,7 @@ def write_psxtools_json(context, filepath):
     if 'Armature' in scene.objects:
         armature = scene.objects['Armature']
         joint_name_to_id = {}
-        # root_bone = find_root_bone(armature)
-        root_bone = armature.data.bones['Hips']
+        root_bone = find_root_bone(armature)
         bones = armature.data.bones
 
         jointIdx = 0
@@ -378,12 +410,9 @@ def write_psxtools_json(context, filepath):
         data["armature"] = armature_data
 
         data["animations"] = []
-        action_name = "Action"
+        action_name = "WalkBaked"
         if action_name in bpy.data.actions:
-            data["animations"].append({
-                "name": action_name,
-                "tracks": get_action_json(joints, joint_name_to_id, bpy.data.actions[action_name]),
-            })
+            data["animations"].append(get_action_json(joints, joint_name_to_id, bpy.data.actions[action_name]))
 
     json.dump(data, f, indent=2)
     f.close()

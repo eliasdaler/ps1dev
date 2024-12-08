@@ -189,6 +189,7 @@ ModelJson parseJsonFile(
         for (const auto& anim : animationsArr) {
             Animation animation;
             animation.name = anim.at("name");
+            animation.length = anim.at("length");
             const auto& tracksArr = anim.at("tracks");
             animation.tracks.reserve(tracksArr.size());
             for (const auto& trackJson : tracksArr) {

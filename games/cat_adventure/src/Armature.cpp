@@ -29,6 +29,7 @@ void Armature::applySkinning(Mesh& mesh, const Joint& joint)
 #ifdef USE_GTE_MATH
     psyqo::GTE::writeUnsafe<JOINT_ROTATION_MATRIX_REGISTER>(joint.globalTransform.rotation);
 #endif
+    const auto& ogVertices = mesh.ogVertices;
     for (int i = joint.boneInfluencesOffset;
          i < joint.boneInfluencesOffset + joint.boneInfluencesSize;
          ++i) {
@@ -111,7 +112,6 @@ void Armature::dehighlightMeshInfluences(Mesh& mesh, Joint::JointId id) const
 
 void Armature::highlightMeshInfluences(Mesh& mesh, Joint::JointId id) const
 {
-    return;
     const auto& joint = joints[id];
     const auto& boneInfluences = this->boneInfluences;
     for (int i = joint.boneInfluencesOffset;
