@@ -388,8 +388,9 @@ def write_psxtools_json(context, filepath):
             "joints": [get_joint_data_json(j, joint_name_to_id) for j in joints],
         }
 
-        inverse_bind_matrices = [None] * len(joint_name_to_id)
-        for idx, bone in enumerate(bones):
+        num_joints = len(joint_name_to_id)
+        inverse_bind_matrices = [None] * num_joints
+        for bone in bones:
             if skip_bone(bone):
                 continue
             local = bone.matrix_local.copy()
@@ -413,7 +414,7 @@ def write_psxtools_json(context, filepath):
         # TODO: check if this child exists
         if armature.children:
             obj = armature.children[0]
-            bone_influences = [None] * len(bones)
+            bone_influences = [None] * num_joints
             for idx, joint in enumerate(joints):
                 gid = obj.vertex_groups[joint.name].index
                 bone_influences[idx] = [v.index for v in obj.data.vertices \
@@ -426,10 +427,27 @@ def write_psxtools_json(context, filepath):
         data["armature"] = armature_data
 
         data["animations"] = []
-        action_name = "RunBaked"
-        if action_name in bpy.data.actions:
+        for action in bpy.data.actions:
+            if action.name == "Idle":
+                continue
+            start_frame = int(action.frame_range[0])
+            end_frame = int(action.frame_range[1])
+            armature.animation_data.action = action
+            bpy.ops.nla.bake(
+                    frame_start=start_frame, 
+                    frame_end=end_frame, 
+                    step=1,
+                    only_selected=False, 
+                    visual_keying=True, 
+                    clear_constraints=False, 
+                    clear_parents=False, 
+                    use_current_action=True, 
+                    clean_curves=False, 
+                    bake_types={'POSE'},
+                    channel_types={'LOCATION', 'ROTATION'},
+            )
             action_json = get_action_json(joints, joint_name_to_id, 
-                                          bpy.data.actions[action_name], armature_scale)
+                                          action, armature_scale)
             data["animations"].append(action_json)
 
     json.dump(data, f, indent=2)
