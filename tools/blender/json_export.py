@@ -161,7 +161,7 @@ def find_root_bone(armature):
     elif len(root_bones) > 1:
         raise ValueError(f"{pose} has multiple roots")
     root_bone = root_bones[0]
-    if len(root_bone.children) == 1:
+    if root_bone.name != 'Root': # HACK for IK skeletons with "Root" bone
         return root_bone
     # Root bone has children (IK, etc. - find first deform bone)
     for bone in root_bone.children:
@@ -179,9 +179,6 @@ axis_basis_change = mathutils.Matrix(
              (0.0,  0.0, 0.0, 1.0))
             )
 
-q_base = axis_basis_change.decompose()[1]
-q_test = Quaternion((0.806, 0.085, -0.245, 0.532))
-
 class Joint():
     def __init__(self, name, transform, translation, rotation, scale, children):
         self.name = name
@@ -191,10 +188,18 @@ class Joint():
         self.scale = scale
         self.children = children
 
-def get_joint_data(bone, joint_name_to_id):
+def has_scale(scale):
+    return not (scale[0] == 1.0 and scale[1] == 1.0 and scale[2] == 1.0)
+
+def get_joint_data(bone, joint_name_to_id, armature_scale):
     transform_global = (axis_basis_change @ bone.matrix_local) if bone.parent == None else \
                       (bone.parent.matrix_local.inverted_safe() @ bone.matrix_local)
     translation, rotation, scale = transform_global.decompose()
+    if has_scale(armature_scale):
+        translation.x *= armature_scale.x
+        translation.y *= armature_scale.y
+        translation.z *= armature_scale.z
+        transform_global = mathutils.Matrix.LocRotScale(translation, rotation, scale)
     joint_data = Joint(bone.name, transform_global,
                        translation, rotation, scale,
                        [ joint_name_to_id[c.name] for c in bone.children if not skip_bone(c) ])
@@ -261,10 +266,12 @@ def is_const_track(track):
             return False
     return True
 
-def get_action_json(joints, joint_name_to_id, action):
+def get_action_json(joints, joint_name_to_id, action, armature_scale):
     num_joints = len(joints)
     curves = { }
     for idx, fcurve in enumerate(action.fcurves):
+        if not fcurve.group.name in joint_name_to_id:
+            continue
         joint_id = joint_name_to_id[fcurve.group.name]
         if joint_id == None:
             continue
@@ -290,7 +297,7 @@ def get_action_json(joints, joint_name_to_id, action):
         for t in translation_track_times:
             t_local = Vector((0.0, 0.0, 0.0))
             for i in range(3):
-                t_local[i] = cv.translation[i].evaluate(t)
+                t_local[i] = cv.translation[i].evaluate(t) * armature_scale[i]
             t_global = joint.transform @ t_local
             translation_track.append([t, [t_global.x, t_global.y, t_global.z]])
 
@@ -355,6 +362,7 @@ def write_psxtools_json(context, filepath):
 
     if 'Armature' in scene.objects:
         armature = scene.objects['Armature']
+        armature_scale = armature.scale
         joint_name_to_id = {}
         root_bone = find_root_bone(armature)
         bones = armature.data.bones
@@ -374,7 +382,7 @@ def write_psxtools_json(context, filepath):
         for idx, bone in enumerate(bones):
             if skip_bone(bone):
                 continue
-            joints[joint_name_to_id[bone.name]] = get_joint_data(bone, joint_name_to_id)
+            joints[joint_name_to_id[bone.name]] = get_joint_data(bone, joint_name_to_id, armature_scale)
 
         armature_data = {
             "joints": [get_joint_data_json(j, joint_name_to_id) for j in joints],
@@ -384,7 +392,15 @@ def write_psxtools_json(context, filepath):
         for idx, bone in enumerate(bones):
             if skip_bone(bone):
                 continue
-            ib = (axis_basis_change @ bone.matrix_local).inverted_safe()
+            local = bone.matrix_local.copy()
+            if has_scale(armature_scale):
+                translation, rotation, scale = local.decompose()
+                translation.x *= armature_scale.x
+                translation.y *= armature_scale.y
+                translation.z *= armature_scale.z
+                local = mathutils.Matrix.LocRotScale(translation, rotation, scale)
+            bind_matrix = axis_basis_change @ local
+            ib = bind_matrix.inverted_safe()
             inverse_bind_matrices[joint_name_to_id[bone.name]] = [
                     [ib[0][0], ib[0][1], ib[0][2], ib[0][3]],
                     [ib[1][0], ib[1][1], ib[1][2], ib[1][3]],
@@ -410,9 +426,11 @@ def write_psxtools_json(context, filepath):
         data["armature"] = armature_data
 
         data["animations"] = []
-        action_name = "WalkBaked"
+        action_name = "RunBaked"
         if action_name in bpy.data.actions:
-            data["animations"].append(get_action_json(joints, joint_name_to_id, bpy.data.actions[action_name]))
+            action_json = get_action_json(joints, joint_name_to_id, 
+                                          bpy.data.actions[action_name], armature_scale)
+            data["animations"].append(action_json)
 
     json.dump(data, f, indent=2)
     f.close()

@@ -110,7 +110,7 @@ void GameplayScene::frame()
 
     auto& armature = game.catoModel.armature;
 
-    normalizedAnimTime += 0.03;
+    normalizedAnimTime += 0.04;
     if (normalizedAnimTime > 1.0) { // loop
         normalizedAnimTime -= 1.0;
     }
@@ -338,7 +338,7 @@ void GameplayScene::draw()
 
     gp.chain(ot);
 
-    dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
+    // dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
 
     drawDebugInfo();
 }
