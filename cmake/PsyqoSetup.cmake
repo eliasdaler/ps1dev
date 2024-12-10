@@ -37,6 +37,7 @@ add_library(EASTL STATIC
   "${NUGGET_PATH}/third_party/EASTL/source/allocator_eastl.cpp"
   "${NUGGET_PATH}/third_party/EASTL/source/fixed_pool.cpp"
   "${NUGGET_PATH}/third_party/EASTL/source/hashtable.cpp"
+  "${NUGGET_PATH}/third_party/EASTL/source/red_black_tree.cpp"
 )
 
 target_include_directories(EASTL PUBLIC

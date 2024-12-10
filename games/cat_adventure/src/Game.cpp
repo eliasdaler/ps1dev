@@ -87,12 +87,12 @@ void Game::loadRawPCM(eastl::string_view filename, uint32_t spuUploadAddr)
         });
 }
 
-void Game::loadAnimation(eastl::string_view filename, SkeletalAnimation& animation)
+void Game::loadAnimations(eastl::string_view filename, eastl::vector<SkeletalAnimation>& animations)
 {
     cdromLoader
-        .readFile(filename, gpu(), isoParser, [this, &animation](eastl::vector<uint8_t>&& buffer) {
+        .readFile(filename, gpu(), isoParser, [this, &animations](eastl::vector<uint8_t>&& buffer) {
             cdReadBuffer = eastl::move(buffer);
-            animation.load(cdReadBuffer);
+            ::loadAnimations(cdReadBuffer, animations);
             cdLoadCoroutine.resume();
         });
 }

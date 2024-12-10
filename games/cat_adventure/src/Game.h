@@ -32,7 +32,7 @@ public:
     void loadMIDI(eastl::string_view filename, MidiFile& midi);
     void loadInstruments(eastl::string_view filename, VabFile& vab);
     void loadRawPCM(eastl::string_view filename, uint32_t spuUploadAddr);
-    void loadAnimation(eastl::string_view filename, SkeletalAnimation& animation);
+    void loadAnimations(eastl::string_view filename, eastl::vector<SkeletalAnimation>& animations);
 
     [[nodiscard]] TextureInfo uploadTIM(const TimFile& tim);
 
@@ -55,7 +55,7 @@ public:
     TextureInfo catoTexture;
     TextureInfo carTexture;
 
-    SkeletalAnimation animation;
+    eastl::vector<SkeletalAnimation> animations;
 
     TextureInfo fontTexture;
     Font font;

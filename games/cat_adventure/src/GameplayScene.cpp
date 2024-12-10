@@ -94,7 +94,7 @@ void GameplayScene::start(StartReason reason)
     normalizedAnimTime = 0.0;
 
     // apply initial pose
-    auto& animation = game.animation;
+    auto& animation = game.animations[0];
     animateArmature(armature, animation, 0.0);
 
     armature.calculateTransforms();
@@ -103,12 +103,9 @@ void GameplayScene::start(StartReason reason)
     HASH_PUT("Walk");
     HASH_PUT("Run");
 
-    const auto animationName = "Walk"_sh;
-    ramsyscall_printf("Hash: 0x%04X\n", animationName);
-    ramsyscall_printf("String: %s\n", animationName.getStr());
-    if (animationName == "Run"_sh) {
-        ramsyscall_printf("RUNNING!\n");
-    }
+    animationName = "Run"_sh;
+    // ramsyscall_printf("Hash: 0x%04X\n", animationName);
+    // ramsyscall_printf("String: %s\n", animationName.getStr());
 }
 
 void GameplayScene::onResourcesLoaded()
@@ -130,7 +127,7 @@ void GameplayScene::frame()
         normalizedAnimTime = 1.0;
     }
 
-    auto& animation = game.animation;
+    auto& animation = game.animations[0];
     animateArmature(armature, animation, normalizedAnimTime);
     armature.calculateTransforms();
     armature.applySkinning(game.catoModel.meshes[0]);
@@ -413,8 +410,8 @@ void GameplayScene::drawDebugInfo()
         (int)game.songPlayer.musicTime,
         (int)SoundPlayer::reverbEnabled); */
 
-    game.romFont.chainprintf(
-        game.gpu(), {{.x = 16, .y = 64}}, textCol, "joint=%d", (int)armature.selectedJoint);
+    game.romFont
+        .chainprintf(game.gpu(), {{.x = 16, .y = 64}}, textCol, "anim=%s", animationName.getStr());
 
     auto& rot = armature.joints[armature.selectedJoint].localTransform.rotation;
 

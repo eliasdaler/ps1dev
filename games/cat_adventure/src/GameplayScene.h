@@ -9,6 +9,8 @@
 #include "Quaternion.h"
 #include "SkeletalAnimation.h"
 
+#include "StringHash.h"
+
 class Game;
 class Renderer;
 
@@ -57,4 +59,6 @@ private:
 
     psyqo::FixedPoint<> normalizedAnimTime;
     psyqo::FixedPoint<> currentFrame;
+
+    StringHash animationName;
 };

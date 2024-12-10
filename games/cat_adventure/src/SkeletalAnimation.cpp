@@ -90,7 +90,9 @@ void animateArmature(
     }
 }
 
-void SkeletalAnimation::load(const eastl::vector<uint8_t>& data)
+void loadAnimations(
+    const eastl::vector<uint8_t>& data,
+    eastl::vector<SkeletalAnimation>& animations)
 {
     // vertices
     util::FileReader fr{
@@ -98,31 +100,35 @@ void SkeletalAnimation::load(const eastl::vector<uint8_t>& data)
     };
 
     const auto numAnimations = fr.GetUInt32();
-    length = fr.GetUInt16();
-    numTracks = fr.GetUInt16();
-    tracks.reserve(numTracks);
-    for (int i = 0; i < numTracks; ++i) {
-        AnimationTrack track;
-        track.info = fr.GetUInt8();
-        track.joint = fr.GetUInt8();
-        const auto numKeys = fr.GetUInt16();
-        track.keys.reserve(numKeys);
-        for (int j = 0; j < numKeys; ++j) {
-            AnimationKey key{};
-            key.frame.value = fr.GetInt32();
-            if (track.info == TRACK_TYPE_ROTATION) {
-                key.data.rotation.w.value = fr.GetInt16();
-                key.data.rotation.x.value = fr.GetInt16();
-                key.data.rotation.y.value = fr.GetInt16();
-                key.data.rotation.z.value = fr.GetInt16();
-            } else if (track.info == TRACK_TYPE_TRANSLATION) {
-                key.data.translation.x.value = fr.GetInt16();
-                key.data.translation.y.value = fr.GetInt16();
-                key.data.translation.z.value = fr.GetInt16();
-                fr.SkipBytes(2);
+    for (int j = 0; j < numAnimations; ++j) {
+        SkeletalAnimation animation;
+        animation.length = fr.GetUInt16();
+        animation.numTracks = fr.GetUInt16();
+        animation.tracks.reserve(animation.numTracks);
+        for (int i = 0; i < animation.numTracks; ++i) {
+            AnimationTrack track;
+            track.info = fr.GetUInt8();
+            track.joint = fr.GetUInt8();
+            const auto numKeys = fr.GetUInt16();
+            track.keys.reserve(numKeys);
+            for (int j = 0; j < numKeys; ++j) {
+                AnimationKey key{};
+                key.frame.value = fr.GetInt32();
+                if (track.info == TRACK_TYPE_ROTATION) {
+                    key.data.rotation.w.value = fr.GetInt16();
+                    key.data.rotation.x.value = fr.GetInt16();
+                    key.data.rotation.y.value = fr.GetInt16();
+                    key.data.rotation.z.value = fr.GetInt16();
+                } else if (track.info == TRACK_TYPE_TRANSLATION) {
+                    key.data.translation.x.value = fr.GetInt16();
+                    key.data.translation.y.value = fr.GetInt16();
+                    key.data.translation.z.value = fr.GetInt16();
+                    fr.SkipBytes(2);
+                }
+                track.keys.push_back(eastl::move(key));
             }
-            track.keys.push_back(eastl::move(key));
+            animation.tracks.push_back(eastl::move(track));
         }
-        tracks.push_back(eastl::move(track));
+        animations.push_back(eastl::move(animation));
     }
 }

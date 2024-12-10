@@ -1,6 +1,6 @@
 #include "StringHash.h"
 
-eastl::unordered_map<std::uint32_t, eastl::string> StringHashMap::map;
+eastl::map<std::uint32_t, eastl::string> StringHashMap::map;
 
 const eastl::string& StringHashMap::getStr(StringHash hash)
 {

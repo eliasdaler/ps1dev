@@ -3,8 +3,9 @@
 #include <compare>
 #include <cstdint>
 
+#include <EASTL/map.h>
 #include <EASTL/string.h>
-#include <EASTL/unordered_map.h>
+//  #include <EASTL/unordered_map.h>
 
 #define DEBUG_HASH
 
@@ -15,7 +16,7 @@ struct StringHashMap {
     static const char* getCStr(StringHash hash);
     static void putString(StringHash hash, const char* str);
 
-    static eastl::unordered_map<std::uint32_t, eastl::string> map;
+    static eastl::map<std::uint32_t, eastl::string> map;
 };
 
 #ifdef DEBUG_HASH
