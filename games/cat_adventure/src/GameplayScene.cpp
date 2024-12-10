@@ -18,6 +18,8 @@
 
 #include <psyqo/xprintf.h>
 
+#include "StringHash.h"
+
 namespace
 {
 constexpr auto worldScale = 8.0;
@@ -97,6 +99,16 @@ void GameplayScene::start(StartReason reason)
 
     armature.calculateTransforms();
     armature.applySkinning(game.catoModel.meshes[0]);
+
+    HASH_PUT("Walk");
+    HASH_PUT("Run");
+
+    const auto animationName = "Walk"_sh;
+    ramsyscall_printf("Hash: 0x%04X\n", animationName);
+    ramsyscall_printf("String: %s\n", animationName.getStr());
+    if (animationName == "Run"_sh) {
+        ramsyscall_printf("RUNNING!\n");
+    }
 }
 
 void GameplayScene::onResourcesLoaded()

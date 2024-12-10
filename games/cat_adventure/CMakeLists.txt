@@ -9,6 +9,7 @@ project(
 add_executable(game
   src/matrix_test.cpp
 
+  src/StringHash.cpp
   src/Timer.cpp
   src/Bouncer.cpp
 
@@ -50,6 +51,11 @@ target_compile_options(game PRIVATE
   -Wno-unused-label
   -Wno-missing-field-initializers
   -Wno-sign-compare # TODO: enable
+  -Wno-mismatched-new-delete
+  # EASTL stuff
+  -Wno-array-bounds
+  -Wno-stringop-overread
+  -Wno-tautological-compare
   -Wno-attributes
 )
 
