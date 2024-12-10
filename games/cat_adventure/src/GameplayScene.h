@@ -32,6 +32,11 @@ private:
     void draw();
     void drawDebugInfo();
 
+    void setAnimation(const eastl::vector<SkeletalAnimation>& animations, StringHash animationName);
+    const SkeletalAnimation* findAnimation(
+        const eastl::vector<SkeletalAnimation>& animations,
+        StringHash animationName) const;
+
     // game objects
     ModelObject cato;
     ModelObject car;
@@ -60,5 +65,6 @@ private:
     psyqo::FixedPoint<> normalizedAnimTime;
     psyqo::FixedPoint<> currentFrame;
 
-    StringHash animationName;
+    const SkeletalAnimation* currentAnimation{nullptr};
+    std::size_t animIndex{1};
 };

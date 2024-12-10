@@ -428,8 +428,6 @@ def write_psxtools_json(context, filepath):
 
         data["animations"] = []
         for action in bpy.data.actions:
-            if action.name == "Idle":
-                continue
             start_frame = int(action.frame_range[0])
             end_frame = int(action.frame_range[1])
             armature.animation_data.action = action

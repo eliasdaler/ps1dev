@@ -93,17 +93,11 @@ void GameplayScene::start(StartReason reason)
 
     normalizedAnimTime = 0.0;
 
-    // apply initial pose
-    auto& animation = game.animations[0];
-    animateArmature(armature, animation, 0.0);
-
-    armature.calculateTransforms();
-    armature.applySkinning(game.catoModel.meshes[0]);
-
     HASH_PUT("Walk");
     HASH_PUT("Run");
+    HASH_PUT("Idle");
 
-    animationName = "Run"_sh;
+    setAnimation(game.animations, "Run"_sh);
     // ramsyscall_printf("Hash: 0x%04X\n", animationName);
     // ramsyscall_printf("String: %s\n", animationName.getStr());
 }
@@ -127,7 +121,7 @@ void GameplayScene::frame()
         normalizedAnimTime = 1.0;
     }
 
-    auto& animation = game.animations[0];
+    const auto& animation = *currentAnimation;
     animateArmature(armature, animation, normalizedAnimTime);
     armature.calculateTransforms();
     armature.applySkinning(game.catoModel.meshes[0]);
@@ -192,7 +186,11 @@ void GameplayScene::processDebugInput()
     const auto& pad = game.pad;
     static bool wasCrossPressed = false;
     if (!wasCrossPressed && pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Cross)) {
-        // HERE
+        ++animIndex;
+        if (animIndex >= game.animations.size()) {
+            animIndex = 0;
+        }
+        wasCrossPressed = true;
     }
     if (!pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Cross)) {
         wasCrossPressed = false;
@@ -201,14 +199,20 @@ void GameplayScene::processDebugInput()
     static bool wasTrianglePressed = false;
     if (!wasTrianglePressed &&
         pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Triangle)) {
-        // HERE
+        if (animIndex != 0) {
+            --animIndex;
+        } else {
+            animIndex = game.animations.size() - 1;
+        }
+        wasTrianglePressed = true;
     }
     if (!pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Triangle)) {
         wasTrianglePressed = false;
     }
 
     if (wasCrossPressed || wasTrianglePressed) {
-        // DO STUFF
+        currentAnimation = &game.animations[animIndex];
+        normalizedAnimTime = 0.0;
     }
 }
 
@@ -410,8 +414,13 @@ void GameplayScene::drawDebugInfo()
         (int)game.songPlayer.musicTime,
         (int)SoundPlayer::reverbEnabled); */
 
-    game.romFont
-        .chainprintf(game.gpu(), {{.x = 16, .y = 64}}, textCol, "anim=%s", animationName.getStr());
+    game.romFont.chainprintf(
+        game.gpu(),
+        {{.x = 16, .y = 64}},
+        textCol,
+        "%d, anim=%s",
+        animIndex,
+        currentAnimation->name.getStr());
 
     auto& rot = armature.joints[armature.selectedJoint].localTransform.rotation;
 
@@ -443,4 +452,29 @@ void GameplayScene::drawDebugInfo()
         "FPS: %.2f, avg: %.2f",
         fpsMovingAverageNew,
         avgFPS);
+}
+
+void GameplayScene::setAnimation(
+    const eastl::vector<SkeletalAnimation>& animations,
+    StringHash animationName)
+{
+    currentAnimation = findAnimation(animations, animationName);
+    if (!currentAnimation) {
+        ramsyscall_printf("Animation %s was not found\n", animationName.getStr());
+        return;
+    }
+}
+
+const SkeletalAnimation* GameplayScene::findAnimation(
+    const eastl::vector<SkeletalAnimation>& animations,
+    StringHash animationName) const
+{
+    for (const auto& animation : animations) {
+        ramsyscall_printf(
+            "%s, %08X, %08X\n", animation.name.getStr(), animation.name, animationName);
+        if (animation.name == animationName) {
+            return &animation;
+        }
+    }
+    return &animations[0];
 }

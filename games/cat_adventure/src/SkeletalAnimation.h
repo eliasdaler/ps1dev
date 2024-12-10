@@ -6,9 +6,10 @@
 #include <EASTL/vector.h>
 
 #include <psyqo/fixed-point.hh>
+#include <psyqo/vector.hh>
 
 #include "Quaternion.h"
-#include <psyqo/vector.hh>
+#include "StringHash.h"
 
 struct Armature;
 
@@ -33,6 +34,7 @@ struct AnimationTrack {
 };
 
 struct SkeletalAnimation {
+    StringHash name;
     std::uint8_t numTracks;
     std::uint8_t numConstTracks;
     std::uint16_t length;

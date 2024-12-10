@@ -102,6 +102,7 @@ void loadAnimations(
     const auto numAnimations = fr.GetUInt32();
     for (int j = 0; j < numAnimations; ++j) {
         SkeletalAnimation animation;
+        animation.name.value = fr.GetUInt32();
         animation.length = fr.GetUInt16();
         animation.numTracks = fr.GetUInt16();
         animation.tracks.reserve(animation.numTracks);
