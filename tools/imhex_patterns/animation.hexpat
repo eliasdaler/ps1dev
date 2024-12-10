@@ -25,15 +25,15 @@ fn format_vec3(auto v) {
 
 struct FixedPoint<T> {
     T value;
-} [[format("format_fixed16")]];
+} [[sealed, format("format_fixed16")]];
 
 struct Vec3 {
     FixedPoint<s16> x, y, z;
-} [[format("format_vec3")]];
+} [[sealed, format("format_vec3")]];
 
 struct Quaternion {
     FixedPoint<s16> w, x, y, z;
-} [[format("format_quat")]];
+} [[sealed, format("format_quat")]];
 
 struct Key<auto keyType> {
     FixedPoint<s32> frame;
@@ -41,7 +41,7 @@ struct Key<auto keyType> {
         Quaternion rotation;
     } else if (keyType == 1) {
         Vec3 translation;
-        s16 pad;
+        s16 pad [[hidden]];
     }
 };
 
@@ -53,7 +53,8 @@ struct Track {
 };
 
 struct Animation {
-    u32 numTracks;
+    u16 length;
+    u16 numTracks;
     Track tracks[numTracks];
 };
 

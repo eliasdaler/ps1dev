@@ -27,18 +27,29 @@ fn format_vec3(auto v) {
         fixed16_to_float(v.z));
 };
 
+fn format_color(auto c) {
+    return std::format("({}, {}, {})", 
+        c.r,
+        c.g,
+        c.b);
+};
+
 // 4.12
 struct FixedPoint16 {
     s16 value;
-} [[format("format_fixed16")]];
+} [[sealed, format("format_fixed16")]];
 
 struct Vec3 {
     FixedPoint16 x, y, z;
-} [[format("format_vec3")]];
+} [[sealed, format("format_vec3")]];
 
 struct Quaternion {
     FixedPoint16 w, x, y, z;
-} [[format("format_quat")]];
+} [[sealed, format("format_quat")]];
+
+struct RGB8 {
+  u8 r, g, b;
+} [[sealed, static, format("format_color"), color(std::format("{:02X}{:02X}{:02X}", r*2, g*2, b*2))]];
 
 struct Vertex {
     Vec3 pos;
@@ -47,7 +58,7 @@ struct Vertex {
     u8 uv[2];
     u16 pad2;
     
-    u8 color[3];
+    RGB8 color;
     u8 pad3;
 };
 
@@ -92,7 +103,9 @@ struct Armature {
 struct Model {
     u16 submeshes_size;
     Submesh submeshes[submeshes_size];
-    Armature armature;
+    if (!std::mem::eof()) {
+        Armature armature;
+    }
 };
 
 Model model @ 0x0;
