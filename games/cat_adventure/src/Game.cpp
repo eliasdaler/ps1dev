@@ -2,7 +2,9 @@
 
 #include <common/syscalls/syscalls.h>
 
-Game::Game() : songPlayer(gpu(), soundPlayer)
+#include "StringHashes.h"
+
+Game::Game() : renderer(gpu()), songPlayer(gpu(), soundPlayer)
 {}
 
 void Game::prepare()
@@ -15,6 +17,9 @@ void Game::prepare()
     gpu().initialize(config);
     cdrom.prepare();
     soundPlayer.init();
+
+    initStringHashes();
+    renderer.init();
 }
 
 void Game::loadTIM(eastl::string_view filename, TextureInfo& textureInfo)

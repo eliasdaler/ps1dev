@@ -8,7 +8,7 @@
 #include "Object.h"
 #include "Quaternion.h"
 #include "SkeletalAnimation.h"
-
+#include "SkeletonAnimator.h"
 #include "StringHash.h"
 
 class Game;
@@ -33,15 +33,12 @@ private:
     void drawTestLevel();
     void drawDebugInfo();
 
-    void setAnimation(const eastl::vector<SkeletalAnimation>& animations, StringHash animationName);
-    const SkeletalAnimation* findAnimation(
-        const eastl::vector<SkeletalAnimation>& animations,
-        StringHash animationName) const;
-
     // game objects
-    ModelObject cato;
     ModelObject car;
     ModelObject levelObj;
+
+    ModelObject cato;
+    SkeletonAnimator catoAnimator;
 
     Camera camera;
 
@@ -65,9 +62,5 @@ private:
     int toneNum{0};
     int reverbPreset{0};
 
-    psyqo::FixedPoint<> normalizedAnimTime;
-    psyqo::FixedPoint<> currentFrame;
-
-    const SkeletalAnimation* currentAnimation{nullptr};
     std::size_t animIndex{1};
 };

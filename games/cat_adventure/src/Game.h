@@ -11,6 +11,7 @@
 #include "Font.h"
 #include "MidiFile.h"
 #include "Model.h"
+#include "Renderer.h"
 #include "SkeletalAnimation.h"
 #include "SongPlayer.h"
 #include "SoundPlayer.h"
@@ -61,6 +62,8 @@ public:
     Font font;
 
     int levelId{0};
+
+    Renderer renderer;
 
     SoundPlayer soundPlayer;
     SongPlayer songPlayer;

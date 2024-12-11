@@ -18,6 +18,7 @@ add_executable(game
 
   src/Armature.cpp
   src/SkeletalAnimation.cpp
+  src/SkeletonAnimator.cpp
 
   src/RainbowColors.cpp
   src/Model.cpp

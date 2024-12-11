@@ -35,28 +35,15 @@ GameplayScene::GameplayScene(Game& game, Renderer& renderer) : game(game), rende
 
 void GameplayScene::start(StartReason reason)
 {
-    // screen "center" (screenWidth / 2, screenHeight / 2)
-    psyqo::GTE::write<psyqo::GTE::Register::OFX, psyqo::GTE::Unsafe>(
-        psyqo::FixedPoint<16>(SCREEN_WIDTH / 2.0).raw());
-    psyqo::GTE::write<psyqo::GTE::Register::OFY, psyqo::GTE::Unsafe>(
-        psyqo::FixedPoint<16>(SCREEN_HEIGHT / 2.0).raw());
-
-    // projection plane distance
-    psyqo::GTE::write<psyqo::GTE::Register::H, psyqo::GTE::Unsafe>(300);
-
-    // FIXME: use OT_SIZE here somehow?
-    psyqo::GTE::write<psyqo::GTE::Register::ZSF3, psyqo::GTE::Unsafe>(1024 / 3);
-    psyqo::GTE::write<psyqo::GTE::Register::ZSF4, psyqo::GTE::Unsafe>(1024 / 4);
-
     renderer.setFogNearFar(2500, 12800, SCREEN_WIDTH / 2);
-    // far color
-    const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
-    psyqo::GTE::write<psyqo::GTE::Register::RFC, psyqo::GTE::Unsafe>(farColor.r);
-    psyqo::GTE::write<psyqo::GTE::Register::GFC, psyqo::GTE::Unsafe>(farColor.g);
-    psyqo::GTE::write<psyqo::GTE::Register::BFC, psyqo::GTE::Unsafe>(farColor.b);
+    static const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
+    renderer.setFarColor(farColor);
 
     if (reason == StartReason::Create) {
         cato.model = &game.catoModel;
+        catoAnimator.animations = &game.animations;
+        catoAnimator.setAnimation("Run"_sh);
+
         car.model = &game.carModel;
         levelObj.model = &game.levelModel;
         levelObj.position = {};
@@ -89,19 +76,9 @@ void GameplayScene::start(StartReason reason)
     game.songPlayer.init(game.midi, game.vab);
 
     auto& armature = game.catoModel.armature;
-
     armature.selectedJoint = 5;
     auto& mesh = game.catoModel.meshes[0];
     armature.highlightMeshInfluences(mesh, armature.selectedJoint);
-
-    normalizedAnimTime = 0.0;
-
-    HASH_PUT("Walk");
-    HASH_PUT("Run");
-    HASH_PUT("Idle");
-
-    setAnimation(game.animations, "Run"_sh);
-    // ramsyscall_printf("Hash: 0x%04X\n", animationName);
     // ramsyscall_printf("String: %s\n", animationName.getStr());
 }
 
@@ -113,21 +90,6 @@ void GameplayScene::frame()
     const auto currentFrameCounter = gpu().getFrameCount();
     frameDiff = currentFrameCounter - lastFrameCounter;
     lastFrameCounter = currentFrameCounter;
-
-    auto& armature = game.catoModel.armature;
-
-    normalizedAnimTime += 0.04;
-    if (normalizedAnimTime > 1.0) { // loop
-        normalizedAnimTime -= 1.0;
-    }
-    if (normalizedAnimTime < 0.0) {
-        normalizedAnimTime = 1.0;
-    }
-
-    const auto& animation = *currentAnimation;
-    animateArmature(armature, animation, normalizedAnimTime);
-    armature.calculateTransforms();
-    armature.applySkinning(game.catoModel.meshes[0]);
 
     processInput();
     update();
@@ -214,8 +176,7 @@ void GameplayScene::processDebugInput()
     }
 
     if (wasCrossPressed || wasTrianglePressed) {
-        currentAnimation = &game.animations[animIndex];
-        normalizedAnimTime = 0.0;
+        catoAnimator.setAnimation(game.animations[animIndex].name);
     }
 }
 
@@ -245,6 +206,9 @@ void GameplayScene::update()
     // spin the cat
     // cato.rotation.y += 0.01;
     // cato.rotation.x = 0.25;
+
+    catoAnimator.update();
+    catoAnimator.animate(*cato.model);
 
     cato.calculateWorldMatrix();
     car.calculateWorldMatrix();
@@ -419,7 +383,7 @@ void GameplayScene::drawDebugInfo()
         textCol,
         "%d, anim=%s",
         animIndex,
-        currentAnimation->name.getStr());
+        catoAnimator.currentAnimation->name.getStr());
 
     auto& rot = armature.joints[armature.selectedJoint].localTransform.rotation;
 
@@ -433,8 +397,8 @@ void GameplayScene::drawDebugInfo()
         psyqo::FixedPoint<>(rot.y),
         psyqo::FixedPoint<>(rot.z)); */
 
-    game.romFont
-        .chainprintf(game.gpu(), {{.x = 16, .y = 80}}, textCol, "t = (%.3f)", normalizedAnimTime);
+    game.romFont.chainprintf(
+        game.gpu(), {{.x = 16, .y = 80}}, textCol, "t = (%.3f)", catoAnimator.normalizedAnimTime);
 
     const auto fps = gpu().getRefreshRate() / frameDiff;
     fpsMovingAverageNew = alpha * fps + oneMinAlpha * fpsMovingAverageOld;
@@ -451,29 +415,4 @@ void GameplayScene::drawDebugInfo()
         "FPS: %.2f, avg: %.2f",
         fpsMovingAverageNew,
         avgFPS);
-}
-
-void GameplayScene::setAnimation(
-    const eastl::vector<SkeletalAnimation>& animations,
-    StringHash animationName)
-{
-    currentAnimation = findAnimation(animations, animationName);
-    if (!currentAnimation) {
-        ramsyscall_printf("Animation %s was not found\n", animationName.getStr());
-        return;
-    }
-}
-
-const SkeletalAnimation* GameplayScene::findAnimation(
-    const eastl::vector<SkeletalAnimation>& animations,
-    StringHash animationName) const
-{
-    for (const auto& animation : animations) {
-        ramsyscall_printf(
-            "%s, %08X, %08X\n", animation.name.getStr(), animation.name, animationName);
-        if (animation.name == animationName) {
-            return &animation;
-        }
-    }
-    return &animations[0];
 }

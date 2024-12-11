@@ -20,6 +20,8 @@ class Renderer {
 public:
     Renderer(psyqo::GPU& gpu);
 
+    void init();
+
     void drawModelObject(
         const ModelObject& object,
         const Camera& camera,
@@ -67,6 +69,7 @@ public:
         const psyqo::Color& c);
 
     void setFogNearFar(int a, int b, int h);
+    void setFarColor(const psyqo::Color& c);
     uint32_t calcInterpFactor(uint32_t sz);
 
 private:

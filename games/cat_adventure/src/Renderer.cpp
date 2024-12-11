@@ -1,6 +1,7 @@
 #include "Renderer.h"
 
 #include "Camera.h"
+#include "Common.h"
 #include "Object.h"
 
 #include <psyqo/soft-math.hh>
@@ -59,6 +60,22 @@ void interpColor(const psyqo::Color& input, uint32_t p, psyqo::Color* out)
 
 Renderer::Renderer(psyqo::GPU& gpu) : gpu(gpu)
 {}
+
+void Renderer::init()
+{
+    // screen "center" (screenWidth / 2, screenHeight / 2)
+    psyqo::GTE::write<psyqo::GTE::Register::OFX, psyqo::GTE::Unsafe>(
+        psyqo::FixedPoint<16>(SCREEN_WIDTH / 2.0).raw());
+    psyqo::GTE::write<psyqo::GTE::Register::OFY, psyqo::GTE::Unsafe>(
+        psyqo::FixedPoint<16>(SCREEN_HEIGHT / 2.0).raw());
+
+    // projection plane distance
+    psyqo::GTE::write<psyqo::GTE::Register::H, psyqo::GTE::Unsafe>(300);
+
+    // FIXME: use OT_SIZE here somehow?
+    psyqo::GTE::write<psyqo::GTE::Register::ZSF3, psyqo::GTE::Unsafe>(1024 / 3);
+    psyqo::GTE::write<psyqo::GTE::Register::ZSF4, psyqo::GTE::Unsafe>(1024 / 4);
+}
 
 void Renderer::calculateViewModelMatrix(const Object& object, const Camera& camera, bool setViewRot)
 {
@@ -374,6 +391,13 @@ void Renderer::setFogNearFar(int a, int b, int h)
 
     this->dqa = dqaF;
     this->dqb = dqbF;
+}
+
+void Renderer::setFarColor(const psyqo::Color& c)
+{
+    psyqo::GTE::write<psyqo::GTE::Register::RFC, psyqo::GTE::Unsafe>(c.r);
+    psyqo::GTE::write<psyqo::GTE::Register::GFC, psyqo::GTE::Unsafe>(c.g);
+    psyqo::GTE::write<psyqo::GTE::Register::BFC, psyqo::GTE::Unsafe>(c.b);
 }
 
 uint32_t Renderer::calcInterpFactor(uint32_t sz)

@@ -7,7 +7,7 @@
 
 namespace
 {
-const int startLevel = 1;
+const int startLevel = 0;
 
 const char* getLevelModelPath(int levelId)
 {
@@ -21,10 +21,9 @@ const char* getLevelModelPath(int levelId)
 }
 
 Game game;
-Renderer renderer{game.gpu()};
 
-GameplayScene gameplayScene{game, renderer};
-LoadingScene loadingScene{game, renderer};
+GameplayScene gameplayScene{game, game.renderer};
+LoadingScene loadingScene{game, game.renderer};
 } // namespace
 
 psyqo::Coroutine<> loadCoroutine(Game* game)
