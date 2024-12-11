@@ -7,7 +7,7 @@
 
 namespace
 {
-const int startLevel = 0;
+const int startLevel = 1;
 
 const char* getLevelModelPath(int levelId)
 {

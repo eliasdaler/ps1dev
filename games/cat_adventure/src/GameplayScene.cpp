@@ -58,6 +58,9 @@ void GameplayScene::start(StartReason reason)
     if (reason == StartReason::Create) {
         cato.model = &game.catoModel;
         car.model = &game.carModel;
+        levelObj.model = &game.levelModel;
+        levelObj.position = {};
+        levelObj.rotation = {};
 
         if (game.levelId == 0) {
             cato.position = {0.0, 0.0, 0.0};
@@ -269,65 +272,13 @@ void GameplayScene::draw()
     gp.getNextClear(fill.primitive, bg);
     gp.chain(fill);
 
+    psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.viewRot);
+
     // draw static objects
     if (game.levelId == 0) {
-        // verts are stored in world coords (limited to approximately (-8.f;8.f) range)
-        auto posCamSpace = -camera.position;
-        psyqo::SoftMath::matrixVecMul3(camera.viewRot, posCamSpace, &posCamSpace);
-
-        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.viewRot);
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(posCamSpace);
-
-        renderer.drawModel(game.levelModel, game.bricksTexture);
-    }
-
-    if (game.levelId == 1) { // level WIP
-        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.viewRot);
-
-        MeshObject object;
-        auto* meshA = &game.levelModel.meshes[0];
-        auto* meshB = &game.levelModel.meshes[1];
-        renderer.bias = 1000;
-        for (int x = 0; x < 10; ++x) {
-            for (int z = -3; z < 3; ++z) {
-                if (z == 0) {
-                    object.mesh = meshA;
-                } else {
-                    object.mesh = meshB;
-                }
-                object.position.x = psyqo::FixedPoint(x, 0);
-                object.position.y = 0.0;
-                object.position.z = psyqo::FixedPoint(z, 0);
-                object.calculateWorldMatrix();
-                renderer.drawMeshObject(object, camera, game.catoTexture);
-            }
-        }
-
-        auto* tree = &game.levelModel.meshes[4];
-        object.mesh = tree;
-        for (int i = 0; i < 10; ++i) {
-            object.position.x = psyqo::FixedPoint(i, 0);
-            object.position.z = ToWorldCoords(8.0);
-            object.calculateWorldMatrix();
-            renderer.drawMeshObject(object, camera, game.catoTexture);
-        }
-
-        auto* lamp = &game.levelModel.meshes[2];
-        object.mesh = lamp;
-        for (int i = 0; i < 10; ++i) {
-            object.position.x = psyqo::FixedPoint(i, 0);
-            object.position.z = ToWorldCoords(-8.0);
-            object.calculateWorldMatrix();
-            renderer.drawMeshObject(object, camera, game.catoTexture);
-        }
-
-        auto* car = &game.levelModel.meshes[5];
-        renderer.bias = -100;
-        object.mesh = car;
-        object.position = {};
-        object.position.x = ToWorldCoords(8.0);
-        object.calculateWorldMatrix();
-        renderer.drawMeshObject(object, camera, game.catoTexture);
+        renderer.drawModelObject(levelObj, camera, game.bricksTexture);
+    } else if (game.levelId == 1) {
+        drawTestLevel();
     }
 
     gp.pumpCallbacks();
@@ -354,6 +305,54 @@ void GameplayScene::draw()
     // dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
 
     drawDebugInfo();
+}
+
+void GameplayScene::drawTestLevel()
+{
+    MeshObject object;
+    auto* meshA = &game.levelModel.meshes[0];
+    auto* meshB = &game.levelModel.meshes[1];
+    renderer.bias = 1000;
+    for (int x = 0; x < 10; ++x) {
+        for (int z = -3; z < 3; ++z) {
+            if (z == 0) {
+                object.mesh = meshA;
+            } else {
+                object.mesh = meshB;
+            }
+            object.position.x = psyqo::FixedPoint(x, 0);
+            object.position.y = 0.0;
+            object.position.z = psyqo::FixedPoint(z, 0);
+            object.calculateWorldMatrix();
+            renderer.drawMeshObject(object, camera, game.catoTexture);
+        }
+    }
+
+    auto* tree = &game.levelModel.meshes[4];
+    object.mesh = tree;
+    for (int i = 0; i < 10; ++i) {
+        object.position.x = psyqo::FixedPoint(i, 0);
+        object.position.z = ToWorldCoords(8.0);
+        object.calculateWorldMatrix();
+        renderer.drawMeshObject(object, camera, game.catoTexture);
+    }
+
+    auto* lamp = &game.levelModel.meshes[2];
+    object.mesh = lamp;
+    for (int i = 0; i < 10; ++i) {
+        object.position.x = psyqo::FixedPoint(i, 0);
+        object.position.z = ToWorldCoords(-8.0);
+        object.calculateWorldMatrix();
+        renderer.drawMeshObject(object, camera, game.catoTexture);
+    }
+
+    auto* car = &game.levelModel.meshes[5];
+    renderer.bias = -100;
+    object.mesh = car;
+    object.position = {};
+    object.position.x = ToWorldCoords(8.0);
+    object.calculateWorldMatrix();
+    renderer.drawMeshObject(object, camera, game.catoTexture);
 }
 
 void GameplayScene::drawDebugInfo()

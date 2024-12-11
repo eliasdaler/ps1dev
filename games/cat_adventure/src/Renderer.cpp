@@ -62,7 +62,11 @@ Renderer::Renderer(psyqo::GPU& gpu) : gpu(gpu)
 
 void Renderer::calculateViewModelMatrix(const Object& object, const Camera& camera, bool setViewRot)
 {
-    if (setViewRot) { // otherwise we assume that the object has no rotation
+    if (object.rotation.x == 0.0 && object.rotation.y == 0.0) {
+        setViewRot = false;
+    }
+
+    if (setViewRot) {
         // V * M
         psyqo::Matrix33 viewModelMatrix;
         psyqo::GTE::Math::multiplyMatrix33<
@@ -73,7 +77,14 @@ void Renderer::calculateViewModelMatrix(const Object& object, const Camera& came
 
     // what 4th column would be if we did V * M
     auto posCamSpace = object.position - camera.position;
-    psyqo::SoftMath::matrixVecMul3(camera.viewRot, posCamSpace, &posCamSpace);
+    if (!setViewRot) {
+        psyqo::GTE::Math::matrixVecMul3<
+            psyqo::GTE::PseudoRegister::Rotation,
+            psyqo::GTE::PseudoRegister::V0>(posCamSpace, &posCamSpace);
+    } else {
+        // TODO: use L?
+        psyqo::SoftMath::matrixVecMul3(camera.viewRot, posCamSpace, &posCamSpace);
+    }
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(posCamSpace);
 }
 

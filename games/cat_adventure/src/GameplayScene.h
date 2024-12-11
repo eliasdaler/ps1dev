@@ -30,6 +30,7 @@ private:
     void updateCamera();
 
     void draw();
+    void drawTestLevel();
     void drawDebugInfo();
 
     void setAnimation(const eastl::vector<SkeletalAnimation>& animations, StringHash animationName);
@@ -40,6 +41,8 @@ private:
     // game objects
     ModelObject cato;
     ModelObject car;
+    ModelObject levelObj;
+
     Camera camera;
 
     Game& game;
