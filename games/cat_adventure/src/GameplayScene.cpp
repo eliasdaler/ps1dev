@@ -40,7 +40,7 @@ void GameplayScene::start(StartReason reason)
     if (reason == StartReason::Create) {
         cato.model = &game.catoModel;
         catoAnimator.animations = &game.animations;
-        catoAnimator.setAnimation("Run"_sh);
+        catoAnimator.setAnimation("Idle"_sh);
 
         car.model = &game.carModel;
         levelObj.model = &game.levelModel;
@@ -58,6 +58,10 @@ void GameplayScene::start(StartReason reason)
             camera.position = {0.19, 0.28, 0.28};
             camera.rotation = {0.11, 1.17};
 
+            // walk debug
+            camera.position = {0.47, 0.42, 0.73};
+            camera.rotation = {0.11, 1.20};
+
             // car.position = {0.0, 0.0, 5.0};
         } else if (game.levelId == 1) {
             cato.position = {0.5, 0.0, 0.5};
@@ -73,19 +77,17 @@ void GameplayScene::start(StartReason reason)
 
     game.songPlayer.init(game.midi, game.vab);
 
-    auto& armature = game.catoModel.armature;
+    /* auto& armature = game.catoModel.armature;
     armature.selectedJoint = 5;
     auto& mesh = game.catoModel.meshes[0];
-    armature.highlightMeshInfluences(mesh, armature.selectedJoint);
+    armature.highlightMeshInfluences(mesh, armature.selectedJoint); */
 }
-
-void GameplayScene::onResourcesLoaded()
-{}
 
 void GameplayScene::frame()
 {
     fpsCounter.update(game.gpu());
-    processInput();
+    game.pad.update();
+    processInput(game.pad);
     update();
 
     gpu().pumpCallbacks();
@@ -93,84 +95,163 @@ void GameplayScene::frame()
     draw(game.renderer);
 }
 
-void GameplayScene::processInput()
+void GameplayScene::processInput(const PadManager& pad)
 {
-    const auto& pad = game.pad;
+    if (freeCamera) {
+        processFreeCameraInput(pad);
+    } else {
+        processPlayerInput(pad);
+    }
+
+    dialogueBox.handleInput(pad);
+
+    processDebugInput(pad);
+}
+
+void GameplayScene::processPlayerInput(const PadManager& pad)
+{
+    const auto& player = cato;
+    const auto& trig = game.trig;
+
+    constexpr auto walkSpeed = 0.0065;
+    constexpr auto sprintSpeed = 0.02;
+    constexpr auto rotateSpeed = 0.04;
+
+    // yaw
+    if (pad.isButtonPressed(psyqo::SimplePad::Left)) {
+        cato.rotation.y -= rotateSpeed;
+    }
+    if (pad.isButtonPressed(psyqo::SimplePad::Right)) {
+        cato.rotation.y += rotateSpeed;
+    }
+
+    // go forward/backward
+    bool isMoving = false;
+    bool moveForward = false;
+    if (pad.isButtonPressed(psyqo::SimplePad::Up)) {
+        isMoving = true;
+        moveForward = true;
+    }
+
+    if (pad.isButtonPressed(psyqo::SimplePad::Down)) {
+        isMoving = true;
+        moveForward = false;
+    }
+
+    bool isSprinting = false;
+    if (pad.isButtonHeld(psyqo::SimplePad::Square)) {
+        isSprinting = true;
+    }
+
+    if (isMoving) {
+        if (moveForward) {
+            if (isSprinting) {
+                cato.position.x -= trig.sin(cato.rotation.y) * sprintSpeed;
+                cato.position.z += trig.cos(cato.rotation.y) * sprintSpeed;
+                catoAnimator.setAnimation("Run"_sh, 0.05, 0.125);
+            } else {
+                cato.position.x -= trig.sin(cato.rotation.y) * walkSpeed;
+                cato.position.z += trig.cos(cato.rotation.y) * walkSpeed;
+                catoAnimator.setAnimation("Walk"_sh, 0.035, 0.3);
+            }
+        } else {
+            cato.position.x += trig.sin(cato.rotation.y) * walkSpeed * 0.4;
+            cato.position.z -= trig.cos(cato.rotation.y) * walkSpeed * 0.4;
+            catoAnimator.setAnimation("Walk"_sh, -0.03, 0.3);
+        }
+    } else {
+        catoAnimator.setAnimation("Idle"_sh);
+    }
+
+    if (isMoving) {
+        if (catoAnimator.frameJustChanged()) {
+            const auto animFrame = catoAnimator.getAnimationFrame();
+            if (catoAnimator.currentAnimationName == "Walk"_sh) {
+                if (animFrame == 4) {
+                    game.soundPlayer.playSound(20, game.step1Sound);
+                } else if (animFrame == 20) {
+                    game.soundPlayer.playSound(21, game.step2Sound);
+                }
+            } else if (catoAnimator.currentAnimationName == "Run"_sh) {
+                if (animFrame == 3) {
+                    game.soundPlayer.playSound(20, game.step1Sound);
+                } else if (animFrame == 15) {
+                    game.soundPlayer.playSound(21, game.step2Sound);
+                }
+            }
+        }
+    }
+}
+
+void GameplayScene::processFreeCameraInput(const PadManager& pad)
+{
     const auto& trig = game.trig;
 
     constexpr auto walkSpeed = 0.02;
     constexpr auto rotateSpeed = 0.01;
 
     // yaw
-    if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Left)) {
+    if (pad.isButtonPressed(psyqo::SimplePad::Left)) {
         camera.rotation.y += rotateSpeed;
     }
-    if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Right)) {
+    if (pad.isButtonPressed(psyqo::SimplePad::Right)) {
         camera.rotation.y -= rotateSpeed;
     }
 
     // pitch
-    if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::L2)) {
+    if (pad.isButtonPressed(psyqo::SimplePad::L2)) {
         camera.rotation.x += rotateSpeed;
     }
-    if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::R2)) {
+    if (pad.isButtonPressed(psyqo::SimplePad::R2)) {
         camera.rotation.x -= rotateSpeed;
     }
 
     // go up/down
-    if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::L1)) {
+    if (pad.isButtonPressed(psyqo::SimplePad::L1)) {
         camera.position.y -= walkSpeed;
     }
-    if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::R1)) {
+    if (pad.isButtonPressed(psyqo::SimplePad::R1)) {
         camera.position.y += walkSpeed;
     }
 
     // go forward/backward
-    if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Up)) {
+    if (pad.isButtonPressed(psyqo::SimplePad::Up)) {
         camera.position.x += trig.sin(camera.rotation.y) * walkSpeed;
         camera.position.z += trig.cos(camera.rotation.y) * walkSpeed;
     }
-    if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Down)) {
+    if (pad.isButtonPressed(psyqo::SimplePad::Down)) {
         camera.position.x -= trig.sin(camera.rotation.y) * walkSpeed;
         camera.position.z -= trig.cos(camera.rotation.y) * walkSpeed;
     }
-
-    dialogueBox.handleInput(game.pad);
-
-    processDebugInput();
 }
 
-void GameplayScene::processDebugInput()
+void GameplayScene::processDebugInput(const PadManager& pad)
 {
-    const auto& pad = game.pad;
-    static bool wasCrossPressed = false;
-    if (!wasCrossPressed && pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Cross)) {
-        ++animIndex;
-        if (animIndex >= game.animations.size()) {
-            animIndex = 0;
-        }
-        wasCrossPressed = true;
-    }
-    if (!pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Cross)) {
-        wasCrossPressed = false;
+    if (pad.wasButtonJustPressed(psyqo::SimplePad::Select)) {
+        freeCamera = !freeCamera;
     }
 
-    static bool wasTrianglePressed = false;
-    if (!wasTrianglePressed &&
-        pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Triangle)) {
-        if (animIndex != 0) {
-            --animIndex;
-        } else {
-            animIndex = game.animations.size() - 1;
-        }
-        wasTrianglePressed = true;
-    }
-    if (!pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Triangle)) {
-        wasTrianglePressed = false;
+    if (pad.wasButtonJustPressed(psyqo::SimplePad::Start)) {
+        debugInfoDrawn = !debugInfoDrawn;
     }
 
-    if (wasCrossPressed || wasTrianglePressed) {
-        catoAnimator.setAnimation(game.animations[animIndex].name);
+    if (freeCamera) {
+        if (pad.wasButtonJustPressed(psyqo::SimplePad::Cross)) {
+            ++animIndex;
+            if (animIndex >= game.animations.size()) {
+                animIndex = 0;
+            }
+            catoAnimator.setAnimation(game.animations[animIndex].name);
+        }
+
+        if (pad.wasButtonJustPressed(psyqo::SimplePad::Triangle)) {
+            if (animIndex != 0) {
+                --animIndex;
+            } else {
+                animIndex = game.animations.size() - 1;
+            }
+            catoAnimator.setAnimation(game.animations[animIndex].name);
+        }
     }
 }
 
@@ -262,7 +343,9 @@ void GameplayScene::draw(Renderer& renderer)
 
     // dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
 
-    drawDebugInfo(renderer);
+    if (debugInfoDrawn) {
+        drawDebugInfo(renderer);
+    }
 }
 
 void GameplayScene::drawTestLevel(Renderer& renderer)
@@ -379,7 +462,12 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
         psyqo::FixedPoint<>(rot.z)); */
 
     game.romFont.chainprintf(
-        game.gpu(), {{.x = 16, .y = 80}}, textCol, "t = (%.3f)", catoAnimator.normalizedAnimTime);
+        game.gpu(),
+        {{.x = 16, .y = 80}},
+        textCol,
+        "t = (%.3f), f = %d",
+        catoAnimator.normalizedAnimTime,
+        catoAnimator.getAnimationFrame());
 
     game.romFont.chainprintf(
         game.gpu(),

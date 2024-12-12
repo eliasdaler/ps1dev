@@ -53,12 +53,17 @@ void Game::loadModel(eastl::string_view filename, Model& model)
         });
 }
 
-void Game::loadSound(eastl::string_view filename, Sound& sound)
+void Game::loadSound(eastl::string_view filename, uint32_t spuUploadAddr)
 {
     cdromLoader.readFile(
-        filename, gpu(), isoParser, [this, filename, &sound](eastl::vector<uint8_t>&& buffer) {
+        filename,
+        gpu(),
+        isoParser,
+        [this, filename, spuUploadAddr](eastl::vector<uint8_t>&& buffer) {
             cdReadBuffer = eastl::move(buffer);
+            Sound sound;
             sound.load(filename, cdReadBuffer);
+            soundPlayer.uploadSound(spuUploadAddr << 3, sound);
             cdLoadCoroutine.resume();
         });
 }

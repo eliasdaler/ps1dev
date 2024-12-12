@@ -14,19 +14,21 @@
 
 class Game;
 class Renderer;
+class PadManager;
 
 class GameplayScene : public psyqo::Scene {
 public:
     GameplayScene(Game& game);
-    void onResourcesLoaded();
 
 private:
     void start(StartReason reason) override;
 
     void frame() override;
 
-    void processInput();
-    void processDebugInput();
+    void processInput(const PadManager& pad);
+    void processPlayerInput(const PadManager& pad);
+    void processFreeCameraInput(const PadManager& pad);
+    void processDebugInput(const PadManager& pad);
     void update();
     void updateCamera();
 
@@ -53,4 +55,7 @@ private:
     std::size_t animIndex{1};
 
     FPSCounter fpsCounter;
+
+    bool debugInfoDrawn{true};
+    bool freeCamera{false};
 };

@@ -69,9 +69,16 @@ psyqo::Coroutine<> loadCoroutine(Game* game)
     game->loadRawPCM("SMPL.PCM;1", 0x1010);
     co_await awaiter;
 
+    game->step1Sound = 0x3300;
+    game->loadSound("STEP1.VAG;1", game->step1Sound);
+    co_await awaiter;
+
+    game->step2Sound = 0x3F00;
+    game->loadSound("STEP2.VAG;1", game->step2Sound);
+    co_await awaiter;
+
     game->popScene();
 
-    gameplayScene.onResourcesLoaded();
     game->pushScene(&gameplayScene);
 }
 
@@ -80,7 +87,7 @@ void Game::createScene()
     // testing::testMatrix();
     romFont.uploadSystemFont(gpu(), {{.x = 960, .y = int16_t(512 - 48 - 90)}});
 
-    pad.initialize();
+    pad.init();
 
     pushScene(&loadingScene);
 

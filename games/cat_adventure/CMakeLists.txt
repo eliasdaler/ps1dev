@@ -20,6 +20,7 @@ add_executable(game
   src/Armature.cpp
   src/SkeletalAnimation.cpp
   src/SkeletonAnimator.cpp
+  src/PadManager.cpp
 
   src/RainbowColors.cpp
   src/Model.cpp

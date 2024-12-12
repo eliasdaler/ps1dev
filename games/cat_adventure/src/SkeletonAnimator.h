@@ -8,11 +8,20 @@
 struct Model;
 
 struct SkeletonAnimator {
-    void setAnimation(StringHash animationName);
+    static constexpr psyqo::FixedPoint<> DEFAULT_PLAYBACK_SPEED{0.04};
+
+    void setAnimation(
+        StringHash animationName,
+        psyqo::FixedPoint<> playbackSpeed = DEFAULT_PLAYBACK_SPEED,
+        psyqo::FixedPoint<> startAnimationPoint = 0.0);
+
     const SkeletalAnimation* findAnimation(StringHash animationName) const;
 
     void update();
     void animate(Model& model) const;
+
+    int getAnimationFrame() const;
+    bool frameJustChanged() const;
 
     // data
     eastl::vector<SkeletalAnimation>* animations{nullptr};
@@ -23,4 +32,8 @@ struct SkeletonAnimator {
     psyqo::FixedPoint<> normalizedAnimTime{0.0};
 
 private:
+    psyqo::FixedPoint<> prevNormalizedAnimTime{0.0};
+
+    bool playAnimationForward{true};
+    psyqo::FixedPoint<> playbackSpeed{0.04};
 };

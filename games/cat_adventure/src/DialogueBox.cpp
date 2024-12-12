@@ -1,20 +1,20 @@
 #include "DialogueBox.h"
 
 #include "Font.h"
+#include "PadManager.h"
 #include "RainbowColors.h"
 #include "Renderer.h"
 
 #include <psyqo/primitives/lines.hh>
 #include <psyqo/primitives/rectangles.hh>
 #include <psyqo/primitives/sprites.hh>
-#include <psyqo/simplepad.hh>
 
 DialogueBox::DialogueBox()
 {}
 
-void DialogueBox::handleInput(const psyqo::SimplePad& pad)
+void DialogueBox::handleInput(const PadManager& pad)
 {
-    if (pad.isButtonPressed(psyqo::SimplePad::Pad1, psyqo::SimplePad::Cross)) {
+    if (pad.wasButtonJustPressed(psyqo::SimplePad::Cross)) {
         if (allTextShown) {
             numOfCharsToShow = 0;
         }

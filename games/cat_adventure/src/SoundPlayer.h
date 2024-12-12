@@ -35,7 +35,7 @@ struct SoundPlayer {
     void init();
 
     void resetVoice(int voiceId);
-    void playSound(int voiceId, const Sound& sound, std::uint16_t pitch);
+    void playSound(int voiceId, const std::uint32_t startAddr, std::uint16_t pitch = 4096);
     void playSound(
         int voiceId,
         std::uint32_t startAddr,
@@ -60,4 +60,5 @@ struct SoundPlayer {
     std::uint16_t spuState = 0;
 
     static bool reverbEnabled;
+    uint32_t sfxReverbMask{0};
 };

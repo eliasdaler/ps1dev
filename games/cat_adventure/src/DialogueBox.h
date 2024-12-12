@@ -8,18 +8,14 @@
 #include "Renderer.h"
 #include "Timer.h"
 
-namespace psyqo
-{
-struct SimplePad;
-};
-
 struct TextureInfo;
 struct Font;
+class PadManager;
 
 class DialogueBox {
 public:
     DialogueBox();
-    void handleInput(const psyqo::SimplePad& pad);
+    void handleInput(const PadManager& pad);
     void update();
     void draw(
         Renderer& renderer,

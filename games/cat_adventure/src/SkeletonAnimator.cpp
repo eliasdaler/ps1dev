@@ -4,8 +4,15 @@
 
 #include "Model.h"
 
-void SkeletonAnimator::setAnimation(StringHash animationName)
+void SkeletonAnimator::setAnimation(
+    StringHash animationName,
+    psyqo::FixedPoint<> playbackSpeed,
+    psyqo::FixedPoint<> startAnimationPoint)
 {
+    if (animationName == currentAnimationName && this->playbackSpeed == playbackSpeed) {
+        return;
+    }
+
     const auto anim = findAnimation(animationName);
     if (!anim) {
         ramsyscall_printf("Animation %s was not found\n", animationName.getStr());
@@ -14,8 +21,18 @@ void SkeletonAnimator::setAnimation(StringHash animationName)
 
     currentAnimation = anim;
     currentAnimationName = animationName;
+    this->playbackSpeed = playbackSpeed;
 
-    normalizedAnimTime = 0.0;
+    if (startAnimationPoint == 0.0) {
+        if (playbackSpeed > 0.0) {
+            normalizedAnimTime = 0.0;
+        } else {
+            normalizedAnimTime = 1.0;
+        }
+    } else {
+        normalizedAnimTime = startAnimationPoint;
+    }
+    prevNormalizedAnimTime = normalizedAnimTime;
 }
 
 const SkeletalAnimation* SkeletonAnimator::findAnimation(StringHash animationName) const
@@ -33,13 +50,26 @@ const SkeletalAnimation* SkeletonAnimator::findAnimation(StringHash animationNam
 
 void SkeletonAnimator::update()
 {
-    normalizedAnimTime += 0.04;
+    prevNormalizedAnimTime = normalizedAnimTime;
+    normalizedAnimTime += playbackSpeed;
     if (normalizedAnimTime > 1.0) { // loop
         normalizedAnimTime -= 1.0;
     }
     if (normalizedAnimTime < 0.0) {
         normalizedAnimTime = 1.0;
     }
+}
+
+int SkeletonAnimator::getAnimationFrame() const
+{
+    return (normalizedAnimTime * psyqo::FixedPoint<>(currentAnimation->length, 0)).integer();
+}
+
+bool SkeletonAnimator::frameJustChanged() const
+{
+    const auto prevFrame =
+        (prevNormalizedAnimTime * psyqo::FixedPoint<>(currentAnimation->length, 0)).integer();
+    return prevFrame != getAnimationFrame();
 }
 
 void SkeletonAnimator::animate(Model& model) const
