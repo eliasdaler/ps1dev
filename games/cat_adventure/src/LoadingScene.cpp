@@ -3,7 +3,7 @@
 #include "Game.h"
 #include "Renderer.h"
 
-LoadingScene::LoadingScene(Game& game, Renderer& renderer) : game(game), renderer(renderer)
+LoadingScene::LoadingScene(Game& game) : game(game)
 {}
 
 void LoadingScene::start(StartReason reason)
@@ -11,10 +11,10 @@ void LoadingScene::start(StartReason reason)
 
 void LoadingScene::frame()
 {
-    draw();
+    draw(game.renderer);
 }
 
-void LoadingScene::draw()
+void LoadingScene::draw(Renderer& renderer)
 {
     const auto parity = gpu().getParity();
     auto& ot = renderer.ots[parity];

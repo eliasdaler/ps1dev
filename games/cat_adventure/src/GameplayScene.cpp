@@ -18,8 +18,6 @@
 
 #include <psyqo/xprintf.h>
 
-#include "StringHash.h"
-
 namespace
 {
 constexpr auto worldScale = 8.0;
@@ -30,14 +28,14 @@ consteval long double ToWorldCoords(long double d)
 
 } // end of anonymous namespace
 
-GameplayScene::GameplayScene(Game& game, Renderer& renderer) : game(game), renderer(renderer)
+GameplayScene::GameplayScene(Game& game) : game(game)
 {}
 
 void GameplayScene::start(StartReason reason)
 {
-    renderer.setFogNearFar(2500, 12800, SCREEN_WIDTH / 2);
+    game.renderer.setFogNearFar(2500, 12800, SCREEN_WIDTH / 2);
     static const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
-    renderer.setFarColor(farColor);
+    game.renderer.setFarColor(farColor);
 
     if (reason == StartReason::Create) {
         cato.model = &game.catoModel;
@@ -79,7 +77,6 @@ void GameplayScene::start(StartReason reason)
     armature.selectedJoint = 5;
     auto& mesh = game.catoModel.meshes[0];
     armature.highlightMeshInfluences(mesh, armature.selectedJoint);
-    // ramsyscall_printf("String: %s\n", animationName.getStr());
 }
 
 void GameplayScene::onResourcesLoaded()
@@ -87,16 +84,13 @@ void GameplayScene::onResourcesLoaded()
 
 void GameplayScene::frame()
 {
-    const auto currentFrameCounter = gpu().getFrameCount();
-    frameDiff = currentFrameCounter - lastFrameCounter;
-    lastFrameCounter = currentFrameCounter;
-
+    fpsCounter.update(game.gpu());
     processInput();
     update();
 
     gpu().pumpCallbacks();
 
-    draw();
+    draw(game.renderer);
 }
 
 void GameplayScene::processInput()
@@ -216,7 +210,7 @@ void GameplayScene::update()
     dialogueBox.update();
 }
 
-void GameplayScene::draw()
+void GameplayScene::draw(Renderer& renderer)
 {
     auto& ot = renderer.getOrderingTable();
     auto& primBuffer = renderer.getPrimBuffer();
@@ -242,7 +236,7 @@ void GameplayScene::draw()
     if (game.levelId == 0) {
         renderer.drawModelObject(levelObj, camera, game.bricksTexture);
     } else if (game.levelId == 1) {
-        drawTestLevel();
+        drawTestLevel(renderer);
     }
 
     gp.pumpCallbacks();
@@ -268,10 +262,10 @@ void GameplayScene::draw()
 
     // dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
 
-    drawDebugInfo();
+    drawDebugInfo(renderer);
 }
 
-void GameplayScene::drawTestLevel()
+void GameplayScene::drawTestLevel(Renderer& renderer)
 {
     MeshObject object;
     auto* meshA = &game.levelModel.meshes[0];
@@ -319,7 +313,7 @@ void GameplayScene::drawTestLevel()
     renderer.drawMeshObject(object, camera, game.catoTexture);
 }
 
-void GameplayScene::drawDebugInfo()
+void GameplayScene::drawDebugInfo(Renderer& renderer)
 {
     renderer.drawObjectAxes(cato, camera);
 
@@ -335,19 +329,6 @@ void GameplayScene::drawDebugInfo()
     auto test = psyqo::Vec4{1.0, 2.0, 3.0, 4.0};
     fsprintf(str, "%.2f, %.2f, %.2f, %.2f\n", test.x, test.y, test.z, test.w);
     ramsyscall_printf("vec = %s\n", str.c_str()); */
-
-    /* renderer.drawLineLocalSpace(
-        {0, ToWorldCoords(0.85), 0}, {0, ToWorldCoords(0.85 + 0.3), 0}, {.r = 255, .g = 0, .b = 0});
-     */
-
-    /* { // draw some test lines in world space
-        renderer.drawLineWorldSpace(
-            camera, {0., 0., -0.4}, {0., 0.1, -0.4}, {.r = 255, .g = 255, .b = 255});
-        renderer.drawLineWorldSpace(
-            camera, {0., 0.1, -0.4}, {0.1, 0.12, -0.4}, {.r = 255, .g = 0, .b = 255});
-        renderer.drawLineWorldSpace(
-            camera, {0.1, 0.12, -0.4}, {0.2, 0.2, -0.2}, {.r = 0, .g = 255, .b = 255});
-    } */
 
     static const psyqo::Color textCol = {{.r = 255, .g = 255, .b = 255}};
 
@@ -400,19 +381,11 @@ void GameplayScene::drawDebugInfo()
     game.romFont.chainprintf(
         game.gpu(), {{.x = 16, .y = 80}}, textCol, "t = (%.3f)", catoAnimator.normalizedAnimTime);
 
-    const auto fps = gpu().getRefreshRate() / frameDiff;
-    fpsMovingAverageNew = alpha * fps + oneMinAlpha * fpsMovingAverageOld;
-    fpsMovingAverageOld = fpsMovingAverageNew;
-
-    newFPS.value = fps << 12;
-    // lerp
-    avgFPS = avgFPS + lerpFactor * (newFPS - avgFPS);
-
     game.romFont.chainprintf(
         game.gpu(),
         {{.x = 16, .y = 48}},
         textCol,
         "FPS: %.2f, avg: %.2f",
-        fpsMovingAverageNew,
-        avgFPS);
+        fpsCounter.getMovingAverage(),
+        fpsCounter.getAverage());
 }

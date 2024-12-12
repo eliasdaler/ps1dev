@@ -12,6 +12,7 @@ add_executable(game
   src/StringHash.cpp
   src/Timer.cpp
   src/Bouncer.cpp
+  src/FPSCounter.cpp
 
   src/Quaternion.cpp
   src/Transform.cpp

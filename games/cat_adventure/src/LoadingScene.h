@@ -7,15 +7,14 @@ class Renderer;
 
 class LoadingScene : public psyqo::Scene {
 public:
-    LoadingScene(Game& game, Renderer& renderer);
+    LoadingScene(Game& game);
 
 private:
     void start(StartReason reason) override;
 
     void frame() override;
 
-    void draw();
+    void draw(Renderer& renderer);
 
     Game& game;
-    Renderer& renderer;
 };

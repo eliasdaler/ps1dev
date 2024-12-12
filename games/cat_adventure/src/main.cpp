@@ -22,8 +22,9 @@ const char* getLevelModelPath(int levelId)
 
 Game game;
 
-GameplayScene gameplayScene{game, game.renderer};
-LoadingScene loadingScene{game, game.renderer};
+// REMOVE THIS!!!
+GameplayScene gameplayScene{game};
+LoadingScene loadingScene{game};
 } // namespace
 
 psyqo::Coroutine<> loadCoroutine(Game* game)
