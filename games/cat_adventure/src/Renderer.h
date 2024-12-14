@@ -72,7 +72,11 @@ public:
     void setFarColor(const psyqo::Color& c);
     uint32_t calcInterpFactor(uint32_t sz);
 
+    void setFOV(uint32_t nh);
+
 private:
+    bool shouldCullObject(const Object& object, const Camera& camera) const;
+
     psyqo::GPU& gpu;
     psyqo::Trig<> trig;
 
@@ -92,4 +96,5 @@ private:
 
     uint32_t dqa{};
     uint32_t dqb{};
+    uint32_t h{300};
 };

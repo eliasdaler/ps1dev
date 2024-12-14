@@ -6,6 +6,7 @@
 
 #include <psyqo/soft-math.hh>
 
+#include "Transform.h"
 #include "gte-math.h"
 
 #include "Camera.h"
@@ -25,16 +26,15 @@ void Object::calculateWorldMatrix()
     }
 
     // yaw
-    worldMatrix =
-        psyqo::SoftMath::generateRotationMatrix33(rotation.y, psyqo::SoftMath::Axis::Y, trig);
+    getRotationMatrix33RH(&worldMatrix, rotation.y, psyqo::SoftMath::Axis::Y, trig);
 
-    if (rotation.x == 0.0) { // pitch
+    if (rotation.x == 0.0) {
         return;
     }
 
-    const auto rotX =
-        psyqo::SoftMath::generateRotationMatrix33(rotation.x, psyqo::SoftMath::Axis::X, trig);
-    // psyqo::SoftMath::multiplyMatrix33(objectRotMat, rotX, &objectRotMat);
+    // pitch
+    psyqo::Matrix33 rotX;
+    getRotationMatrix33RH(&rotX, rotation.x, psyqo::SoftMath::Axis::X, trig);
     psyqo::GTE::Math::multiplyMatrix33<
         psyqo::GTE::PseudoRegister::Rotation,
         psyqo::GTE::PseudoRegister::V0>(worldMatrix, rotX, &worldMatrix);

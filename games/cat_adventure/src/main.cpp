@@ -7,7 +7,7 @@
 
 namespace
 {
-const int startLevel = 0;
+const int startLevel = 1;
 
 const char* getLevelModelPath(int levelId)
 {
@@ -22,7 +22,6 @@ const char* getLevelModelPath(int levelId)
 
 Game game;
 
-// REMOVE THIS!!!
 GameplayScene gameplayScene{game};
 LoadingScene loadingScene{game};
 } // namespace

@@ -23,7 +23,7 @@ namespace
 constexpr auto worldScale = 8.0;
 consteval long double ToWorldCoords(long double d)
 {
-    return d / 8.0;
+    return d / worldScale;
 }
 
 } // end of anonymous namespace
@@ -62,7 +62,7 @@ void GameplayScene::start(StartReason reason)
             camera.position = {0.47, 0.42, 0.73};
             camera.rotation = {0.11, 1.20};
 
-            // car.position = {0.0, 0.0, 5.0};
+            camera.rotation.x = 0.05;
         } else if (game.levelId == 1) {
             cato.position = {0.5, 0.0, 0.5};
             cato.rotation = {0.0, 1.0};
@@ -115,14 +115,18 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
 
     constexpr auto walkSpeed = 0.0065;
     constexpr auto sprintSpeed = 0.02;
-    constexpr auto rotateSpeed = 0.04;
+    // constexpr auto rotateSpeed = 0.04;
+    constexpr auto rotateSpeed = 0.03;
 
     // yaw
+    bool isRotating = false;
     if (pad.isButtonPressed(psyqo::SimplePad::Left)) {
-        cato.rotation.y -= rotateSpeed;
+        cato.rotation.y += rotateSpeed;
+        isRotating = true;
     }
     if (pad.isButtonPressed(psyqo::SimplePad::Right)) {
-        cato.rotation.y += rotateSpeed;
+        cato.rotation.y -= rotateSpeed;
+        isRotating = true;
     }
 
     // go forward/backward
@@ -146,19 +150,21 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
     if (isMoving) {
         if (moveForward) {
             if (isSprinting) {
-                cato.position.x -= trig.sin(cato.rotation.y) * sprintSpeed;
+                cato.position.x += trig.sin(cato.rotation.y) * sprintSpeed;
                 cato.position.z += trig.cos(cato.rotation.y) * sprintSpeed;
                 catoAnimator.setAnimation("Run"_sh, 0.05, 0.125);
             } else {
-                cato.position.x -= trig.sin(cato.rotation.y) * walkSpeed;
+                cato.position.x += trig.sin(cato.rotation.y) * walkSpeed;
                 cato.position.z += trig.cos(cato.rotation.y) * walkSpeed;
                 catoAnimator.setAnimation("Walk"_sh, 0.035, 0.3);
             }
         } else {
-            cato.position.x += trig.sin(cato.rotation.y) * walkSpeed * 0.4;
+            cato.position.x -= trig.sin(cato.rotation.y) * walkSpeed * 0.4;
             cato.position.z -= trig.cos(cato.rotation.y) * walkSpeed * 0.4;
-            catoAnimator.setAnimation("Walk"_sh, -0.03, 0.3);
+            catoAnimator.setAnimation("Walk"_sh, -0.025, 0.3);
         }
+    } else if (isRotating) {
+        catoAnimator.setAnimation("Walk"_sh, 0.025, 0.3);
     } else {
         catoAnimator.setAnimation("Idle"_sh);
     }
@@ -180,6 +186,13 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
                 }
             }
         }
+    }
+
+    if (pad.isButtonPressed(psyqo::SimplePad::L2)) {
+        camera.rotation.x += rotateSpeed;
+    }
+    if (pad.isButtonPressed(psyqo::SimplePad::R2)) {
+        camera.rotation.x -= rotateSpeed;
     }
 }
 
@@ -257,13 +270,36 @@ void GameplayScene::processDebugInput(const PadManager& pad)
 
 void GameplayScene::updateCamera()
 {
-    // calculate camera rotation matrix
-    camera.viewRot = psyqo::SoftMath::
-        generateRotationMatrix33(camera.rotation.y, psyqo::SoftMath::Axis::Y, game.trig);
-    const auto viewRotX = psyqo::SoftMath::
-        generateRotationMatrix33(camera.rotation.x, psyqo::SoftMath::Axis::X, game.trig);
+    const auto& trig = game.trig;
 
-    // psyqo::SoftMath::multiplyMatrix33(camera.viewRot, viewRotX, &camera.viewRot);
+    if (!freeCamera) {
+        static constexpr auto cameraOffset = psyqo::Vec3{
+            .x = -0.05,
+            .y = 0.21,
+            .z = -0.16,
+        };
+        static constexpr auto cameraPitch = psyqo::FixedPoint<10>(0.045);
+
+        const auto& player = cato;
+
+        const auto fwdVector = player.getFront(trig);
+        const auto rightVector = player.getRight(trig);
+
+        camera.position.y = player.position.y + cameraOffset.y;
+        camera.position.x =
+            player.position.x + fwdVector.x * cameraOffset.z + rightVector.x * cameraOffset.x;
+        camera.position.z =
+            player.position.z + fwdVector.z * cameraOffset.z + rightVector.z * cameraOffset.x;
+
+        camera.rotation.x = cameraPitch;
+        camera.rotation.y = player.rotation.y;
+    }
+
+    // calculate camera rotation matrix
+    getRotationMatrix33RH(&camera.viewRot, -camera.rotation.y, psyqo::SoftMath::Axis::Y, trig);
+    psyqo::Matrix33 viewRotX;
+    getRotationMatrix33RH(&viewRotX, -camera.rotation.x, psyqo::SoftMath::Axis::X, trig);
+
     psyqo::GTE::Math::multiplyMatrix33<
         psyqo::GTE::PseudoRegister::Rotation,
         psyqo::GTE::PseudoRegister::V0>(viewRotX, camera.viewRot, &camera.viewRot);
@@ -351,8 +387,8 @@ void GameplayScene::draw(Renderer& renderer)
 void GameplayScene::drawTestLevel(Renderer& renderer)
 {
     MeshObject object;
-    auto* meshA = &game.levelModel.meshes[0];
-    auto* meshB = &game.levelModel.meshes[1];
+    auto meshA = &game.levelModel.meshes[0];
+    auto meshB = &game.levelModel.meshes[1];
     renderer.bias = 1000;
     for (int x = 0; x < 10; ++x) {
         for (int z = -3; z < 3; ++z) {
@@ -369,7 +405,7 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
         }
     }
 
-    auto* tree = &game.levelModel.meshes[4];
+    auto tree = &game.levelModel.meshes[4];
     object.mesh = tree;
     for (int i = 0; i < 10; ++i) {
         object.position.x = psyqo::FixedPoint(i, 0);
@@ -378,7 +414,7 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
         renderer.drawMeshObject(object, camera, game.catoTexture);
     }
 
-    auto* lamp = &game.levelModel.meshes[2];
+    auto lamp = &game.levelModel.meshes[2];
     object.mesh = lamp;
     for (int i = 0; i < 10; ++i) {
         object.position.x = psyqo::FixedPoint(i, 0);
@@ -387,7 +423,7 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
         renderer.drawMeshObject(object, camera, game.catoTexture);
     }
 
-    auto* car = &game.levelModel.meshes[5];
+    auto car = &game.levelModel.meshes[5];
     renderer.bias = -100;
     object.mesh = car;
     object.position = {};
@@ -420,17 +456,17 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
         {{.x = 16, .y = 16}},
         textCol,
         "cam pos = (%.2f, %.2f, %.2f)",
-        camera.position.x,
-        camera.position.y,
-        camera.position.z);
+        cato.position.x,
+        cato.position.y,
+        cato.position.z);
 
     game.romFont.chainprintf(
         game.gpu(),
         {{.x = 16, .y = 32}},
         textCol,
-        "cam rot=(%.2a, %.2a)",
-        camera.rotation.x,
-        camera.rotation.y);
+        "camera rot=(%.2a, %.2a)",
+        cato.rotation.x,
+        cato.rotation.y);
 
     /* game.romFont.chainprintf(
         game.gpu(),

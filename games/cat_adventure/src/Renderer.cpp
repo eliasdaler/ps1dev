@@ -70,7 +70,7 @@ void Renderer::init()
         psyqo::FixedPoint<16>(SCREEN_HEIGHT / 2.0).raw());
 
     // projection plane distance
-    psyqo::GTE::write<psyqo::GTE::Register::H, psyqo::GTE::Unsafe>(300);
+    setFOV(250);
 
     // FIXME: use OT_SIZE here somehow?
     psyqo::GTE::write<psyqo::GTE::Register::ZSF3, psyqo::GTE::Unsafe>(1024 / 3);
@@ -105,11 +105,26 @@ void Renderer::calculateViewModelMatrix(const Object& object, const Camera& came
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(posCamSpace);
 }
 
+bool Renderer::shouldCullObject(const Object& object, const Camera& camera) const
+{
+    static constexpr auto cullDistance = psyqo::FixedPoint<>(64.f);
+    auto posCamSpace = object.position - camera.position;
+    if (posCamSpace.x * posCamSpace.x + posCamSpace.y * posCamSpace.y +
+            posCamSpace.z * posCamSpace.z >
+        cullDistance) {
+        return true;
+    }
+    return false;
+}
+
 void Renderer::drawModelObject(
     const ModelObject& object,
     const Camera& camera,
     const TextureInfo& texture)
 {
+    if (shouldCullObject(object, camera)) {
+        return;
+    }
     calculateViewModelMatrix(object, camera, true);
     drawModel(*object.model, texture);
 }
@@ -119,6 +134,9 @@ void Renderer::drawMeshObject(
     const Camera& camera,
     const TextureInfo& texture)
 {
+    if (shouldCullObject(object, camera)) {
+        return;
+    }
     calculateViewModelMatrix(object, camera, false);
     drawMesh(*object.mesh, texture);
 }
@@ -183,13 +201,9 @@ void Renderer::drawTris(
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&tri2d.pointB.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&tri2d.pointC.packed);
 
-        /* tri2d.pointA.y = -tri2d.pointA.y;
-        tri2d.pointB.y = -tri2d.pointB.y;
-        tri2d.pointC.y = -tri2d.pointC.y; */
-
-        const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
-        const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
-        const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
+        const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
+        const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
+        const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
 
         { // per vertex interpolation
             const auto p0 = calcInterpFactor(sz0);
@@ -202,8 +216,6 @@ void Renderer::drawTris(
             interpColor(v1.col, p1, &tri2d.colorB);
             interpColor(v2.col, p2, &tri2d.colorC);
         }
-        // this uses one p per quad
-        // tri2d.interpolateColors(&v0.col, &v1.col, &v2.col);
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedTriangle>) {
             tri2d.uvA.u = v0.uv.vx;
@@ -271,11 +283,6 @@ void Renderer::drawQuads(
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointC.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
 
-        /* quad2d.pointA.y = -quad2d.pointA.y;
-        quad2d.pointB.y = -quad2d.pointB.y;
-        quad2d.pointC.y = -quad2d.pointC.y;
-        quad2d.pointD.y = -quad2d.pointD.y; */
-
         { // per vertex interpolation
             const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
             const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
@@ -287,6 +294,10 @@ void Renderer::drawQuads(
             const auto p2 = calcInterpFactor(sz2);
             const auto p3 = calcInterpFactor(sz3);
 
+            if (quad2d.pointA.x < -100 && quad2d.pointC.x > 900) {
+                ramsyscall_printf("WHAT: %d, %d, %d, %d\n", sz0, sz1, sz3);
+            }
+
             psyqo::Color col;
             interpColor(v0.col, p0, &col);
             quad2d.setColorA(col);
@@ -294,12 +305,6 @@ void Renderer::drawQuads(
             interpColor(v2.col, p2, &quad2d.colorC);
             interpColor(v3.col, p3, &quad2d.colorD);
         }
-
-        // this uses one p per quad
-        // TEMP: psyqo's interpolateColors is broken
-        // interpColor3(v0.col, v1.col, v2.col, quad2d);
-        // interpColorD(v3.col, quad2d);
-        // quad2d.interpolateColors(&v0.col, &v1.col, &v2.col, &v3.col);
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedQuad>) {
             quad2d.uvA.u = v0.uv.vx;
@@ -407,7 +412,12 @@ uint32_t Renderer::calcInterpFactor(uint32_t sz)
         sz = 1;
     }
 
-    const auto h = 300;
     const auto mac0 = (((h * 0x20000) / sz + 1) / 2) * dqa + dqb;
     return mac0 / 0x1000;
+}
+
+void Renderer::setFOV(uint32_t nh)
+{
+    h = nh;
+    psyqo::GTE::write<psyqo::GTE::Register::H, psyqo::GTE::Unsafe>(250);
 }

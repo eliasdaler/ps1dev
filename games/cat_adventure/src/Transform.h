@@ -4,6 +4,7 @@
 #include <psyqo/vector.hh>
 
 #include <psyqo/gte-registers.hh>
+#include <psyqo/soft-math.hh>
 
 #include "Quaternion.h"
 
@@ -26,3 +27,9 @@ struct Transform {
 };
 
 TransformMatrix combineTransforms(const TransformMatrix& parentTransform, const Transform& local);
+
+void getRotationMatrix33RH(
+    psyqo::Matrix33* m,
+    psyqo::Angle t,
+    psyqo::SoftMath::Axis a,
+    const psyqo::Trig<>& trig);
