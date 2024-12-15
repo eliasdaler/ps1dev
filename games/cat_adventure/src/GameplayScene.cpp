@@ -33,7 +33,7 @@ GameplayScene::GameplayScene(Game& game) : game(game)
 
 void GameplayScene::start(StartReason reason)
 {
-    game.renderer.setFogNearFar(2500, 12800, SCREEN_WIDTH / 2);
+    game.renderer.setFogNearFar(0.6, 3.125);
     static const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
     game.renderer.setFarColor(farColor);
 
@@ -76,11 +76,6 @@ void GameplayScene::start(StartReason reason)
     }
 
     game.songPlayer.init(game.midi, game.vab);
-
-    /* auto& armature = game.catoModel.armature;
-    armature.selectedJoint = 5;
-    auto& mesh = game.catoModel.meshes[0];
-    armature.highlightMeshInfluences(mesh, armature.selectedJoint); */
 }
 
 void GameplayScene::frame()
@@ -455,18 +450,18 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
         game.gpu(),
         {{.x = 16, .y = 16}},
         textCol,
-        "cam pos = (%.2f, %.2f, %.2f)",
-        cato.position.x,
-        cato.position.y,
-        cato.position.z);
+        "cam pos = (%d, %d, %d)",
+        cato.position.x.value,
+        cato.position.y.value,
+        cato.position.z.value);
 
     game.romFont.chainprintf(
         game.gpu(),
         {{.x = 16, .y = 32}},
         textCol,
-        "camera rot=(%.2a, %.2a)",
-        cato.rotation.x,
-        cato.rotation.y);
+        "camera rot=(%d, %d)",
+        cato.rotation.x.value,
+        cato.rotation.y.value);
 
     /* game.romFont.chainprintf(
         game.gpu(),

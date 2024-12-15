@@ -188,9 +188,14 @@ void Renderer::drawTris(
         }
 
         psyqo::GTE::Kernels::avsz3();
+
         auto avgZ = (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
-        avgZ += bias;
-        if (avgZ <= 0 || avgZ >= Renderer::OT_SIZE) {
+        if (avgZ == 0) { // cull
+            continue;
+        }
+
+        avgZ += bias; // add bias
+        if (avgZ >= Renderer::OT_SIZE) {
             continue;
         }
 
@@ -273,9 +278,14 @@ void Renderer::drawQuads(
         psyqo::GTE::Kernels::rtps();
 
         psyqo::GTE::Kernels::avsz4();
+
         auto avgZ = (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
-        avgZ += bias;
-        if (avgZ <= 0 || avgZ >= Renderer::OT_SIZE) {
+        if (avgZ == 0) { // cull
+            continue;
+        }
+
+        avgZ += bias; // add bias
+        if (avgZ >= Renderer::OT_SIZE) {
             continue;
         }
 
@@ -293,10 +303,6 @@ void Renderer::drawQuads(
             const auto p1 = calcInterpFactor(sz1);
             const auto p2 = calcInterpFactor(sz2);
             const auto p3 = calcInterpFactor(sz3);
-
-            if (quad2d.pointA.x < -100 && quad2d.pointC.x > 900) {
-                ramsyscall_printf("WHAT: %d, %d, %d, %d\n", sz0, sz1, sz3);
-            }
 
             psyqo::Color col;
             interpColor(v0.col, p0, &col);
@@ -384,9 +390,13 @@ void Renderer::drawLineWorldSpace(
     gpu.chain(lineFrag);
 }
 
-void Renderer::setFogNearFar(int a, int b, int h)
+void Renderer::setFogNearFar(psyqo::FixedPoint<> near, psyqo::FixedPoint<> far)
 {
-    // TODO: check params + add asserts?
+    const auto a = near.value;
+    const auto b = far.value;
+    const auto h = SCREEN_WIDTH / 2;
+
+    // TODO: rewrite this to use fixed point numbers directly
     const auto dqa = ((-a * b / (b - a)) << 8) / h;
     const auto dqaF = eastl::clamp(dqa, -32767, 32767);
     const auto dqbF = ((b << 12) / (b - a) << 12);
@@ -402,7 +412,7 @@ void Renderer::setFarColor(const psyqo::Color& c)
 {
     psyqo::GTE::write<psyqo::GTE::Register::RFC, psyqo::GTE::Unsafe>(c.r);
     psyqo::GTE::write<psyqo::GTE::Register::GFC, psyqo::GTE::Unsafe>(c.g);
-    psyqo::GTE::write<psyqo::GTE::Register::BFC, psyqo::GTE::Unsafe>(c.b);
+    psyqo::GTE::write<psyqo::GTE::Register::BFC, psyqo::GTE::Safe>(c.b);
 }
 
 uint32_t Renderer::calcInterpFactor(uint32_t sz)

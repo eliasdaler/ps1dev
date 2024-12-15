@@ -7,7 +7,7 @@
 
 namespace
 {
-const int startLevel = 1;
+const int startLevel = 0;
 
 const char* getLevelModelPath(int levelId)
 {
@@ -83,7 +83,6 @@ psyqo::Coroutine<> loadCoroutine(Game* game)
 
 void Game::createScene()
 {
-    // testing::testMatrix();
     romFont.uploadSystemFont(gpu(), {{.x = 960, .y = int16_t(512 - 48 - 90)}});
 
     pad.init();

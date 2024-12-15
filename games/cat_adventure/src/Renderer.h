@@ -68,7 +68,7 @@ public:
         const psyqo::Vec3& b,
         const psyqo::Color& c);
 
-    void setFogNearFar(int a, int b, int h);
+    void setFogNearFar(psyqo::FixedPoint<> near, psyqo::FixedPoint<> far);
     void setFarColor(const psyqo::Color& c);
     uint32_t calcInterpFactor(uint32_t sz);
 
