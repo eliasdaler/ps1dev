@@ -38,9 +38,9 @@ void GameplayScene::start(StartReason reason)
     game.renderer.setFarColor(farColor);
 
     if (reason == StartReason::Create) {
-        cato.model = &game.catoModel;
-        catoAnimator.animations = &game.animations;
-        catoAnimator.setAnimation("Idle"_sh);
+        player.model = &game.catoModel;
+        playerAnimator.animations = &game.animations;
+        playerAnimator.setAnimation("Idle"_sh);
 
         car.model = &game.carModel;
         levelObj.model = &game.levelModel;
@@ -48,24 +48,16 @@ void GameplayScene::start(StartReason reason)
         levelObj.rotation = {};
 
         if (game.levelId == 0) {
-            cato.position = {0.0, 0.0, 0.0};
-            cato.rotation = {0.0, 0.0};
+            player.position = {0.0, 0.0, 0.25};
+            player.rotation = {0.0, -1.0};
 
             camera.position = {0.12, ToWorldCoords(1.5f), 0.81};
             camera.rotation = {0.0, 1.0};
 
-            // armature debug
-            camera.position = {0.19, 0.28, 0.28};
-            camera.rotation = {0.11, 1.17};
-
-            // walk debug
-            camera.position = {0.47, 0.42, 0.73};
-            camera.rotation = {0.11, 1.20};
-
             camera.rotation.x = 0.05;
         } else if (game.levelId == 1) {
-            cato.position = {0.5, 0.0, 0.5};
-            cato.rotation = {0.0, 1.0};
+            player.position = {0.5, 0.0, 0.5};
+            player.rotation = {0.0, 1.0};
 
             car.position = {0.0, 0.0, 0.5};
             car.rotation = {0.0, 0.2};
@@ -105,22 +97,20 @@ void GameplayScene::processInput(const PadManager& pad)
 
 void GameplayScene::processPlayerInput(const PadManager& pad)
 {
-    const auto& player = cato;
     const auto& trig = game.trig;
 
     constexpr auto walkSpeed = 0.0065;
     constexpr auto sprintSpeed = 0.02;
-    // constexpr auto rotateSpeed = 0.04;
     constexpr auto rotateSpeed = 0.03;
 
     // yaw
     bool isRotating = false;
     if (pad.isButtonPressed(psyqo::SimplePad::Left)) {
-        cato.rotation.y += rotateSpeed;
+        player.rotation.y += rotateSpeed;
         isRotating = true;
     }
     if (pad.isButtonPressed(psyqo::SimplePad::Right)) {
-        cato.rotation.y -= rotateSpeed;
+        player.rotation.y -= rotateSpeed;
         isRotating = true;
     }
 
@@ -145,35 +135,35 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
     if (isMoving) {
         if (moveForward) {
             if (isSprinting) {
-                cato.position.x += trig.sin(cato.rotation.y) * sprintSpeed;
-                cato.position.z += trig.cos(cato.rotation.y) * sprintSpeed;
-                catoAnimator.setAnimation("Run"_sh, 0.05, 0.125);
+                player.position.x += trig.sin(player.rotation.y) * sprintSpeed;
+                player.position.z += trig.cos(player.rotation.y) * sprintSpeed;
+                playerAnimator.setAnimation("Run"_sh, 0.05, 0.125);
             } else {
-                cato.position.x += trig.sin(cato.rotation.y) * walkSpeed;
-                cato.position.z += trig.cos(cato.rotation.y) * walkSpeed;
-                catoAnimator.setAnimation("Walk"_sh, 0.035, 0.3);
+                player.position.x += trig.sin(player.rotation.y) * walkSpeed;
+                player.position.z += trig.cos(player.rotation.y) * walkSpeed;
+                playerAnimator.setAnimation("Walk"_sh, 0.035, 0.3);
             }
         } else {
-            cato.position.x -= trig.sin(cato.rotation.y) * walkSpeed * 0.4;
-            cato.position.z -= trig.cos(cato.rotation.y) * walkSpeed * 0.4;
-            catoAnimator.setAnimation("Walk"_sh, -0.025, 0.3);
+            player.position.x -= trig.sin(player.rotation.y) * walkSpeed * 0.4;
+            player.position.z -= trig.cos(player.rotation.y) * walkSpeed * 0.4;
+            playerAnimator.setAnimation("Walk"_sh, -0.025, 0.3);
         }
     } else if (isRotating) {
-        catoAnimator.setAnimation("Walk"_sh, 0.025, 0.3);
+        playerAnimator.setAnimation("Walk"_sh, 0.025, 0.3);
     } else {
-        catoAnimator.setAnimation("Idle"_sh);
+        playerAnimator.setAnimation("Idle"_sh);
     }
 
     if (isMoving) {
-        if (catoAnimator.frameJustChanged()) {
-            const auto animFrame = catoAnimator.getAnimationFrame();
-            if (catoAnimator.currentAnimationName == "Walk"_sh) {
+        if (playerAnimator.frameJustChanged()) {
+            const auto animFrame = playerAnimator.getAnimationFrame();
+            if (playerAnimator.currentAnimationName == "Walk"_sh) {
                 if (animFrame == 4) {
                     game.soundPlayer.playSound(20, game.step1Sound);
                 } else if (animFrame == 20) {
                     game.soundPlayer.playSound(21, game.step2Sound);
                 }
-            } else if (catoAnimator.currentAnimationName == "Run"_sh) {
+            } else if (playerAnimator.currentAnimationName == "Run"_sh) {
                 if (animFrame == 3) {
                     game.soundPlayer.playSound(20, game.step1Sound);
                 } else if (animFrame == 15) {
@@ -249,7 +239,7 @@ void GameplayScene::processDebugInput(const PadManager& pad)
             if (animIndex >= game.animations.size()) {
                 animIndex = 0;
             }
-            catoAnimator.setAnimation(game.animations[animIndex].name);
+            playerAnimator.setAnimation(game.animations[animIndex].name);
         }
 
         if (pad.wasButtonJustPressed(psyqo::SimplePad::Triangle)) {
@@ -258,7 +248,7 @@ void GameplayScene::processDebugInput(const PadManager& pad)
             } else {
                 animIndex = game.animations.size() - 1;
             }
-            catoAnimator.setAnimation(game.animations[animIndex].name);
+            playerAnimator.setAnimation(game.animations[animIndex].name);
         }
     }
 }
@@ -274,8 +264,6 @@ void GameplayScene::updateCamera()
             .z = -0.16,
         };
         static constexpr auto cameraPitch = psyqo::FixedPoint<10>(0.045);
-
-        const auto& player = cato;
 
         const auto fwdVector = player.getFront(trig);
         const auto rightVector = player.getRight(trig);
@@ -313,10 +301,10 @@ void GameplayScene::update()
     // cato.rotation.y += 0.01;
     // cato.rotation.x = 0.25;
 
-    catoAnimator.update();
-    catoAnimator.animate(*cato.model);
+    playerAnimator.update();
+    playerAnimator.animate(*player.model);
 
-    cato.calculateWorldMatrix();
+    player.calculateWorldMatrix();
     car.calculateWorldMatrix();
 
     dialogueBox.update();
@@ -360,7 +348,7 @@ void GameplayScene::draw(Renderer& renderer)
         // (won't have to upload camera.viewRot and change PseudoRegister::Rotation then)
 
         {
-            renderer.drawModelObject(cato, camera, game.catoTexture);
+            renderer.drawModelObject(player, camera, game.catoTexture);
         }
 
         if (game.levelId == 1) {
@@ -429,7 +417,7 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
 
 void GameplayScene::drawDebugInfo(Renderer& renderer)
 {
-    renderer.drawObjectAxes(cato, camera);
+    renderer.drawObjectAxes(player, camera);
 
     /* renderer.drawLineLocalSpace(
         {0, ToWorldCoords(1.31), 0},
@@ -450,18 +438,18 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
         game.gpu(),
         {{.x = 16, .y = 16}},
         textCol,
-        "cam pos = (%d, %d, %d)",
-        cato.position.x.value,
-        cato.position.y.value,
-        cato.position.z.value);
+        "cam pos = (%.2f, %.2f, %.2f)",
+        player.position.x,
+        player.position.y,
+        player.position.z);
 
     game.romFont.chainprintf(
         game.gpu(),
         {{.x = 16, .y = 32}},
         textCol,
-        "camera rot=(%d, %d)",
-        cato.rotation.x.value,
-        cato.rotation.y.value);
+        "camera rot=(%.2f, %.2f)",
+        psyqo::FixedPoint<>(player.rotation.x),
+        psyqo::FixedPoint<>(player.rotation.y));
 
     /* game.romFont.chainprintf(
         game.gpu(),
@@ -478,7 +466,7 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
         textCol,
         "%d, anim=%s",
         animIndex,
-        catoAnimator.currentAnimation->name.getStr());
+        playerAnimator.currentAnimation->name.getStr());
 
     auto& rot = armature.joints[armature.selectedJoint].localTransform.rotation;
 
@@ -497,8 +485,8 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
         {{.x = 16, .y = 80}},
         textCol,
         "t = (%.3f), f = %d",
-        catoAnimator.normalizedAnimTime,
-        catoAnimator.getAnimationFrame());
+        playerAnimator.normalizedAnimTime,
+        playerAnimator.getAnimationFrame());
 
     game.romFont.chainprintf(
         game.gpu(),

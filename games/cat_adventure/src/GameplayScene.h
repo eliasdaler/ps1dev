@@ -36,21 +36,18 @@ private:
     void drawTestLevel(Renderer& renderer);
     void drawDebugInfo(Renderer& renderer);
 
+    Game& game;
+
     // game objects
     ModelObject car;
     ModelObject levelObj;
 
-    ModelObject cato;
-    SkeletonAnimator catoAnimator;
+    ModelObject player;
+    SkeletonAnimator playerAnimator;
 
     Camera camera;
 
-    Game& game;
-
     DialogueBox dialogueBox;
-
-    int toneNum{0};
-    int reverbPreset{0};
 
     std::size_t animIndex{1};
 

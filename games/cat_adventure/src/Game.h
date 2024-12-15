@@ -19,6 +19,9 @@
 #include "TimFile.h"
 #include "VabFile.h"
 
+#include "GameplayScene.h"
+#include "LoadingScene.h"
+
 class Game : public psyqo::Application {
     void prepare() override;
     void createScene() override;
@@ -44,7 +47,7 @@ public:
     psyqo::ISO9660Parser isoParser{&cdrom};
     psyqo::paths::CDRomLoader cdromLoader;
     eastl::vector<std::uint8_t> cdReadBuffer;
-    psyqo::Coroutine<> cdLoadCoroutine;
+    psyqo::Coroutine<> gameLoadCoroutine;
 
     PadManager pad;
 
@@ -73,4 +76,7 @@ public:
 
     MidiFile midi;
     VabFile vab;
+
+    GameplayScene gameplayScene;
+    LoadingScene loadingScene;
 };

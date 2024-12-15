@@ -4,11 +4,30 @@
 
 #include "StringHashes.h"
 
-Game::Game() : renderer(gpu()), songPlayer(gpu(), soundPlayer)
+namespace
+{
+const int startLevel = 0;
+
+const char* getLevelModelPath(int levelId)
+{
+    switch (levelId) {
+    case 0:
+        return "LEVEL.BIN;1";
+    case 1:
+        return "LEVEL2.BIN;1";
+    }
+    return "";
+}
+}
+
+Game::Game() :
+    renderer(gpu()), songPlayer(gpu(), soundPlayer), gameplayScene(*this), loadingScene(*this)
 {}
 
 void Game::prepare()
 {
+    initStringHashes();
+
     psyqo::GPU::Configuration config;
     config.set(psyqo::GPU::Resolution::W320)
         .set(psyqo::GPU::VideoMode::NTSC)
@@ -16,10 +35,79 @@ void Game::prepare()
         .set(psyqo::GPU::Interlace::PROGRESSIVE);
     gpu().initialize(config);
     cdrom.prepare();
-    soundPlayer.init();
 
-    initStringHashes();
+    soundPlayer.init();
     renderer.init();
+}
+
+namespace
+{
+psyqo::Coroutine<> loadCoroutine(Game& game)
+{
+    game.levelId = startLevel;
+
+    psyqo::Coroutine<>::Awaiter awaiter = game.gameLoadCoroutine.awaiter();
+
+    game.loadModel(getLevelModelPath(game.levelId), game.levelModel);
+    co_await awaiter;
+
+    game.loadModel("CATO.BIN;1", game.catoModel);
+    co_await awaiter;
+
+    game.loadModel("CAR.BIN;1", game.carModel);
+    co_await awaiter;
+
+    game.loadTIM("BRICKS.TIM;1", game.bricksTexture);
+    co_await awaiter;
+
+    game.loadTIM("CATO.TIM;1", game.catoTexture);
+    co_await awaiter;
+
+    game.loadTIM("CAR.TIM;1", game.carTexture);
+    co_await awaiter;
+
+    game.loadTIM("FONT.TIM;1", game.fontTexture);
+    co_await awaiter;
+
+    game.loadFont("FONT.FNT;1", game.font);
+    co_await awaiter;
+
+    game.loadAnimations("HUMAN.ANM;1", game.animations);
+    co_await awaiter;
+
+    game.loadMIDI("SONG.MID;1", game.midi);
+    co_await awaiter;
+
+    game.loadInstruments("INST.VAB;1", game.vab);
+    co_await awaiter;
+
+    game.loadRawPCM("SMPL.PCM;1", 0x1010);
+    co_await awaiter;
+
+    game.step1Sound = 0x3300;
+    game.loadSound("STEP1.VAG;1", game.step1Sound);
+    co_await awaiter;
+
+    game.step2Sound = 0x3F00;
+    game.loadSound("STEP2.VAG;1", game.step2Sound);
+    co_await awaiter;
+
+    game.popScene(); // pop loading scene
+    game.pushScene(&game.gameplayScene);
+}
+}
+
+void Game::createScene()
+{
+    romFont.uploadSystemFont(gpu(), {{.x = 960, .y = int16_t(512 - 48 - 90)}});
+
+    pad.init();
+
+    pushScene(&loadingScene);
+
+    // load resources
+    gameLoadCoroutine = loadCoroutine(*this);
+    gameLoadCoroutine.resume();
 }
 
 void Game::loadTIM(eastl::string_view filename, TextureInfo& textureInfo)
@@ -29,7 +117,7 @@ void Game::loadTIM(eastl::string_view filename, TextureInfo& textureInfo)
             cdReadBuffer = eastl::move(buffer);
             const auto tim = readTimFile(cdReadBuffer);
             textureInfo = uploadTIM(tim);
-            cdLoadCoroutine.resume();
+            gameLoadCoroutine.resume();
         });
 }
 
@@ -39,7 +127,7 @@ void Game::loadFont(eastl::string_view filename, Font& font)
         .readFile(filename, gpu(), isoParser, [this, &font](eastl::vector<uint8_t>&& buffer) {
             cdReadBuffer = eastl::move(buffer);
             font.loadFromFile(cdReadBuffer);
-            cdLoadCoroutine.resume();
+            gameLoadCoroutine.resume();
         });
 }
 
@@ -49,7 +137,7 @@ void Game::loadModel(eastl::string_view filename, Model& model)
         .readFile(filename, gpu(), isoParser, [this, &model](eastl::vector<uint8_t>&& buffer) {
             cdReadBuffer = eastl::move(buffer);
             model.load(cdReadBuffer);
-            cdLoadCoroutine.resume();
+            gameLoadCoroutine.resume();
         });
 }
 
@@ -64,7 +152,7 @@ void Game::loadSound(eastl::string_view filename, uint32_t spuUploadAddr)
             Sound sound;
             sound.load(filename, cdReadBuffer);
             soundPlayer.uploadSound(spuUploadAddr << 3, sound);
-            cdLoadCoroutine.resume();
+            gameLoadCoroutine.resume();
         });
 }
 
@@ -74,7 +162,7 @@ void Game::loadMIDI(eastl::string_view filename, MidiFile& midi)
         filename, gpu(), isoParser, [this, filename, &midi](eastl::vector<uint8_t>&& buffer) {
             cdReadBuffer = eastl::move(buffer);
             midi.load(filename, cdReadBuffer);
-            cdLoadCoroutine.resume();
+            gameLoadCoroutine.resume();
         });
 }
 
@@ -84,7 +172,7 @@ void Game::loadInstruments(eastl::string_view filename, VabFile& vab)
         filename, gpu(), isoParser, [this, filename, &vab](eastl::vector<uint8_t>&& buffer) {
             cdReadBuffer = eastl::move(buffer);
             vab.load(filename, cdReadBuffer);
-            cdLoadCoroutine.resume();
+            gameLoadCoroutine.resume();
         });
 }
 
@@ -93,7 +181,7 @@ void Game::loadRawPCM(eastl::string_view filename, uint32_t spuUploadAddr)
     cdromLoader.readFile(
         filename, gpu(), isoParser, [this, spuUploadAddr](eastl::vector<uint8_t>&& buffer) {
             soundPlayer.uploadSound(spuUploadAddr, buffer.data(), buffer.size());
-            cdLoadCoroutine.resume();
+            gameLoadCoroutine.resume();
         });
 }
 
@@ -103,7 +191,7 @@ void Game::loadAnimations(eastl::string_view filename, eastl::vector<SkeletalAni
         .readFile(filename, gpu(), isoParser, [this, &animations](eastl::vector<uint8_t>&& buffer) {
             cdReadBuffer = eastl::move(buffer);
             ::loadAnimations(cdReadBuffer, animations);
-            cdLoadCoroutine.resume();
+            gameLoadCoroutine.resume();
         });
 }
 
@@ -123,8 +211,6 @@ TextureInfo Game::uploadTIM(const TimFile& tim)
 
     TextureInfo info;
     info.clut = {{.x = tim.clutDX, .y = tim.clutDY}};
-
-    // ramsyscall_printf("tim pixDX: %d, pixDY: %d\n", tim.pixDX, tim.pixDY);
 
     const auto colorMode = [](TimFile::PMode pmode) {
         switch (pmode) {
