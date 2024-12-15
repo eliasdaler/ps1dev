@@ -79,10 +79,6 @@ void Renderer::init()
 
 void Renderer::calculateViewModelMatrix(const Object& object, const Camera& camera, bool setViewRot)
 {
-    if (object.rotation.x == 0.0 && object.rotation.y == 0.0) {
-        setViewRot = false;
-    }
-
     if (setViewRot) {
         // V * M
         psyqo::Matrix33 viewModelMatrix;
@@ -120,12 +116,13 @@ bool Renderer::shouldCullObject(const Object& object, const Camera& camera) cons
 void Renderer::drawModelObject(
     const ModelObject& object,
     const Camera& camera,
-    const TextureInfo& texture)
+    const TextureInfo& texture,
+    bool setViewRot)
 {
     if (shouldCullObject(object, camera)) {
         return;
     }
-    calculateViewModelMatrix(object, camera, true);
+    calculateViewModelMatrix(object, camera, setViewRot);
     drawModel(*object.model, texture);
 }
 

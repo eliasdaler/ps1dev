@@ -45,6 +45,9 @@ private:
     ModelObject player;
     SkeletonAnimator playerAnimator;
 
+    ModelObject npc;
+    SkeletonAnimator npcAnimator;
+
     Camera camera;
 
     DialogueBox dialogueBox;

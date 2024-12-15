@@ -25,7 +25,8 @@ public:
     void drawModelObject(
         const ModelObject& object,
         const Camera& camera,
-        const TextureInfo& texture);
+        const TextureInfo& texture,
+        bool setViewRot = true);
     void drawMeshObject(const MeshObject& object, const Camera& camera, const TextureInfo& texture);
 
     void drawModel(const Model& model, const TextureInfo& texture);

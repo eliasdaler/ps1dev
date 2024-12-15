@@ -42,6 +42,10 @@ void GameplayScene::start(StartReason reason)
         playerAnimator.animations = &game.animations;
         playerAnimator.setAnimation("Idle"_sh);
 
+        npc.model = &game.catoModel2;
+        npcAnimator.animations = &game.animations;
+        npcAnimator.setAnimation("Idle"_sh);
+
         car.model = &game.carModel;
         levelObj.model = &game.levelModel;
         levelObj.position = {};
@@ -50,6 +54,9 @@ void GameplayScene::start(StartReason reason)
         if (game.levelId == 0) {
             player.position = {0.0, 0.0, 0.25};
             player.rotation = {0.0, -1.0};
+
+            npc.position = {0.0, 0.0, 0.1};
+            npc.rotation = {0.0, 0.1};
 
             camera.position = {0.12, ToWorldCoords(1.5f), 0.81};
             camera.rotation = {0.0, 1.0};
@@ -304,8 +311,12 @@ void GameplayScene::update()
     playerAnimator.update();
     playerAnimator.animate(*player.model);
 
+    npcAnimator.update();
+    npcAnimator.animate(*npc.model);
+
     player.calculateWorldMatrix();
     car.calculateWorldMatrix();
+    npc.calculateWorldMatrix();
 
     dialogueBox.update();
 }
@@ -334,7 +345,7 @@ void GameplayScene::draw(Renderer& renderer)
 
     // draw static objects
     if (game.levelId == 0) {
-        renderer.drawModelObject(levelObj, camera, game.bricksTexture);
+        renderer.drawModelObject(levelObj, camera, game.bricksTexture, false);
     } else if (game.levelId == 1) {
         drawTestLevel(renderer);
     }
@@ -349,6 +360,10 @@ void GameplayScene::draw(Renderer& renderer)
 
         {
             renderer.drawModelObject(player, camera, game.catoTexture);
+        }
+
+        {
+            renderer.drawModelObject(npc, camera, game.catoTexture);
         }
 
         if (game.levelId == 1) {
