@@ -222,6 +222,7 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
 
         for (const auto& mesh : modelJson.meshes) {
             const auto tm = object.transform.asMatrix();
+            auto& ib = armatureJson.inverseBindMatrices[mesh.jointId];
             PsxSubmesh psxMesh;
 
             if (object.name.ends_with(".SD")) {
@@ -251,13 +252,14 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
                 for (std::size_t i = 0; i < face.vertices.size(); ++i) {
                     const auto& v = mesh.vertices[face.vertices[i]];
                     // calculate world pos
-                    const auto pos = glm::vec3{tm * glm::vec4{v.position, 1.f}};
+                    const auto position = glm::vec3{v.position.x, v.position.z, -v.position.y};
+                    const auto pos = glm::vec3{ib * tm * glm::vec4{position, 1.f}};
 
                     psxFace[i].originalIndex = face.vertices[i];
                     psxFace[i].pos = {
                         .x = floatToFixed<FixedPoint4_12>(pos.x, params.scale), // X' = X
-                        .y = floatToFixed<FixedPoint4_12>(pos.z, params.scale), // Y' = Z
-                        .z = floatToFixed<FixedPoint4_12>(-pos.y, params.scale), // Z' = -Y
+                        .y = floatToFixed<FixedPoint4_12>(pos.y, params.scale), // Y' = Z
+                        .z = floatToFixed<FixedPoint4_12>(pos.z, params.scale), // Z' = -Y
                     };
 
                     /* printf(
@@ -364,15 +366,15 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
 
                                 const auto& v = meshJson.vertices[vid];
                                 // from Blender to glTF
-                                const auto position =
+                                /* const auto position =
                                     glm::vec3{v.position.x, v.position.z, -v.position.y};
                                 // Vertices are stored in joint space
-                                const auto pos = glm::vec3{ib * glm::vec4{position, 1.f}};
+                                const auto pos = glm::vec3{ib * tm * glm::vec4{position, 1.f}};
                                 face[j].pos = {
                                     .x = floatToFixed<FixedPoint4_12>(pos.x, params.scale),
                                     .y = floatToFixed<FixedPoint4_12>(pos.y, params.scale),
                                     .z = floatToFixed<FixedPoint4_12>(pos.z, params.scale),
-                                };
+                                }; */
                             }
                             ++newVertexId;
                         }

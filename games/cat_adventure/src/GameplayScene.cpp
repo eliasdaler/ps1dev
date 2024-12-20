@@ -363,7 +363,7 @@ void GameplayScene::draw(Renderer& renderer)
         // (won't have to upload camera.viewRot and change PseudoRegister::Rotation then)
 
         {
-            // renderer.drawModelObject(player, player.model->armature, camera, game.catoTexture);
+            renderer.drawModelObject(player, player.model->armature, camera, game.catoTexture);
         }
 
         {

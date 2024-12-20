@@ -140,7 +140,11 @@ void Renderer::drawModelObject(
 
     TransformMatrix view;
     view.rotation = camera.viewRot;
-    view.translation = camera.position;
+    view.translation = -camera.position;
+
+    psyqo::GTE::Math::matrixVecMul3<
+        psyqo::GTE::PseudoRegister::Rotation,
+        psyqo::GTE::PseudoRegister::V0>(view.rotation, view.translation, &view.translation);
 
     const auto& model = *object.model;
     for (const auto& mesh : model.meshes) {
