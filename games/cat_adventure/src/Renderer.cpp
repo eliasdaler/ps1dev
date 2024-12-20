@@ -138,12 +138,6 @@ void Renderer::drawModelObject(
         return;
     }
 
-    // V * M
-    psyqo::Matrix33 vmMatrix;
-    psyqo::GTE::Math::multiplyMatrix33<
-        psyqo::GTE::PseudoRegister::Rotation,
-        psyqo::GTE::PseudoRegister::V0>(camera.viewRot, object.transform.rotation, &vmMatrix);
-
     TransformMatrix view;
     view.rotation = camera.viewRot;
     view.translation = camera.position;

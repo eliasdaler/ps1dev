@@ -57,25 +57,19 @@ TransformMatrix combineTransforms(
     const TransformMatrix& localTransform)
 {
     TransformMatrix result;
-    // R = R_parent * R_local
 
-#ifdef USE_GTE_MATH
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(parentTransform.rotation);
+
+    // R = R_parent * R_local
     psyqo::GTE::Math::multiplyMatrix33<
         PseudoRegister::Rotation,
         PseudoRegister::V0>(parentTransform.rotation, localTransform.rotation, &result.rotation);
-#else
-    psyqo::SoftMath::multiplyMatrix33(localRot, parentTransform.rotation, &result.rotation);
-#endif
 
     // T = T_parent + R_parent * T_local
-#ifdef USE_GTE_MATH
+
     psyqo::GTE::Math::matrixVecMul3<
         PseudoRegister::Rotation,
         PseudoRegister::V0>(localTransform.translation, &result.translation);
-#else
-    psyqo::SoftMath::
-        matrixVecMul3(parentTransform.rotation, local.translation, &result.translation);
-#endif
 
     result.translation += parentTransform.translation;
 
