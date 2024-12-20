@@ -21,12 +21,12 @@ psyqo::Trig<> Object::trig{};
 void Object::calculateWorldMatrix()
 {
     if (rotation.x == 0.0 && rotation.y == 0.0) {
-        worldMatrix = I;
+        transform.rotation = I;
         return;
     }
 
     // yaw
-    getRotationMatrix33RH(&worldMatrix, rotation.y, psyqo::SoftMath::Axis::Y, trig);
+    getRotationMatrix33RH(&transform.rotation, rotation.y, psyqo::SoftMath::Axis::Y, trig);
 
     if (rotation.x == 0.0) {
         return;
@@ -37,5 +37,5 @@ void Object::calculateWorldMatrix()
     getRotationMatrix33RH(&rotX, rotation.x, psyqo::SoftMath::Axis::X, trig);
     psyqo::GTE::Math::multiplyMatrix33<
         psyqo::GTE::PseudoRegister::Rotation,
-        psyqo::GTE::PseudoRegister::V0>(worldMatrix, rotX, &worldMatrix);
+        psyqo::GTE::PseudoRegister::V0>(transform.rotation, rotX, &transform.rotation);
 }

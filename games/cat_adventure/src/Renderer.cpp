@@ -84,12 +84,13 @@ void Renderer::calculateViewModelMatrix(const Object& object, const Camera& came
         psyqo::Matrix33 viewModelMatrix;
         psyqo::GTE::Math::multiplyMatrix33<
             psyqo::GTE::PseudoRegister::Rotation,
-            psyqo::GTE::PseudoRegister::V0>(camera.viewRot, object.worldMatrix, &viewModelMatrix);
+            psyqo::GTE::PseudoRegister::
+                V0>(camera.viewRot, object.transform.rotation, &viewModelMatrix);
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(viewModelMatrix);
     }
 
     // what 4th column would be if we did V * M
-    auto posCamSpace = object.position - camera.position;
+    auto posCamSpace = object.transform.translation - camera.position;
     if (!setViewRot) {
         psyqo::GTE::Math::matrixVecMul3<
             psyqo::GTE::PseudoRegister::Rotation,
@@ -104,7 +105,7 @@ void Renderer::calculateViewModelMatrix(const Object& object, const Camera& came
 bool Renderer::shouldCullObject(const Object& object, const Camera& camera) const
 {
     static constexpr auto cullDistance = psyqo::FixedPoint<>(64.f);
-    auto posCamSpace = object.position - camera.position;
+    auto posCamSpace = object.transform.translation - camera.position;
     if (posCamSpace.x * posCamSpace.x + posCamSpace.y * posCamSpace.y +
             posCamSpace.z * posCamSpace.z >
         cullDistance) {
@@ -124,6 +125,25 @@ void Renderer::drawModelObject(
     }
     calculateViewModelMatrix(object, camera, setViewRot);
     drawModel(*object.model, texture);
+}
+
+void Renderer::drawModelObject(
+    const ModelObject& object,
+    const Armature& armature,
+    const Camera& camera,
+    const TextureInfo& texture,
+    bool setViewRot)
+{
+    const auto& tm = armature.joints[0].globalTransform;
+
+    if (shouldCullObject(object, camera)) {
+        return;
+    }
+    calculateViewModelMatrix(object, camera, setViewRot);
+    const auto& model = *object.model;
+    for (const auto& mesh : model.meshes) {
+        drawMesh(mesh, texture);
+    }
 }
 
 void Renderer::drawMeshObject(

@@ -27,6 +27,14 @@ public:
         const Camera& camera,
         const TextureInfo& texture,
         bool setViewRot = true);
+
+    void drawModelObject(
+        const ModelObject& object,
+        const Armature& armature,
+        const Camera& camera,
+        const TextureInfo& texture,
+        bool setViewRot = true);
+
     void drawMeshObject(const MeshObject& object, const Camera& camera, const TextureInfo& texture);
 
     void drawModel(const Model& model, const TextureInfo& texture);

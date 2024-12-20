@@ -4,6 +4,8 @@
 #include <psyqo/trigonometry.hh>
 #include <psyqo/vector.hh>
 
+#include "Transform.h"
+
 struct Model;
 struct Mesh;
 
@@ -30,11 +32,20 @@ struct Object {
         };
     }
 
-    psyqo::Vec3 position{0.f, 0.f, 0.f}; // world position
-    psyqo::Vector<2, 10> rotation; // pitch/yaw
-    // VECTOR scale{ONE, ONE, ONE};
+    void setPosition(
+        const psyqo::FixedPoint<> x,
+        const psyqo::FixedPoint<> y,
+        const psyqo::FixedPoint<> z)
+    {
+        transform.translation.x = x;
+        transform.translation.y = y;
+        transform.translation.z = z;
+    }
+    void setPosition(const psyqo::Vec3& t) { transform.translation = t; }
+    const psyqo::Vec3& getPosition() const { return transform.translation; }
 
-    psyqo::Matrix33 worldMatrix; // M
+    TransformMatrix transform; // M
+    psyqo::Vector<2, 10> rotation; // rotation stored as pitch/yaw
 
     static psyqo::Trig<> trig;
 };

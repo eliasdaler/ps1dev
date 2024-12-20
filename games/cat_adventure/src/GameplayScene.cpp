@@ -48,14 +48,14 @@ void GameplayScene::start(StartReason reason)
 
         car.model = &game.carModel;
         levelObj.model = &game.levelModel;
-        levelObj.position = {};
+        levelObj.setPosition({});
         levelObj.rotation = {};
 
         if (game.levelId == 0) {
-            player.position = {0.0, 0.0, 0.25};
+            player.setPosition({0.0, 0.0, 0.25});
             player.rotation = {0.0, -1.0};
 
-            npc.position = {0.0, 0.0, 0.1};
+            npc.setPosition({0.0, 0.0, 0.1});
             npc.rotation = {0.0, 0.1};
 
             camera.position = {0.12, ToWorldCoords(1.5f), 0.81};
@@ -63,10 +63,10 @@ void GameplayScene::start(StartReason reason)
 
             camera.rotation.x = 0.05;
         } else if (game.levelId == 1) {
-            player.position = {0.5, 0.0, 0.5};
+            player.setPosition({0.5, 0.0, 0.5});
             player.rotation = {0.0, 1.0};
 
-            car.position = {0.0, 0.0, 0.5};
+            car.setPosition({0.0, 0.0, 0.5});
             car.rotation = {0.0, 0.2};
 
             camera.position = {0.f, ToWorldCoords(1.5f), -1.f};
@@ -139,22 +139,24 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
         isSprinting = true;
     }
 
+    auto playerPos = player.getPosition();
     if (isMoving) {
         if (moveForward) {
             if (isSprinting) {
-                player.position.x += trig.sin(player.rotation.y) * sprintSpeed;
-                player.position.z += trig.cos(player.rotation.y) * sprintSpeed;
+                playerPos.x += trig.sin(player.rotation.y) * sprintSpeed;
+                playerPos.z += trig.cos(player.rotation.y) * sprintSpeed;
                 playerAnimator.setAnimation("Run"_sh, 0.05, 0.125);
             } else {
-                player.position.x += trig.sin(player.rotation.y) * walkSpeed;
-                player.position.z += trig.cos(player.rotation.y) * walkSpeed;
+                playerPos.x += trig.sin(player.rotation.y) * walkSpeed;
+                playerPos.z += trig.cos(player.rotation.y) * walkSpeed;
                 playerAnimator.setAnimation("Walk"_sh, 0.035, 0.3);
             }
         } else {
-            player.position.x -= trig.sin(player.rotation.y) * walkSpeed * 0.4;
-            player.position.z -= trig.cos(player.rotation.y) * walkSpeed * 0.4;
+            playerPos.x -= trig.sin(player.rotation.y) * walkSpeed * 0.4;
+            playerPos.z -= trig.cos(player.rotation.y) * walkSpeed * 0.4;
             playerAnimator.setAnimation("Walk"_sh, -0.025, 0.3);
         }
+        player.setPosition(playerPos);
     } else if (isRotating) {
         playerAnimator.setAnimation("Walk"_sh, 0.025, 0.3);
     } else {
@@ -275,11 +277,12 @@ void GameplayScene::updateCamera()
         const auto fwdVector = player.getFront(trig);
         const auto rightVector = player.getRight(trig);
 
-        camera.position.y = player.position.y + cameraOffset.y;
+        const auto& playerPos = player.getPosition();
+        camera.position.y = playerPos.y + cameraOffset.y;
         camera.position.x =
-            player.position.x + fwdVector.x * cameraOffset.z + rightVector.x * cameraOffset.x;
+            playerPos.x + fwdVector.x * cameraOffset.z + rightVector.x * cameraOffset.x;
         camera.position.z =
-            player.position.z + fwdVector.z * cameraOffset.z + rightVector.z * cameraOffset.x;
+            playerPos.z + fwdVector.z * cameraOffset.z + rightVector.z * cameraOffset.x;
 
         camera.rotation.x = cameraPitch;
         camera.rotation.y = player.rotation.y;
@@ -395,9 +398,7 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
             } else {
                 object.mesh = meshB;
             }
-            object.position.x = psyqo::FixedPoint(x, 0);
-            object.position.y = 0.0;
-            object.position.z = psyqo::FixedPoint(z, 0);
+            object.setPosition(psyqo::FixedPoint(x, 0), 0.0, psyqo::FixedPoint(z, 0));
             object.calculateWorldMatrix();
             renderer.drawMeshObject(object, camera, game.catoTexture);
         }
@@ -406,8 +407,7 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
     auto tree = &game.levelModel.meshes[4];
     object.mesh = tree;
     for (int i = 0; i < 10; ++i) {
-        object.position.x = psyqo::FixedPoint(i, 0);
-        object.position.z = ToWorldCoords(8.0);
+        object.setPosition(psyqo::FixedPoint(i, 0), 0.0, ToWorldCoords(8.0));
         object.calculateWorldMatrix();
         renderer.drawMeshObject(object, camera, game.catoTexture);
     }
@@ -415,8 +415,7 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
     auto lamp = &game.levelModel.meshes[2];
     object.mesh = lamp;
     for (int i = 0; i < 10; ++i) {
-        object.position.x = psyqo::FixedPoint(i, 0);
-        object.position.z = ToWorldCoords(-8.0);
+        object.setPosition(psyqo::FixedPoint(i, 0), 0.0, ToWorldCoords(-8.0));
         object.calculateWorldMatrix();
         renderer.drawMeshObject(object, camera, game.catoTexture);
     }
@@ -424,8 +423,7 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
     auto car = &game.levelModel.meshes[5];
     renderer.bias = -100;
     object.mesh = car;
-    object.position = {};
-    object.position.x = ToWorldCoords(8.0);
+    object.setPosition(ToWorldCoords(8.0), 0.0, 0.0);
     object.calculateWorldMatrix();
     renderer.drawMeshObject(object, camera, game.catoTexture);
 }
@@ -454,9 +452,9 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
         {{.x = 16, .y = 16}},
         textCol,
         "cam pos = (%.2f, %.2f, %.2f)",
-        player.position.x,
-        player.position.y,
-        player.position.z);
+        player.transform.translation.x,
+        player.transform.translation.y,
+        player.transform.translation.z);
 
     game.romFont.chainprintf(
         game.gpu(),
