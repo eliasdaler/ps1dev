@@ -20,7 +20,7 @@ struct Transform {
 struct Object {
     std::string name;
     Transform transform;
-    std::size_t mesh;
+    int mesh{-1};
 };
 
 struct Vertex {
@@ -38,6 +38,7 @@ struct Mesh {
     std::vector<Vertex> vertices;
     std::vector<Face> faces;
     std::vector<std::size_t> materials;
+    int jointId{-1};
 };
 
 struct Material {

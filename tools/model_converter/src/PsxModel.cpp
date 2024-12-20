@@ -42,7 +42,7 @@ void writePsxModel(const PsxModel& model, const std::filesystem::path& path)
     fsutil::binaryWrite(file, static_cast<std::uint16_t>(model.submeshes.size()));
 
     for (const auto& mesh : model.submeshes) {
-        fsutil::binaryWrite(file, static_cast<std::uint16_t>(mesh.subdivide));
+        fsutil::binaryWrite(file, static_cast<std::uint16_t>(mesh.jointId));
         fsutil::binaryWrite(file, static_cast<std::uint16_t>(mesh.untexturedTriFaces.size()));
         fsutil::binaryWrite(file, static_cast<std::uint16_t>(mesh.untexturedQuadFaces.size()));
         fsutil::binaryWrite(file, static_cast<std::uint16_t>(mesh.triFaces.size()));

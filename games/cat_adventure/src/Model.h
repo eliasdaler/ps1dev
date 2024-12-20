@@ -30,7 +30,7 @@ struct Mesh {
     int numUntexturedQuads{0};
     int numTris{0};
     int numQuads{0};
-    bool subdivide{false}; // TODO: flags std::uint16_t
+    std::uint16_t jointId;
 
     eastl::vector<Vertex> ogVertices;
 };

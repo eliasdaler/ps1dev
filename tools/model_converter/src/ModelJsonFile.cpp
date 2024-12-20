@@ -69,7 +69,9 @@ ModelJson parseJsonFile(
         object.transform.rotation = getQuat(objectObj, "rotation", glm::identity<glm::quat>());
         object.transform.scale = getVec3(objectObj, "scale", glm::vec3{1.f});
 
-        object.mesh = objectObj.at("mesh");
+        if (objectObj.contains("mesh")) {
+            object.mesh = objectObj.at("mesh");
+        }
 
         model.objects.push_back(std::move(object));
     }
@@ -78,6 +80,10 @@ ModelJson parseJsonFile(
     model.meshes.reserve(meshesObj.size());
     for (const auto& meshObj : meshesObj) {
         Mesh mesh{};
+
+        if (meshObj.contains("joint_id")) {
+            mesh.jointId = meshObj.at("joint_id");
+        }
 
         // read vertices
         const auto& verticesObj = meshObj.at("vertices");

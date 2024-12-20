@@ -143,30 +143,21 @@ void Renderer::drawModelObject(
     psyqo::GTE::Math::multiplyMatrix33<
         psyqo::GTE::PseudoRegister::Rotation,
         psyqo::GTE::PseudoRegister::V0>(camera.viewRot, object.transform.rotation, &vmMatrix);
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(vmMatrix);
 
-    // V * M * J
-    const auto& jointTransform = armature.getRootJoint().globalTransform;
-    psyqo::Matrix33 vmjMatrix;
-    psyqo::GTE::Math::multiplyMatrix33<
-        psyqo::GTE::PseudoRegister::Rotation,
-        psyqo::GTE::PseudoRegister::V0>(jointTransform.rotation, &vmjMatrix);
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(vmjMatrix);
-
-    auto jtModelSpace = jointTransform.translation;
-    psyqo::GTE::Math::matrixVecMul3<
-        psyqo::GTE::PseudoRegister::Light,
-        psyqo::GTE::PseudoRegister::V0>(jointTransform.rotation, jtModelSpace, &jtModelSpace);
-
-    // what 4th column would be if we did V * M * J
-    auto posCamSpace = jtModelSpace + object.transform.translation - camera.position;
-    psyqo::GTE::Math::matrixVecMul3<
-        psyqo::GTE::PseudoRegister::Light,
-        psyqo::GTE::PseudoRegister::V0>(vmMatrix, posCamSpace, &posCamSpace);
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(posCamSpace);
+    TransformMatrix view;
+    view.rotation = camera.viewRot;
+    view.translation = camera.position;
 
     const auto& model = *object.model;
     for (const auto& mesh : model.meshes) {
+        const auto& jointTransform = armature.joints[mesh.jointId].globalTransform;
+
+        auto t1 = combineTransforms(object.transform, jointTransform);
+        auto t2 = combineTransforms(view, t1);
+
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(t2.rotation);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(t2.translation);
+
         drawMesh(mesh, texture);
     }
 }

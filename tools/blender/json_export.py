@@ -75,12 +75,14 @@ def collect_materials(scene):
 identity_quat = Quaternion()
 identity_scale = Vector((1.0, 1.0, 1.0))
 
-def get_object_data_json(obj, meshes_idx_map):
+def get_object_data_json(obj, meshes_idx_map, has_armature):
     object_data = {
         "name": obj.name,
-        "mesh": meshes_idx_map[obj.data.name],
         "position": [obj.location.x, obj.location.y, obj.location.z],
     }
+
+    if not has_armature:
+        object_data["mesh"] = meshes_idx_map[obj.data.name]
 
     quat = obj.matrix_local.to_quaternion()
     if quat != identity_quat:
@@ -139,7 +141,72 @@ def get_mesh_json(mesh, material_idx_map):
         "vertices": vertices,
         "faces": faces,
         "materials": [material_idx_map[mat.name] for mat in mesh.materials],
+        "joint_id": joint_id,
     }
+
+def get_mesh_json_armature(obj, meshes_list, material_idx_map, joints, joint_name_to_id):
+    num_joints = len(joint_name_to_id)
+    meshes_data = []
+
+    # FIXME: if obj has multiple meshes, convert verts into single model space
+    for idx, joint in enumerate(joints):
+        gid = obj.vertex_groups[joint.name].index
+
+        vertices = [] 
+        faces = []
+
+        for mesh in meshes_list:
+            uv_layer = mesh.uv_layers[0].data
+            vertex_colors = None
+            if mesh.color_attributes:
+                vertex_colors = mesh.color_attributes[0].data
+
+            has_materials_with_textures = mesh_has_materials_with_textures(mesh)
+            for poly in mesh.polygons:
+                vertex_indices = []
+                uvs = []
+
+                skip_polygon = False
+                for loop_index in poly.loop_indices:
+                    vi = mesh.loops[loop_index].vertex_index
+                    vertex = mesh.vertices[vi]
+
+                    if gid not in [g.group for g in vertex.groups]:
+                        skip_polygon = True
+                        break
+
+                    new_index = len(vertices)
+                    vertex_indices.append(new_index)
+
+                    vertex_data = {
+                        "pos": [vertex.co.x, vertex.co.y, vertex.co.z]
+                    }
+
+                    if has_materials_with_textures:
+                        uv = uv_layer[loop_index].uv
+                        uvs.append([uv.x, uv.y])
+
+                    if vertex_colors:
+                        color = vertex_colors[vi].color_srgb
+                        vertex_data["color"] = [
+                            int(color[0] * 255),
+                            int(color[1] * 255),
+                            int(color[2] * 255)
+                        ]
+
+                    vertices.append(vertex_data)
+
+                if not skip_polygon:
+                    faces.append({"vertices": vertex_indices, "uvs": uvs})
+
+        meshes_data.append({
+            "joint_id": idx,
+            "faces": faces,
+            "materials": [0],
+            "vertices": vertices,
+        })
+
+    return meshes_data
 
 
 def get_material_json(material):
@@ -319,14 +386,13 @@ def get_action_json(joints, joint_name_to_id, action, armature_scale):
         final_tracks.append(Track(TrackType.TRANSLATION, joint_id, translation_track))
         final_tracks.append(Track(TrackType.ROTATION, joint_id, rotation_track))
 
-
     if (action.frame_range[0] != 0):
         raise ValueError('Animation does not start from 0 frame')
     action_length = action.frame_range[1]
     return {
-            "name": action.name,
-            "length": action_length,
-            "tracks": [t.toJSON() for t in final_tracks]
+        "name": action.name,
+        "length": action_length,
+        "tracks": [t.toJSON() for t in final_tracks]
     }
 
 def write_psxtools_json(context, filepath):
@@ -351,16 +417,20 @@ def write_psxtools_json(context, filepath):
 
     obj_list = collect_objects(scene)
 
+    has_armature = 'Armature' in scene.objects
+
     data = {
-        "objects":   [get_object_data_json(obj, meshes_idx_map)
+        "objects":   [get_object_data_json(obj, meshes_idx_map, has_armature)
                       for obj in obj_list],
         "materials": [get_material_json(mat)
                       for mat in material_list],
-        "meshes":    [get_mesh_json(mesh, material_idx_map)
-                      for mesh in meshes_list],
     }
 
-    if 'Armature' in scene.objects:
+    if not has_armature:
+        # otherwise, we'll write meshes later
+        data["meshes"] = [get_mesh_json(mesh, material_idx_map) for mesh in meshes_list]
+
+    if has_armature:
         armature = scene.objects['Armature']
         armature_scale = armature.scale
         joint_name_to_id = {}
@@ -409,6 +479,10 @@ def write_psxtools_json(context, filepath):
                     [ib[3][0], ib[3][1], ib[3][2], ib[3][3]],
                 ]
         armature_data["inverseBindMatrices"] = inverse_bind_matrices
+
+        # meshes
+        data["meshes"] = get_mesh_json_armature(armature.children[0], meshes_list, material_idx_map, joints, joint_name_to_id)
+        
 
         # bone influences
         # TODO: check if this child exists

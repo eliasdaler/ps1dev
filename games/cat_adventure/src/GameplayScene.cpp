@@ -363,17 +363,11 @@ void GameplayScene::draw(Renderer& renderer)
         // (won't have to upload camera.viewRot and change PseudoRegister::Rotation then)
 
         {
-            renderer.drawModelObject(player, player.model->armature, camera, game.catoTexture);
+            // renderer.drawModelObject(player, player.model->armature, camera, game.catoTexture);
         }
 
         {
-#define TEST
-#ifdef TEST
             renderer.drawModelObject(npc, npc.model->armature, camera, game.catoTexture);
-#else
-            npc.model->armature.applySkinning(npc.model->meshes[0]);
-            renderer.drawModelObject(npc, camera, game.catoTexture);
-#endif
         }
 
         if (game.levelId == 1) {

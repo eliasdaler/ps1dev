@@ -23,6 +23,7 @@ using PsxQuadFace = std::array<PsxVert, 4>;
 
 struct PsxSubmesh {
     bool subdivide{false};
+    int jointId{-1};
     std::vector<PsxTriFace> untexturedTriFaces;
     std::vector<PsxQuadFace> untexturedQuadFaces;
     std::vector<PsxTriFace> triFaces;

@@ -64,6 +64,10 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
     PsxModel psxModel;
 
     for (const auto& object : modelJson.objects) {
+        if (object.mesh == -1) {
+            continue;
+        }
+
         PsxSubmesh psxMesh;
         const auto& mesh = modelJson.meshes[object.mesh];
         const auto tm = object.transform.asMatrix();
@@ -214,6 +218,119 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
             }
         }
 
+        const auto& object = modelJson.objects[0];
+
+        for (const auto& mesh : modelJson.meshes) {
+            const auto tm = object.transform.asMatrix();
+            PsxSubmesh psxMesh;
+
+            if (object.name.ends_with(".SD")) {
+                psxMesh.subdivide = true;
+            }
+
+            assert(mesh.jointId != -1);
+            psxMesh.jointId = mesh.jointId;
+
+            // TODO: support multiple materials?
+            const auto& material = modelJson.materials[mesh.materials[0]];
+            bool hasTexture = !material.imageData.pixels.empty();
+
+            // std::cout << "tex:" << material.texture << " " << texWidth << " " << texHeight <<
+            // std::endl;
+
+            static const auto zeroUV = glm::vec2{};
+            for (const auto& face : mesh.faces) {
+                std::array<PsxVert, 4> psxFace;
+                if (face.vertices.size() != 3 && face.vertices.size() != 4) {
+                    throw std::runtime_error(std::format(
+                        "bad face in submesh {}: has {} vertices",
+                        object.name,
+                        face.vertices.size()));
+                }
+                assert(face.vertices.size() <= 4);
+                for (std::size_t i = 0; i < face.vertices.size(); ++i) {
+                    const auto& v = mesh.vertices[face.vertices[i]];
+                    // calculate world pos
+                    const auto pos = glm::vec3{tm * glm::vec4{v.position, 1.f}};
+
+                    psxFace[i].originalIndex = face.vertices[i];
+                    psxFace[i].pos = {
+                        .x = floatToFixed<FixedPoint4_12>(pos.x, params.scale), // X' = X
+                        .y = floatToFixed<FixedPoint4_12>(pos.z, params.scale), // Y' = Z
+                        .z = floatToFixed<FixedPoint4_12>(-pos.y, params.scale), // Z' = -Y
+                    };
+
+                    /* printf(
+                        "(%.4f, %.4f, %.4f) -> (%d, %d, %d)\n",
+                        pos.x,
+                        pos.y,
+                        pos.z,
+                        psxFace[i].pos.x,
+                        psxFace[i].pos.y,
+                        psxFace[i].pos.z); */
+
+                    float offset = 0;
+
+                    if (hasTexture) {
+                        const auto texWidth = material.imageData.width;
+                        const auto texHeight = material.imageData.height;
+                        const auto& uv = face.uvs.empty() ? zeroUV : face.uvs[i];
+                        psxFace[i].uv = {
+                            .x = (std::uint8_t)std::clamp(uv.x * (texWidth - offset), 0.f, 255.f),
+                            // Y coord is flipped in UV
+                            .y = (std::uint8_t)
+                                std::clamp((1 - uv.y) * (texHeight - offset), 0.f, 255.f),
+                        };
+                    } else {
+                        // no need to store uvs actually
+                        psxFace[i].uv = {};
+                    }
+
+                    if (hasTexture) {
+                        psxFace[i].color =
+                            {(std::uint8_t)(v.color.x / 2.f),
+                             (std::uint8_t)(v.color.y / 2.f),
+                             (std::uint8_t)(v.color.z / 2.f)};
+                    } else {
+                        psxFace[i].color =
+                            {(std::uint8_t)(v.color.x),
+                             (std::uint8_t)(v.color.y),
+                             (std::uint8_t)(v.color.z)};
+                    }
+                }
+
+                if (face.vertices.size() == 3) {
+                    auto face = PsxTriFace{psxFace[0], psxFace[2], psxFace[1]};
+                    if (hasTexture) {
+                        psxMesh.triFaces.push_back(std::move(face));
+                    } else {
+                        psxMesh.untexturedTriFaces.push_back(std::move(face));
+                    }
+                } else {
+                    assert(face.vertices.size() == 4);
+                    // note the order - that's how PS1 quads work
+                    auto face = PsxQuadFace{psxFace[3], psxFace[2], psxFace[0], psxFace[1]};
+                    if (hasTexture) {
+                        offsetRectUV(face);
+                        psxMesh.quadFaces.push_back(std::move(face));
+                    } else {
+                        psxMesh.untexturedQuadFaces.push_back(std::move(face));
+                    }
+                }
+
+                /* for (int i = 0; i < face.vertices.size(); ++i) {
+                    auto& v = face.vertices.size() == 3 ? psxMesh.triFaces.back()[i] :
+                                                          psxMesh.quadFaces.back()[i];
+                    std::cout << v.pos.x << " " << v.pos.y << " " << v.pos.z << " | ";
+                    std::cout << (int)v.uv.x << " " << (int)v.uv.y << " | ";
+                    std::cout << (int)v.color.x << " " << (int)v.color.y << " " << (int)v.color.z
+                              << std::endl;
+                }
+                std::cout << "____\n"; */
+            }
+            psxModel.submeshes.push_back(std::move(psxMesh));
+        }
+
         /* armature.inverseBindMatrices.resize(numJoints);
         for (int jointId = 0; jointId < numJoints; ++jointId) {
             auto& ibPSX = armature.inverseBindMatrices[jointId];
@@ -232,7 +349,8 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
         auto& mesh = psxModel.submeshes[0]; // FIXME: handle multiple meshes
         auto& meshJson = modelJson.meshes[0];
         const auto tm = modelJson.objects[0].transform.asMatrix();
-        for (int jointId = 0; jointId < numJoints; ++jointId) {
+        for (auto& mesh : psxModel.submeshes) {
+            const auto jointId = mesh.jointId;
             const auto& boneInfluences = armatureJson.boneInfluences[jointId];
             auto& ib = armatureJson.inverseBindMatrices[jointId];
             for (const auto vid : boneInfluences) {
@@ -248,7 +366,8 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
                                 // from Blender to glTF
                                 const auto position =
                                     glm::vec3{v.position.x, v.position.z, -v.position.y};
-                                const auto pos = glm::vec3{ib * tm * glm::vec4{position, 1.f}};
+                                // Vertices are stored in joint space
+                                const auto pos = glm::vec3{ib * glm::vec4{position, 1.f}};
                                 face[j].pos = {
                                     .x = floatToFixed<FixedPoint4_12>(pos.x, params.scale),
                                     .y = floatToFixed<FixedPoint4_12>(pos.y, params.scale),

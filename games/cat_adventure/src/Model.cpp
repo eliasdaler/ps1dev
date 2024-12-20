@@ -19,7 +19,7 @@ void Model::load(const eastl::vector<uint8_t>& data)
     for (int i = 0; i < numSubmeshes; ++i) {
         Mesh mesh;
 
-        mesh.subdivide = (bool)fr.GetUInt16();
+        mesh.jointId = fr.GetUInt16();
         mesh.numUntexturedTris = fr.GetUInt16();
         mesh.numUntexturedQuads = fr.GetUInt16();
         mesh.numTris = fr.GetUInt16();

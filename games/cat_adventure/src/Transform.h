@@ -28,6 +28,10 @@ struct Transform {
 
 TransformMatrix combineTransforms(const TransformMatrix& parentTransform, const Transform& local);
 
+TransformMatrix combineTransforms(
+    const TransformMatrix& parentTransform,
+    const TransformMatrix& localTransform);
+
 void getRotationMatrix33RH(
     psyqo::Matrix33* m,
     psyqo::Angle t,
