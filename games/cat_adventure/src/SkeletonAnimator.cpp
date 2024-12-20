@@ -82,5 +82,5 @@ void SkeletonAnimator::animate(Model& model) const
     const auto& animation = *currentAnimation;
     animateArmature(armature, animation, normalizedAnimTime);
     armature.calculateTransforms();
-    armature.applySkinning(model.meshes[0]);
+    // armature.applySkinning(model.meshes[0]);
 }

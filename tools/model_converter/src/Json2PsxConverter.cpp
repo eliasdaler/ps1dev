@@ -214,12 +214,12 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
             }
         }
 
-        armature.inverseBindMatrices.resize(numJoints);
+        /* armature.inverseBindMatrices.resize(numJoints);
         for (int jointId = 0; jointId < numJoints; ++jointId) {
             auto& ibPSX = armature.inverseBindMatrices[jointId];
             const auto& ib = armature.inverseBindMatrices[jointId];
             // TODO?
-        }
+        } */
 
         // This is where things get complicated
         // Vertices in the binary files are stored per-face, so

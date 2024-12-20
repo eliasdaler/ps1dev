@@ -10,6 +10,8 @@
 
 #define USE_GTE_MATH
 
+#define TEST
+
 using namespace psyqo::GTE;
 using namespace psyqo::GTE::Kernels;
 
@@ -30,15 +32,23 @@ void Armature::applySkinning(Mesh& mesh, const Joint& joint)
     psyqo::GTE::writeUnsafe<JOINT_ROTATION_MATRIX_REGISTER>(joint.globalTransform.rotation);
 #endif
     const auto& ogVertices = mesh.ogVertices;
+#ifdef TEST
+    for (int i = 0; i < mesh.ogVertices.size(); ++i) {
+#else
     for (int i = joint.boneInfluencesOffset;
          i < joint.boneInfluencesOffset + joint.boneInfluencesSize;
          ++i) {
+#endif
         const auto vid = boneInfluences[i];
         psyqo::Vec3 newPos = mesh.ogVertices[vid].pos;
         // TODO: transformPoint for psyqo::GTE::PackedVec3?
         newPos = joint.globalTransform.transformPoint(newPos);
         mesh.vertices[vid].pos = psyqo::GTE::PackedVec3{newPos};
     }
+
+#ifdef TEST
+    return;
+#endif
 
     auto currentJointId = joint.firstChild;
     while (currentJointId != Joint::NULL_JOINT_ID) {

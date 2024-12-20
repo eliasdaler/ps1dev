@@ -44,7 +44,7 @@ void GameplayScene::start(StartReason reason)
 
         npc.model = &game.catoModel2;
         npcAnimator.animations = &game.animations;
-        npcAnimator.setAnimation("Idle"_sh);
+        npcAnimator.setAnimation("Walk"_sh);
 
         car.model = &game.carModel;
         levelObj.model = &game.levelModel;
@@ -55,8 +55,9 @@ void GameplayScene::start(StartReason reason)
             player.setPosition({0.0, 0.0, 0.25});
             player.rotation = {0.0, -1.0};
 
-            npc.setPosition({0.0, 0.0, 0.1});
-            npc.rotation = {0.0, 0.1};
+            npc.setPosition({0.0, 0.0, 0.0});
+            // npc.rotation = {0.0, 0.1};
+            npc.rotation = {0.0, 0.0};
 
             camera.position = {0.12, ToWorldCoords(1.5f), 0.81};
             camera.rotation = {0.0, 1.0};
@@ -362,11 +363,17 @@ void GameplayScene::draw(Renderer& renderer)
         // (won't have to upload camera.viewRot and change PseudoRegister::Rotation then)
 
         {
-            renderer.drawModelObject(player, camera, game.catoTexture);
+            renderer.drawModelObject(player, player.model->armature, camera, game.catoTexture);
         }
 
         {
+#define TEST
+#ifdef TEST
+            renderer.drawModelObject(npc, npc.model->armature, camera, game.catoTexture);
+#else
+            npc.model->armature.applySkinning(npc.model->meshes[0]);
             renderer.drawModelObject(npc, camera, game.catoTexture);
+#endif
         }
 
         if (game.levelId == 1) {
@@ -431,14 +438,15 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
 void GameplayScene::drawDebugInfo(Renderer& renderer)
 {
     renderer.drawObjectAxes(player, camera);
+    // player.model->armature.drawDebug(renderer);
 
     /* renderer.drawLineLocalSpace(
         {0, ToWorldCoords(1.31), 0},
         {0, ToWorldCoords(1.31 + 0.3), 0},
         {.r = 255, .g = 255, .b = 0}); */
 
-    auto& armature = game.catoModel.armature;
-    armature.drawDebug(renderer);
+    renderer.drawObjectAxes(npc, camera);
+    npc.model->armature.drawDebug(renderer);
 
     /* static eastl::fixed_string<char, 512> str;
     auto test = psyqo::Vec4{1.0, 2.0, 3.0, 4.0};
@@ -480,8 +488,6 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
         "%d, anim=%s",
         animIndex,
         playerAnimator.currentAnimation->name.getStr());
-
-    auto& rot = armature.joints[armature.selectedJoint].localTransform.rotation;
 
     /* game.romFont.chainprintf(
         game.gpu(),

@@ -21,6 +21,7 @@ struct Joint {
 };
 
 struct Armature {
+    const Joint& getRootJoint() const { return joints[0]; }
     Joint& getRootJoint() { return joints[0]; }
 
     eastl::vector<Joint> joints;
