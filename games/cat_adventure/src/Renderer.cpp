@@ -194,16 +194,25 @@ void Renderer::drawModel(const Model& model, const TextureInfo& texture)
 
 void Renderer::drawMesh(const Mesh& mesh, const TextureInfo& texture)
 {
+    using namespace psyqo::Prim;
+
     std::size_t vertexIdx = 0;
-    drawTris<psyqo::Prim::GouraudTriangle>(mesh, texture, mesh.numUntexturedTris, vertexIdx);
-    drawQuads<psyqo::Prim::GouraudQuad>(mesh, texture, mesh.numUntexturedQuads, vertexIdx);
-    drawTris<psyqo::Prim::GouraudTexturedTriangle>(mesh, texture, mesh.numTris, vertexIdx);
-    drawQuads<psyqo::Prim::GouraudTexturedQuad>(mesh, texture, mesh.numQuads, vertexIdx);
+    if (fogEnabled) {
+        drawTris<GouraudTriangle, true>(mesh, texture, mesh.numUntexturedTris, vertexIdx);
+        drawQuads<GouraudQuad, true>(mesh, texture, mesh.numUntexturedQuads, vertexIdx);
+        drawTris<GouraudTexturedTriangle, true>(mesh, texture, mesh.numTris, vertexIdx);
+        drawQuads<GouraudTexturedQuad, true>(mesh, texture, mesh.numQuads, vertexIdx);
+    } else {
+        drawTris<GouraudTriangle, false>(mesh, texture, mesh.numUntexturedTris, vertexIdx);
+        drawQuads<GouraudQuad, false>(mesh, texture, mesh.numUntexturedQuads, vertexIdx);
+        drawTris<GouraudTexturedTriangle, false>(mesh, texture, mesh.numTris, vertexIdx);
+        drawQuads<GouraudTexturedQuad, false>(mesh, texture, mesh.numQuads, vertexIdx);
+    }
 
     gpu.pumpCallbacks();
 }
 
-template<typename PrimType>
+template<typename PrimType, bool fogEnabledT>
 void Renderer::drawTris(
     const Mesh& mesh,
     const TextureInfo& texture,
@@ -250,11 +259,12 @@ void Renderer::drawTris(
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&tri2d.pointB.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&tri2d.pointC.packed);
 
-        const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
-        const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
-        const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
+        if constexpr (fogEnabledT) {
+            const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
+            const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
+            const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
 
-        /* { // per vertex interpolation
+            // per vertex interpolation
             const auto p0 = calcInterpFactor(sz0);
             const auto p1 = calcInterpFactor(sz1);
             const auto p2 = calcInterpFactor(sz2);
@@ -264,12 +274,11 @@ void Renderer::drawTris(
             tri2d.setColorA(col);
             interpColor(v1.col, p1, &tri2d.colorB);
             interpColor(v2.col, p2, &tri2d.colorC);
-        } */
-
-        // TEMP: disable fog
-        tri2d.setColorA(v0.col);
-        tri2d.setColorB(v1.col);
-        tri2d.setColorC(v2.col);
+        } else {
+            tri2d.setColorA(v0.col);
+            tri2d.setColorB(v1.col);
+            tri2d.setColorC(v2.col);
+        }
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedTriangle>) {
             tri2d.uvA.u = v0.uv.vx;
@@ -289,7 +298,7 @@ void Renderer::drawTris(
     outVertIdx = vertexIdx;
 }
 
-template<typename PrimType>
+template<typename PrimType, bool fogEnabledT>
 void Renderer::drawQuads(
     const Mesh& mesh,
     const TextureInfo& texture,
@@ -342,30 +351,29 @@ void Renderer::drawQuads(
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointC.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
 
-        /* { // per vertex interpolation
-             const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
-             const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
-             const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
-             const auto sz3 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
+        if constexpr (fogEnabledT) { // per vertex interpolation
+            const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
+            const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
+            const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
+            const auto sz3 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
 
-             const auto p0 = calcInterpFactor(sz0);
-             const auto p1 = calcInterpFactor(sz1);
-             const auto p2 = calcInterpFactor(sz2);
-             const auto p3 = calcInterpFactor(sz3);
+            const auto p0 = calcInterpFactor(sz0);
+            const auto p1 = calcInterpFactor(sz1);
+            const auto p2 = calcInterpFactor(sz2);
+            const auto p3 = calcInterpFactor(sz3);
 
-             psyqo::Color col;
-             interpColor(v0.col, p0, &col);
-             quad2d.setColorA(col);
-             interpColor(v1.col, p1, &quad2d.colorB);
-             interpColor(v2.col, p2, &quad2d.colorC);
-             interpColor(v3.col, p3, &quad2d.colorD);
-         } */
-
-        // TEMP: disable fog
-        quad2d.setColorA(v0.col);
-        quad2d.setColorB(v1.col);
-        quad2d.setColorC(v2.col);
-        quad2d.setColorD(v3.col);
+            psyqo::Color col;
+            interpColor(v0.col, p0, &col);
+            quad2d.setColorA(col);
+            interpColor(v1.col, p1, &quad2d.colorB);
+            interpColor(v2.col, p2, &quad2d.colorC);
+            interpColor(v3.col, p3, &quad2d.colorD);
+        } else {
+            quad2d.setColorA(v0.col);
+            quad2d.setColorB(v1.col);
+            quad2d.setColorC(v2.col);
+            quad2d.setColorD(v3.col);
+        }
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedQuad>) {
             quad2d.uvA.u = v0.uv.vx;
@@ -484,7 +492,7 @@ uint32_t Renderer::calcInterpFactor(uint32_t sz)
 void Renderer::setFOV(uint32_t nh)
 {
     h = nh;
-    psyqo::GTE::write<psyqo::GTE::Register::H, psyqo::GTE::Unsafe>(250);
+    psyqo::GTE::write<psyqo::GTE::Register::H, psyqo::GTE::Unsafe>(h);
 }
 
 void Renderer::drawArmature(const AnimatedModelObject& object, const Camera& camera)

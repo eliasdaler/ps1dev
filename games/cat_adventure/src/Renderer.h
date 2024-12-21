@@ -85,20 +85,22 @@ public:
 
     void setFOV(uint32_t nh);
 
+    void setFogEnabled(bool b) { fogEnabled = b; };
+
 private:
     bool shouldCullObject(const Object& object, const Camera& camera) const;
 
     psyqo::GPU& gpu;
     psyqo::Trig<> trig;
 
-    template<typename PrimType>
+    template<typename PrimType, bool fogEnabledT>
     void drawTris(
         const Mesh& mesh,
         const TextureInfo& texture,
         int numFaces,
         std::size_t& outVertIdx);
 
-    template<typename PrimType>
+    template<typename PrimType, bool fogEnabledT>
     void drawQuads(
         const Mesh& mesh,
         const TextureInfo& texture,
@@ -114,4 +116,6 @@ private:
     std::uint32_t dqa{};
     std::uint32_t dqb{};
     std::uint32_t h{300};
+
+    bool fogEnabled{false};
 };

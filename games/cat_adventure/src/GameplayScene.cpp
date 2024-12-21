@@ -64,6 +64,12 @@ void GameplayScene::start(StartReason reason)
             camera.rotation = {0.0, 1.0};
 
             camera.rotation.x = 0.05;
+
+            // debug
+            camera.position = {0.2900, 0.4501, 0.5192};
+            camera.rotation = {0.1621, -0.7753};
+            freeCamera = true;
+
         } else if (game.levelId == 1) {
             player.setPosition({0.5, 0.0, 0.5});
             player.rotation = {0.0, 1.0};
@@ -261,6 +267,20 @@ void GameplayScene::processDebugInput(const PadManager& pad)
             }
             player.animator.setAnimation(game.animations[animIndex].name);
         }
+
+        if (pad.wasButtonJustPressed(psyqo::SimplePad::Square)) {
+            // dump camera position/rotation
+            static eastl::fixed_string<char, 512> str;
+            fsprintf(
+                str,
+                "camera.position = {%.4f, %.4f, %.4f};\ncamera.rotation = {%.4f, %.4f};\n",
+                camera.position.x,
+                camera.position.y,
+                camera.position.z,
+                psyqo::FixedPoint<>(camera.rotation.x),
+                psyqo::FixedPoint<>(camera.rotation.y));
+            ramsyscall_printf("%s", str.c_str());
+        }
     }
 }
 
@@ -450,17 +470,17 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
         {{.x = 16, .y = 16}},
         textCol,
         "cam pos = (%.2f, %.2f, %.2f)",
-        player.transform.translation.x,
-        player.transform.translation.y,
-        player.transform.translation.z);
+        camera.position.x,
+        camera.position.y,
+        camera.position.z);
 
     game.romFont.chainprintf(
         game.gpu(),
         {{.x = 16, .y = 32}},
         textCol,
-        "camera rot=(%.2f, %.2f)",
-        psyqo::FixedPoint<>(player.rotation.x),
-        psyqo::FixedPoint<>(player.rotation.y));
+        "cam rot=(%.2f, %.2f)",
+        psyqo::FixedPoint<>(camera.rotation.x),
+        psyqo::FixedPoint<>(camera.rotation.y));
 
     /* game.romFont.chainprintf(
         game.gpu(),
@@ -471,13 +491,13 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
         (int)game.songPlayer.musicTime,
         (int)SoundPlayer::reverbEnabled); */
 
-    game.romFont.chainprintf(
+    /* game.romFont.chainprintf(
         game.gpu(),
         {{.x = 16, .y = 64}},
         textCol,
         "%d, anim=%s",
         animIndex,
-        player.animator.currentAnimation->name.getStr());
+        player.animator.currentAnimation->name.getStr()); */
 
     /* game.romFont.chainprintf(
         game.gpu(),
@@ -489,13 +509,13 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
         psyqo::FixedPoint<>(rot.y),
         psyqo::FixedPoint<>(rot.z)); */
 
-    game.romFont.chainprintf(
+    /* game.romFont.chainprintf(
         game.gpu(),
         {{.x = 16, .y = 80}},
         textCol,
         "t = (%.3f), f = %d",
         player.animator.normalizedAnimTime,
-        player.animator.getAnimationFrame());
+        player.animator.getAnimationFrame()); */
 
     game.romFont.chainprintf(
         game.gpu(),
