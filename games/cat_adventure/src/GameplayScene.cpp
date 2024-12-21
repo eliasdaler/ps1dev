@@ -39,12 +39,14 @@ void GameplayScene::start(StartReason reason)
 
     if (reason == StartReason::Create) {
         player.model = &game.catoModel;
-        playerAnimator.animations = &game.animations;
-        playerAnimator.setAnimation("Idle"_sh);
+        player.jointGlobalTransforms.resize(player.model->armature.joints.size());
+        player.animator.animations = &game.animations;
+        player.animator.setAnimation("Idle"_sh);
 
-        npc.model = &game.catoModel2;
-        npcAnimator.animations = &game.animations;
-        npcAnimator.setAnimation("Walk"_sh);
+        npc.model = &game.catoModel;
+        npc.jointGlobalTransforms.resize(npc.model->armature.joints.size());
+        npc.animator.animations = &game.animations;
+        npc.animator.setAnimation("Walk"_sh);
 
         car.model = &game.carModel;
         levelObj.model = &game.levelModel;
@@ -145,34 +147,34 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
             if (isSprinting) {
                 playerPos.x += trig.sin(player.rotation.y) * sprintSpeed;
                 playerPos.z += trig.cos(player.rotation.y) * sprintSpeed;
-                playerAnimator.setAnimation("Run"_sh, 0.05, 0.125);
+                player.animator.setAnimation("Run"_sh, 0.05, 0.125);
             } else {
                 playerPos.x += trig.sin(player.rotation.y) * walkSpeed;
                 playerPos.z += trig.cos(player.rotation.y) * walkSpeed;
-                playerAnimator.setAnimation("Walk"_sh, 0.035, 0.3);
+                player.animator.setAnimation("Walk"_sh, 0.035, 0.3);
             }
         } else {
             playerPos.x -= trig.sin(player.rotation.y) * walkSpeed * 0.4;
             playerPos.z -= trig.cos(player.rotation.y) * walkSpeed * 0.4;
-            playerAnimator.setAnimation("Walk"_sh, -0.025, 0.3);
+            player.animator.setAnimation("Walk"_sh, -0.025, 0.3);
         }
         player.setPosition(playerPos);
     } else if (isRotating) {
-        playerAnimator.setAnimation("Walk"_sh, 0.025, 0.3);
+        player.animator.setAnimation("Walk"_sh, 0.025, 0.3);
     } else {
-        playerAnimator.setAnimation("Idle"_sh);
+        player.animator.setAnimation("Idle"_sh);
     }
 
     if (isMoving) {
-        if (playerAnimator.frameJustChanged()) {
-            const auto animFrame = playerAnimator.getAnimationFrame();
-            if (playerAnimator.currentAnimationName == "Walk"_sh) {
+        if (player.animator.frameJustChanged()) {
+            const auto animFrame = player.animator.getAnimationFrame();
+            if (player.animator.currentAnimationName == "Walk"_sh) {
                 if (animFrame == 4) {
                     game.soundPlayer.playSound(20, game.step1Sound);
                 } else if (animFrame == 20) {
                     game.soundPlayer.playSound(21, game.step2Sound);
                 }
-            } else if (playerAnimator.currentAnimationName == "Run"_sh) {
+            } else if (player.animator.currentAnimationName == "Run"_sh) {
                 if (animFrame == 3) {
                     game.soundPlayer.playSound(20, game.step1Sound);
                 } else if (animFrame == 15) {
@@ -248,7 +250,7 @@ void GameplayScene::processDebugInput(const PadManager& pad)
             if (animIndex >= game.animations.size()) {
                 animIndex = 0;
             }
-            playerAnimator.setAnimation(game.animations[animIndex].name);
+            player.animator.setAnimation(game.animations[animIndex].name);
         }
 
         if (pad.wasButtonJustPressed(psyqo::SimplePad::Triangle)) {
@@ -257,7 +259,7 @@ void GameplayScene::processDebugInput(const PadManager& pad)
             } else {
                 animIndex = game.animations.size() - 1;
             }
-            playerAnimator.setAnimation(game.animations[animIndex].name);
+            player.animator.setAnimation(game.animations[animIndex].name);
         }
     }
 }
@@ -289,18 +291,24 @@ void GameplayScene::updateCamera()
     }
 
     // calculate camera rotation matrix
-    getRotationMatrix33RH(&camera.viewRot, -camera.rotation.y, psyqo::SoftMath::Axis::Y, trig);
+    getRotationMatrix33RH(
+        &camera.view.rotation, -camera.rotation.y, psyqo::SoftMath::Axis::Y, trig);
     psyqo::Matrix33 viewRotX;
     getRotationMatrix33RH(&viewRotX, -camera.rotation.x, psyqo::SoftMath::Axis::X, trig);
 
     psyqo::GTE::Math::multiplyMatrix33<
         psyqo::GTE::PseudoRegister::Rotation,
-        psyqo::GTE::PseudoRegister::V0>(viewRotX, camera.viewRot, &camera.viewRot);
+        psyqo::GTE::PseudoRegister::V0>(viewRotX, camera.view.rotation, &camera.view.rotation);
 
     // PS1 has Y-down, so here's a fix for that
     // (basically, this is the same as doing 180-degree roll)
-    camera.viewRot.vs[0] = -camera.viewRot.vs[0];
-    camera.viewRot.vs[1] = -camera.viewRot.vs[1];
+    camera.view.rotation.vs[0] = -camera.view.rotation.vs[0];
+    camera.view.rotation.vs[1] = -camera.view.rotation.vs[1];
+
+    camera.view.translation = -camera.position;
+    // We do this on CPU because -camera.position can be outside of 4.12 fixed point range
+    psyqo::SoftMath::
+        matrixVecMul3(camera.view.rotation, camera.view.translation, &camera.view.translation);
 }
 
 void GameplayScene::update()
@@ -311,15 +319,10 @@ void GameplayScene::update()
     // cato.rotation.y += 0.01;
     // cato.rotation.x = 0.25;
 
-    playerAnimator.update();
-    playerAnimator.animate(*player.model);
+    player.update();
+    npc.update();
 
-    npcAnimator.update();
-    npcAnimator.animate(*npc.model);
-
-    player.calculateWorldMatrix();
     car.calculateWorldMatrix();
-    npc.calculateWorldMatrix();
 
     dialogueBox.update();
 }
@@ -344,7 +347,7 @@ void GameplayScene::draw(Renderer& renderer)
     gp.getNextClear(fill.primitive, bg);
     gp.chain(fill);
 
-    psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.viewRot);
+    psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
 
     // draw static objects
     if (game.levelId == 0) {
@@ -361,13 +364,8 @@ void GameplayScene::draw(Renderer& renderer)
         // TODO: first draw objects without rotation
         // (won't have to upload camera.viewRot and change PseudoRegister::Rotation then)
 
-        {
-            renderer.drawModelObject(player, player.model->armature, camera, game.catoTexture);
-        }
-
-        {
-            renderer.drawModelObject(npc, npc.model->armature, camera, game.catoTexture);
-        }
+        renderer.drawAnimatedModelObject(player, camera, game.catoTexture);
+        renderer.drawAnimatedModelObject(npc, camera, game.catoTexture);
 
         if (game.levelId == 1) {
             renderer.drawModelObject(car, camera, game.carTexture);
@@ -438,8 +436,7 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
         {0, ToWorldCoords(1.31 + 0.3), 0},
         {.r = 255, .g = 255, .b = 0}); */
 
-    renderer.drawObjectAxes(npc, camera);
-    npc.model->armature.drawDebug(renderer);
+    renderer.drawArmature(npc, camera);
 
     /* static eastl::fixed_string<char, 512> str;
     auto test = psyqo::Vec4{1.0, 2.0, 3.0, 4.0};
@@ -480,7 +477,7 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
         textCol,
         "%d, anim=%s",
         animIndex,
-        playerAnimator.currentAnimation->name.getStr());
+        player.animator.currentAnimation->name.getStr());
 
     /* game.romFont.chainprintf(
         game.gpu(),
@@ -497,8 +494,8 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
         {{.x = 16, .y = 80}},
         textCol,
         "t = (%.3f), f = %d",
-        playerAnimator.normalizedAnimTime,
-        playerAnimator.getAnimationFrame());
+        player.animator.normalizedAnimTime,
+        player.animator.getAnimationFrame());
 
     game.romFont.chainprintf(
         game.gpu(),

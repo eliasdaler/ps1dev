@@ -4,6 +4,9 @@
 #include <psyqo/trigonometry.hh>
 #include <psyqo/vector.hh>
 
+#include <EASTL/vector.h>
+
+#include "SkeletonAnimator.h"
 #include "Transform.h"
 
 struct Model;
@@ -51,9 +54,18 @@ struct Object {
 };
 
 struct ModelObject : Object {
+    void update();
+
     Model* model{nullptr};
 };
 
 struct MeshObject : Object {
     Mesh* mesh{nullptr};
+};
+
+struct AnimatedModelObject : ModelObject {
+    void update();
+
+    eastl::vector<TransformMatrix> jointGlobalTransforms;
+    SkeletonAnimator animator;
 };

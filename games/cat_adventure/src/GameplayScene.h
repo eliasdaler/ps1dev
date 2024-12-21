@@ -42,11 +42,8 @@ private:
     ModelObject car;
     ModelObject levelObj;
 
-    ModelObject player;
-    SkeletonAnimator playerAnimator;
-
-    ModelObject npc;
-    SkeletonAnimator npcAnimator;
+    AnimatedModelObject player;
+    AnimatedModelObject npc;
 
     Camera camera;
 

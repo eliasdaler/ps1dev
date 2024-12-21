@@ -18,7 +18,7 @@ struct SkeletonAnimator {
     const SkeletalAnimation* findAnimation(StringHash animationName) const;
 
     void update();
-    void animate(Model& model) const;
+    void animate(Armature& armature, eastl::vector<TransformMatrix>& jointGlobalTransforms) const;
 
     int getAnimationFrame() const;
     bool frameJustChanged() const;

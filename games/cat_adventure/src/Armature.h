@@ -6,10 +6,11 @@
 
 class Renderer;
 struct Mesh;
+struct Object;
+struct Camera;
 
 struct Joint {
     Transform localTransform;
-    TransformMatrix globalTransform;
 
     using JointId = std::uint8_t;
     static constexpr JointId NULL_JOINT_ID{0xFF};
@@ -24,11 +25,12 @@ struct Armature {
 
     eastl::vector<Joint> joints;
 
-    void calculateTransforms();
-    void calculateTransforms(Joint& joint, const Joint& parentJoint, bool isRoot = false);
-
-    void drawDebug(Renderer& renderer);
-    void drawDebug(Renderer& renderer, const Joint& joint, Joint::JointId childId);
+    void calculateTransforms(eastl::vector<TransformMatrix>& jointGlobalTransforms) const;
+    void calculateTransforms(
+        eastl::vector<TransformMatrix>& jointGlobalTransforms,
+        const Joint& joint,
+        const Joint& parentJoint,
+        bool isRoot = false) const;
 
     Joint::JointId selectedJoint{0};
 };

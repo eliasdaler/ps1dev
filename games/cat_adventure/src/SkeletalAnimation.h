@@ -12,6 +12,7 @@
 #include "StringHash.h"
 
 struct Armature;
+struct TransformMatrix;
 
 struct AnimationKey {
     psyqo::FixedPoint<> frame;

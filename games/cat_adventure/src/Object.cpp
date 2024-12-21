@@ -6,10 +6,10 @@
 
 #include <psyqo/soft-math.hh>
 
+#include "Camera.h"
+#include "Model.h"
 #include "Transform.h"
 #include "gte-math.h"
-
-#include "Camera.h"
 
 namespace
 {
@@ -38,4 +38,11 @@ void Object::calculateWorldMatrix()
     psyqo::GTE::Math::multiplyMatrix33<
         psyqo::GTE::PseudoRegister::Rotation,
         psyqo::GTE::PseudoRegister::V0>(transform.rotation, rotX, &transform.rotation);
+}
+
+void AnimatedModelObject::update()
+{
+    calculateWorldMatrix();
+    animator.update();
+    animator.animate(model->armature, jointGlobalTransforms);
 }

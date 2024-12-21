@@ -14,6 +14,7 @@
 
 struct ModelObject;
 struct MeshObject;
+struct AnimatedModelObject;
 struct Camera;
 
 class Renderer {
@@ -28,9 +29,8 @@ public:
         const TextureInfo& texture,
         bool setViewRot = true);
 
-    void drawModelObject(
-        const ModelObject& object,
-        const Armature& armature,
+    void drawAnimatedModelObject(
+        const AnimatedModelObject& object,
         const Camera& camera,
         const TextureInfo& texture,
         bool setViewRot = true);
@@ -77,6 +77,8 @@ public:
         const psyqo::Vec3& b,
         const psyqo::Color& c);
 
+    void drawArmature(const AnimatedModelObject& object, const Camera& camera);
+
     void setFogNearFar(psyqo::FixedPoint<> near, psyqo::FixedPoint<> far);
     void setFarColor(const psyqo::Color& c);
     uint32_t calcInterpFactor(uint32_t sz);
@@ -103,7 +105,13 @@ private:
         int numFaces,
         std::size_t& outVertIdx);
 
-    uint32_t dqa{};
-    uint32_t dqb{};
-    uint32_t h{300};
+    void drawArmature(
+        const Armature& armature,
+        const AnimatedModelObject& object,
+        const Joint& joint,
+        Joint::JointId childId);
+
+    std::uint32_t dqa{};
+    std::uint32_t dqb{};
+    std::uint32_t h{300};
 };
