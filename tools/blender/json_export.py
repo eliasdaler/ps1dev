@@ -432,8 +432,9 @@ def write_psxtools_json(context, filepath):
                       for mat in material_list],
     }
 
+    # HACK: if no armature - each object gets a corresponding mesh
+    # Otherwise, we assume that all meshes are submeshes of the only object in the file
     if not has_armature:
-        # otherwise, we'll write meshes later
         data["meshes"] = [get_mesh_json(mesh, material_idx_map) for mesh in meshes_list]
 
     if has_armature:

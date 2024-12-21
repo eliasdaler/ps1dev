@@ -150,8 +150,8 @@ void Renderer::drawModelObject(
     for (const auto& mesh : model.meshes) {
         const auto& jointTransform = armature.joints[mesh.jointId].globalTransform;
 
-        auto t1 = combineTransforms(object.transform, jointTransform);
-        auto t2 = combineTransforms(view, t1);
+        const auto t1 = combineTransforms(object.transform, jointTransform);
+        const auto t2 = combineTransforms(view, t1);
 
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(t2.rotation);
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(t2.translation);
