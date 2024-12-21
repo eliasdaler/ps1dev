@@ -37,6 +37,13 @@ void GameplayScene::start(StartReason reason)
     static const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
     game.renderer.setFarColor(farColor);
 
+    interactionDialogueBox.displayBorders = false;
+    interactionDialogueBox.textOffset.x = 48;
+    interactionDialogueBox.position.y = 180;
+    interactionDialogueBox.size.y = 32;
+    interactionDialogueBox.displayMoreTextArrow = false;
+    interactionDialogueBox.setText("(X) Talk", true);
+
     if (reason == StartReason::Create) {
         player.model = &game.catoModel;
         player.jointGlobalTransforms.resize(player.model->armature.joints.size());
@@ -46,7 +53,7 @@ void GameplayScene::start(StartReason reason)
         npc.model = &game.catoModel;
         npc.jointGlobalTransforms.resize(npc.model->armature.joints.size());
         npc.animator.animations = &game.animations;
-        npc.animator.setAnimation("Walk"_sh);
+        npc.animator.setAnimation("Idle"_sh);
 
         car.model = &game.carModel;
         levelObj.model = &game.levelModel;
@@ -68,8 +75,8 @@ void GameplayScene::start(StartReason reason)
             // debug
             camera.position = {0.2900, 0.4501, 0.5192};
             camera.rotation = {0.1621, -0.7753};
-            freeCamera = true;
-
+            // freeCamera = true;
+            followCamera = true;
         } else if (game.levelId == 1) {
             player.setPosition({0.5, 0.0, 0.5});
             player.rotation = {0.0, 1.0};
@@ -101,11 +108,14 @@ void GameplayScene::processInput(const PadManager& pad)
 {
     if (freeCamera) {
         processFreeCameraInput(pad);
-    } else {
+    } else if (gameState == GameState::Normal) {
         processPlayerInput(pad);
+    } else if (gameState == GameState::Dialogue) {
+        dialogueBox.handleInput(pad);
+        if (dialogueBox.wantClose) {
+            gameState = GameState::Normal;
+        }
     }
-
-    dialogueBox.handleInput(pad);
 
     processDebugInput(pad);
 }
@@ -195,6 +205,11 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
     }
     if (pad.isButtonPressed(psyqo::SimplePad::R2)) {
         camera.rotation.x -= rotateSpeed;
+    }
+
+    if (canTalk && pad.wasButtonJustPressed(psyqo::SimplePad::Cross)) {
+        dialogueBox.setText("\3Hello\3!\nDialogues \2work\1!\n\3\4Amazing!");
+        gameState = GameState::Dialogue;
     }
 }
 
@@ -288,7 +303,7 @@ void GameplayScene::updateCamera()
 {
     const auto& trig = game.trig;
 
-    if (!freeCamera) {
+    if (!freeCamera && followCamera) {
         static constexpr auto cameraOffset = psyqo::Vec3{
             .x = -0.05,
             .y = 0.21,
@@ -342,9 +357,13 @@ void GameplayScene::update()
     player.update();
     npc.update();
 
+    canTalk = circlesIntersect(player.interactionCircle, npc.interactionCircle);
+
     car.calculateWorldMatrix();
 
-    dialogueBox.update();
+    if (gameState == GameState::Dialogue) {
+        dialogueBox.update();
+    }
 }
 
 void GameplayScene::draw(Renderer& renderer)
@@ -396,7 +415,13 @@ void GameplayScene::draw(Renderer& renderer)
 
     gp.chain(ot);
 
-    // dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
+    if (gameState == GameState::Normal && canTalk) {
+        interactionDialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
+    }
+
+    if (gameState == GameState::Dialogue) {
+        dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
+    }
 
     if (debugInfoDrawn) {
         drawDebugInfo(renderer);
@@ -451,12 +476,21 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
     renderer.drawObjectAxes(player, camera);
     // player.model->armature.drawDebug(renderer);
 
-    /* renderer.drawLineLocalSpace(
-        {0, ToWorldCoords(1.31), 0},
-        {0, ToWorldCoords(1.31 + 0.3), 0},
-        {.r = 255, .g = 255, .b = 0}); */
-
     renderer.drawArmature(npc, camera);
+
+    renderer.drawAABB(
+        camera, {-0.15, 0.0, 0.4}, {0.2, 0.1, 0.08}, psyqo::Color{.r = 128, .g = 255, .b = 255});
+
+    renderer.drawCircle(camera, player.collisionCircle, psyqo::Color{.r = 255, .g = 0, .b = 255});
+    renderer.drawCircle(camera, npc.interactionCircle, psyqo::Color{.r = 0, .g = 255, .b = 255});
+
+    if (canTalk) {
+        renderer
+            .drawCircle(camera, player.interactionCircle, psyqo::Color{.r = 255, .g = 255, .b = 0});
+    } else {
+        renderer
+            .drawCircle(camera, player.interactionCircle, psyqo::Color{.r = 255, .g = 0, .b = 0});
+    }
 
     /* static eastl::fixed_string<char, 512> str;
     auto test = psyqo::Vec4{1.0, 2.0, 3.0, 4.0};

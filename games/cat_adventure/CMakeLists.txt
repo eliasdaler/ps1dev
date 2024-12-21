@@ -18,6 +18,7 @@ add_executable(game
   src/Transform.cpp
 
   src/Armature.cpp
+  src/Collision.cpp
   src/SkeletalAnimation.cpp
   src/SkeletonAnimator.cpp
   src/PadManager.cpp

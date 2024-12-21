@@ -16,6 +16,7 @@ struct ModelObject;
 struct MeshObject;
 struct AnimatedModelObject;
 struct Camera;
+struct Circle;
 
 class Renderer {
 public:
@@ -75,7 +76,16 @@ public:
         const Camera& camera,
         const psyqo::Vec3& a,
         const psyqo::Vec3& b,
+        const psyqo::Color& c,
+        bool cameraViewLoaded = false);
+
+    void drawAABB(
+        const Camera& camera,
+        const psyqo::Vec3& min,
+        const psyqo::Vec3& size,
         const psyqo::Color& c);
+
+    void drawCircle(const Camera& camera, const Circle& circle, const psyqo::Color& c);
 
     void drawArmature(const AnimatedModelObject& object, const Camera& camera);
 

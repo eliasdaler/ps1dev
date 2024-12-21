@@ -45,4 +45,10 @@ void AnimatedModelObject::update()
     calculateWorldMatrix();
     animator.update();
     animator.animate(model->armature, jointGlobalTransforms);
+
+    collisionCircle.center = getPosition();
+    collisionCircle.radius = 0.03;
+
+    interactionCircle.center = getPosition() + getFront(trig) * 0.05;
+    interactionCircle.radius = 0.05;
 }

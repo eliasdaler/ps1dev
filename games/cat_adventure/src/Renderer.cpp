@@ -427,12 +427,14 @@ void Renderer::drawLineWorldSpace(
     const Camera& camera,
     const psyqo::Vec3& a,
     const psyqo::Vec3& b,
-    const psyqo::Color& c)
+    const psyqo::Color& c,
+    bool cameraViewLoaded)
 {
     auto& primBuffer = getPrimBuffer();
 
-    // TODO: allow to not do this over and over?
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
+    if (!cameraViewLoaded) {
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
+    }
 
     // what 4th column would be if we did V * M
     auto posCamSpace = a - camera.position;
@@ -451,6 +453,63 @@ void Renderer::drawLineWorldSpace(
     psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&line.pointB.packed);
 
     gpu.chain(lineFrag);
+}
+
+void Renderer::drawAABB(
+    const Camera& camera,
+    const psyqo::Vec3& min,
+    const psyqo::Vec3& size,
+    const psyqo::Color& c)
+{
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
+
+    auto posCamSpace = min - camera.position;
+    psyqo::GTE::Math::matrixVecMul3<
+        psyqo::GTE::PseudoRegister::Rotation,
+        psyqo::GTE::PseudoRegister::V0>(posCamSpace, &posCamSpace);
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(posCamSpace);
+
+    // bottom plane
+    drawLineLocalSpace({0.0, 0.0, 0.0}, {0.0, 0.0, size.z}, c);
+    drawLineLocalSpace({0.0, 0.0, 0.0}, {size.x, 0.0, 0.0}, c);
+    drawLineLocalSpace({size.x, 0.0, 0.0}, {size.x, 0.0, size.z}, c);
+    drawLineLocalSpace({0.0, 0.0, size.z}, {size.x, 0.0, size.z}, c);
+
+    // top plane
+    drawLineLocalSpace({0.0, size.y, 0.0}, {0.0, size.y, size.z}, c);
+    drawLineLocalSpace({0.0, size.y, 0.0}, {size.x, size.y, 0.0}, c);
+    drawLineLocalSpace({size.x, size.y, 0.0}, {size.x, size.y, size.z}, c);
+    drawLineLocalSpace({0.0, size.y, size.z}, {size.x, size.y, size.z}, c);
+
+    // sides
+    drawLineLocalSpace({0.0, 0.0, 0.0}, {0.0, size.y, 0.0}, c);
+    drawLineLocalSpace({size.x, 0.0, 0.0}, {size.x, size.y, 0.0}, c);
+    drawLineLocalSpace({0.0, 0.0, size.z}, {0.0, size.y, size.z}, c);
+    drawLineLocalSpace({size.x, 0.0, size.z}, {size.x, size.y, size.z}, c);
+}
+
+void Renderer::drawCircle(const Camera& camera, const Circle& circle, const psyqo::Color& c)
+{
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
+
+    auto posCamSpace = circle.center - camera.position;
+    psyqo::GTE::Math::matrixVecMul3<
+        psyqo::GTE::PseudoRegister::Rotation,
+        psyqo::GTE::PseudoRegister::V0>(posCamSpace, &posCamSpace);
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(posCamSpace);
+
+    static constexpr auto numSegments = 16.0;
+    psyqo::Angle subAngle = 2.0 / numSegments;
+    psyqo::Angle currAngle = 0.0;
+    for (int i = 0; i < (int)numSegments; ++i) {
+        drawLineLocalSpace(
+            {circle.radius * trig.sin(currAngle), 0.0, circle.radius * trig.cos(currAngle)},
+            {circle.radius * trig.sin(currAngle + subAngle),
+             0.0,
+             circle.radius * trig.cos(currAngle + subAngle)},
+            c);
+        currAngle += subAngle;
+    }
 }
 
 void Renderer::setFogNearFar(psyqo::FixedPoint<> near, psyqo::FixedPoint<> far)

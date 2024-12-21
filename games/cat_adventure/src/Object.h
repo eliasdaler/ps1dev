@@ -6,6 +6,7 @@
 
 #include <EASTL/vector.h>
 
+#include "Collision.h"
 #include "SkeletonAnimator.h"
 #include "Transform.h"
 
@@ -68,4 +69,7 @@ struct AnimatedModelObject : ModelObject {
 
     eastl::vector<TransformMatrix> jointGlobalTransforms;
     SkeletonAnimator animator;
+
+    Circle collisionCircle;
+    Circle interactionCircle;
 };

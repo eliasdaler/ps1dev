@@ -48,6 +48,7 @@ private:
     Camera camera;
 
     DialogueBox dialogueBox;
+    DialogueBox interactionDialogueBox;
 
     std::size_t animIndex{1};
 
@@ -55,4 +56,11 @@ private:
 
     bool debugInfoDrawn{true};
     bool freeCamera{false};
+    bool followCamera{false};
+
+    bool canTalk{false};
+
+    enum class GameState { Normal, Dialogue };
+
+    GameState gameState;
 };

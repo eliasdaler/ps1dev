@@ -16,9 +16,10 @@ void DialogueBox::handleInput(const PadManager& pad)
 {
     if (pad.wasButtonJustPressed(psyqo::SimplePad::Cross)) {
         if (allTextShown) {
-            numOfCharsToShow = 0;
+            wantClose = true;
+        } else {
+            numOfCharsToShow = textString.size();
         }
-        // TODO: if not shown and pressed - show all text
     }
 }
 
@@ -59,7 +60,14 @@ void DialogueBox::draw(
     }
 
     drawBG(renderer, borderTexture);
-    drawMoreTextIndicator(renderer, borderTexture);
+
+    if (displayBorders) {
+        drawBorders(renderer, borderTexture);
+    }
+
+    if (displayMoreTextArrow) {
+        drawMoreTextIndicator(renderer, borderTexture);
+    }
 
     // set tpage
     {
@@ -87,6 +95,12 @@ void DialogueBox::drawBG(Renderer& renderer, const TextureInfo& borderTexture)
         rect.setSemiTrans();
         gpu.chain(rectFrag);
     }
+}
+
+void DialogueBox::drawBorders(Renderer& renderer, const TextureInfo& borderTexture)
+{
+    auto& primBuffer = renderer.getPrimBuffer();
+    auto& gpu = renderer.getGPU();
 
     static const psyqo::Color dbBorderColors[5] =
         {psyqo::Color{{24, 30, 37}}, // black
@@ -331,4 +345,16 @@ void DialogueBox::drawLine(
     line.setColor(color);
 
     gpu.chain(lineFrag);
+}
+
+void DialogueBox::setText(const char* text, bool displayImmediately)
+{
+    textString = text;
+    if (displayImmediately) {
+        numOfCharsToShow = textString.size();
+    } else {
+        numOfCharsToShow = 0;
+    }
+    wantClose = false;
+    letterIncrementTimer.reset();
 }
