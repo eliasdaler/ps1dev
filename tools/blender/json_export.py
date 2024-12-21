@@ -401,13 +401,13 @@ def get_action_json(joints, joint_name_to_id, action, armature_scale):
         "tracks": [t.toJSON() for t in final_tracks]
     }
 
+def any_object_selected():
+    return not any(obj.select_get() for obj in bpy.context.view_layer.objects)
+
 def write_psxtools_json(context, filepath):
     f = open(filepath, 'w', encoding='utf-8')
 
     scene = context.scene
-
-    # in Edit/Pose/etc. modes some things don't work properly
-    bpy.ops.object.mode_set(mode='OBJECT') 
 
     # collect meshes
     meshes_list = collect_meshes(scene)
@@ -422,6 +422,10 @@ def write_psxtools_json(context, filepath):
         apply_modifiers(o)
 
     obj_list = collect_objects(scene)
+
+    if bpy.context.object:
+        # in Edit/Pose/etc. modes some things don't work properly
+        bpy.ops.object.mode_set(mode='OBJECT') 
 
     has_armature = 'Armature' in scene.objects
 

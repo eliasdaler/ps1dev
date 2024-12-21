@@ -54,6 +54,9 @@ psyqo::Coroutine<> loadCoroutine(Game& game)
     game.loadModel("CATO.BIN;1", game.catoModel);
     co_await awaiter;
 
+    game.loadModel("HUMAN.BIN;1", game.humanModel);
+    co_await awaiter;
+
     game.loadModel("CAR.BIN;1", game.carModel);
     co_await awaiter;
 

@@ -50,5 +50,5 @@ void AnimatedModelObject::update()
     collisionCircle.radius = 0.03;
 
     interactionCircle.center = getPosition() + getFront(trig) * 0.05;
-    interactionCircle.radius = 0.05;
+    interactionCircle.radius = 0.07;
 }

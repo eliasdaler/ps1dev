@@ -63,4 +63,9 @@ private:
     enum class GameState { Normal, Dialogue };
 
     GameState gameState;
+
+    psyqo::Angle interactionStartAngle;
+    psyqo::Angle interactionEndAngle;
+    psyqo::Angle lerpFactor;
+    bool shouldRotate{false};
 };

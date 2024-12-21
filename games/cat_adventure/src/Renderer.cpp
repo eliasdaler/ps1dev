@@ -139,6 +139,12 @@ void Renderer::drawAnimatedModelObject(
 
     const auto& model = *object.model;
     const auto& armature = model.armature;
+
+    if (model.armature.joints.empty()) {
+        drawModelObject(object, camera, texture);
+        return;
+    }
+
     const auto& globalJointTransforms = object.jointGlobalTransforms;
     for (const auto& mesh : model.meshes) {
         const auto& jointTransform = globalJointTransforms[mesh.jointId];
@@ -559,6 +565,9 @@ void Renderer::drawArmature(const AnimatedModelObject& object, const Camera& cam
     calculateViewModelMatrix(object, camera, true);
 
     const auto& armature = object.model->armature;
+    if (armature.joints.empty()) {
+        return;
+    }
     const auto& rootJoint = armature.getRootJoint();
     drawArmature(armature, object, rootJoint, rootJoint.firstChild);
 }

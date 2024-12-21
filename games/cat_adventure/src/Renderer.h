@@ -127,5 +127,5 @@ private:
     std::uint32_t dqb{};
     std::uint32_t h{300};
 
-    bool fogEnabled{false};
+    bool fogEnabled{true};
 };

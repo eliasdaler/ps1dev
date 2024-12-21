@@ -42,10 +42,10 @@ void GameplayScene::start(StartReason reason)
     interactionDialogueBox.position.y = 180;
     interactionDialogueBox.size.y = 32;
     interactionDialogueBox.displayMoreTextArrow = false;
-    interactionDialogueBox.setText("(X) Talk", true);
+    interactionDialogueBox.setText("\5(X)\1 Talk", true);
 
     if (reason == StartReason::Create) {
-        player.model = &game.catoModel;
+        player.model = &game.humanModel;
         player.jointGlobalTransforms.resize(player.model->armature.joints.size());
         player.animator.animations = &game.animations;
         player.animator.setAnimation("Idle"_sh);
@@ -118,6 +118,21 @@ void GameplayScene::processInput(const PadManager& pad)
     }
 
     processDebugInput(pad);
+}
+
+namespace
+{
+psyqo::Angle lerpAngle(psyqo::Angle a, psyqo::Angle b, psyqo::Angle lerpFactor)
+{
+    auto diff = b - a;
+    if (diff > 1.0) {
+        diff -= 2.0;
+    } else if (diff < -1.0) {
+        diff += 2.0;
+    }
+
+    return a + diff * lerpFactor;
+}
 }
 
 void GameplayScene::processPlayerInput(const PadManager& pad)
@@ -208,8 +223,35 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
     }
 
     if (canTalk && pad.wasButtonJustPressed(psyqo::SimplePad::Cross)) {
-        dialogueBox.setText("\3Hello\3!\nDialogues \2work\1!\n\3\4Amazing!");
+        dialogueBox.setText("Hello!\nDialogues \2work\1!\n\3\4Amazing!");
         gameState = GameState::Dialogue;
+
+        interactionStartAngle = npc.rotation.y;
+
+        { // poor man's atan2
+            static constexpr auto numAttemps = 60.0;
+            psyqo::FixedPoint<> minDistSq = 1000.0;
+            psyqo::Angle currAngle = 0.0;
+            psyqo::Angle bestAngle = 0.0;
+            psyqo::Angle incAngle = 2.0 / numAttemps;
+            for (int i = 0; i < (int)numAttemps; ++i) {
+                npc.rotation.y = currAngle;
+                auto fr = npc.getFront(game.trig);
+                auto checkPoint = npc.getPosition() + fr * 0.1;
+                auto diff = checkPoint - player.getPosition();
+                auto distSq = diff.x * diff.x + diff.z * diff.z;
+                if (distSq < minDistSq) {
+                    bestAngle = currAngle;
+                    minDistSq = distSq;
+                }
+                currAngle += incAngle;
+            }
+            npc.rotation.y = interactionStartAngle;
+            interactionEndAngle = bestAngle;
+        }
+
+        lerpFactor = 0.0;
+        shouldRotate = true;
     }
 }
 
@@ -359,9 +401,36 @@ void GameplayScene::update()
 
     canTalk = circlesIntersect(player.interactionCircle, npc.interactionCircle);
 
+    if (shouldRotate) {
+        auto diff = interactionEndAngle - interactionStartAngle;
+        if (diff > 1.0) {
+            diff -= 2.0;
+        } else if (diff < -1.0) {
+            diff += 2.0;
+        }
+        psyqo::Angle lerpSpeed = 0.0;
+        if (diff.abs() > 0.001) {
+            lerpSpeed = psyqo::FixedPoint<10>(0.04) / diff.abs();
+        } else {
+            lerpFactor = 1.0;
+        }
+
+        /* static eastl::fixed_string<char, 512> str;
+        fsprintf(str, "%.2f, %.2f", psyqo::FixedPoint<>(diff), psyqo::FixedPoint<>(lerpSpeed));
+        ramsyscall_printf("%s\n", str.c_str()); */
+
+        lerpFactor += lerpSpeed;
+        if (lerpFactor >= 1.0) {
+            lerpFactor = 1.0;
+            shouldRotate = false;
+        }
+
+        npc.rotation.y = lerpAngle(interactionStartAngle, interactionEndAngle, lerpFactor);
+    }
+
     car.calculateWorldMatrix();
 
-    if (gameState == GameState::Dialogue) {
+    if (gameState == GameState::Dialogue && !shouldRotate) {
         dialogueBox.update();
     }
 }
@@ -419,7 +488,7 @@ void GameplayScene::draw(Renderer& renderer)
         interactionDialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
     }
 
-    if (gameState == GameState::Dialogue) {
+    if (gameState == GameState::Dialogue && !shouldRotate) {
         dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
     }
 
@@ -503,10 +572,11 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
         game.gpu(),
         {{.x = 16, .y = 16}},
         textCol,
-        "cam pos = (%.2f, %.2f, %.2f)",
+        "cam pos = (%.2f, %.2f, %.2f), st: %s",
         camera.position.x,
         camera.position.y,
-        camera.position.z);
+        camera.position.z,
+        (gameState == GameState::Dialogue) ? "d" : "g");
 
     game.romFont.chainprintf(
         game.gpu(),

@@ -76,6 +76,10 @@ void SkeletonAnimator::animate(
     Armature& armature,
     eastl::vector<TransformMatrix>& jointGlobalTransforms) const
 {
+    if (armature.joints.empty()) {
+        return;
+    }
+
     if (!currentAnimation) {
         return;
     }

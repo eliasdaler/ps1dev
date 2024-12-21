@@ -53,6 +53,7 @@ public:
 
     Model levelModel;
     Model catoModel;
+    Model humanModel;
     Model carModel;
 
     TextureInfo bricksTexture;
