@@ -152,10 +152,8 @@ ModelJson parseJsonFile(
         const auto& armatureObj = *armatureIt;
         const auto& jointsArr = armatureObj.at("joints");
         const auto numJoints = jointsArr.size();
-        const auto& boneInfluencesArr = armatureObj.at("bone_influences");
 
         armature.joints.resize(numJoints);
-        armature.boneInfluences.resize(numJoints);
 
         for (std::uint32_t idx = 0; idx < numJoints; ++idx) {
             // load joint
@@ -168,10 +166,6 @@ ModelJson parseJsonFile(
             if (jointObj.contains("children")) {
                 joint.children = jointObj.at("children").get<std::vector<std::uint8_t>>();
             }
-
-            // load bone influences
-            const auto& boneInfluenceArr = boneInfluencesArr[idx];
-            armature.boneInfluences[idx] = boneInfluenceArr.get<std::vector<std::uint16_t>>();
         }
 
         armature.inverseBindMatrices.resize(numJoints);

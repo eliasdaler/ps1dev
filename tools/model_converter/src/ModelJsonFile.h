@@ -58,7 +58,6 @@ struct Joint {
 
 struct Armature {
     std::vector<Joint> joints;
-    std::vector<std::vector<std::uint16_t>> boneInfluences;
     std::vector<glm::mat4x4> inverseBindMatrices;
 };
 

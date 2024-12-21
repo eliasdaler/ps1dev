@@ -71,7 +71,7 @@ struct Quad {
 };
 
 struct Submesh {
-    u16 subdivide;
+    u16 joint_id;
     u16 untextured_tri_num;
     u16 untextured_quad_num;
     u16 tri_num;
@@ -89,15 +89,11 @@ struct Joint {
     Quaternion rotation;
     u8 first_child;
     u8 next_sibling;
-    u16 boneInfluencesOffset;
-    u16 boneInfluencesSize;
 };
 
 struct Armature {
     u16 numJoints;
     Joint joints[numJoints];
-    u16 boneInfluencesSize;
-    u16 boneInfluences[boneInfluencesSize];
 };
 
 struct Model {

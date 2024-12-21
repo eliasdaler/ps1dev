@@ -68,13 +68,6 @@ void writePsxModel(const PsxModel& model, const std::filesystem::path& path)
             fsutil::binaryWrite(file, joint.rotation.w);
             fsutil::binaryWrite(file, joint.firstChild);
             fsutil::binaryWrite(file, joint.nextSibling);
-            fsutil::binaryWrite(file, joint.boneInfluencesOffset);
-            fsutil::binaryWrite(file, joint.boneInfluencesSize);
-        }
-
-        fsutil::binaryWrite(file, static_cast<std::uint16_t>(model.armature.boneInfluences.size()));
-        for (const auto& vertexIndex : model.armature.boneInfluences) {
-            fsutil::binaryWrite(file, vertexIndex);
         }
     }
 }

@@ -105,15 +105,15 @@ def get_mesh_json(mesh, material_idx_map):
         vertex_colors = mesh.color_attributes[0].data
 
     vertices = [None] * len(mesh.vertices)
-
     faces = []
     has_materials_with_textures = mesh_has_materials_with_textures(mesh)
+
     for poly in mesh.polygons:
-        vertex_indices = []
-        uvs = []
+        face_vert_indices = []
+        face_uvs = []
         for loop_index in poly.loop_indices:
             vi = mesh.loops[loop_index].vertex_index
-            vertex_indices.append(vi)
+            face_vert_indices.append(vi)
 
             vertex = mesh.vertices[vi]
             vertex_data = {
@@ -122,7 +122,7 @@ def get_mesh_json(mesh, material_idx_map):
 
             if has_materials_with_textures:
                 uv = uv_layer[loop_index].uv
-                uvs.append([uv.x, uv.y])
+                face_uvs.append([uv.x, uv.y])
 
             if vertex_colors:
                 color = vertex_colors[vi].color_srgb
@@ -134,75 +134,81 @@ def get_mesh_json(mesh, material_idx_map):
 
             vertices[vi] = vertex_data
 
-        faces.append({"vertices": vertex_indices, "uvs": uvs})
+        faces.append({"vertices": face_vert_indices, "uvs": face_uvs})
 
     return {
         "name": mesh.name,
-        "vertices": vertices,
         "faces": faces,
         "materials": [material_idx_map[mat.name] for mat in mesh.materials],
-        "joint_id": joint_id,
+        "vertices": vertices,
     }
 
 def get_mesh_json_armature(obj, meshes_list, material_idx_map, joints, joint_name_to_id):
     num_joints = len(joint_name_to_id)
     meshes_data = []
 
-    # FIXME: if obj has multiple meshes, convert verts into single model space
+    # TODO: if obj has multiple meshes, convert verts into single model space
+    if len(meshes_list) != 1:
+        raise ValueError("TODO: get_mesh_json_armature: support multiple models")
+    mesh = meshes_list[0]
+
+    uv_layer = mesh.uv_layers[0].data
+    vertex_colors = None
+    if mesh.color_attributes:
+        vertex_colors = mesh.color_attributes[0].data
+
+    # This is similar to what we do in get_mesh_json,
+    # but we separate the mesh into submeshes which are
+    # influenced by a particular joint
     for idx, joint in enumerate(joints):
         gid = obj.vertex_groups[joint.name].index
 
         vertices = [] 
         faces = []
 
-        for mesh in meshes_list:
-            uv_layer = mesh.uv_layers[0].data
-            vertex_colors = None
-            if mesh.color_attributes:
-                vertex_colors = mesh.color_attributes[0].data
+        has_materials_with_textures = mesh_has_materials_with_textures(mesh)
 
-            has_materials_with_textures = mesh_has_materials_with_textures(mesh)
-            for poly in mesh.polygons:
-                vertex_indices = []
-                uvs = []
+        for poly in mesh.polygons:
+            face_vert_indices = []
+            face_uvs = []
 
-                skip_polygon = False
-                for loop_index in poly.loop_indices:
-                    vi = mesh.loops[loop_index].vertex_index
-                    vertex = mesh.vertices[vi]
+            skip_face = False
+            for loop_index in poly.loop_indices:
+                vi = mesh.loops[loop_index].vertex_index
+                vertex = mesh.vertices[vi]
 
-                    if gid not in [g.group for g in vertex.groups]:
-                        skip_polygon = True
-                        break
+                if skip_face or (gid not in (g.group for g in vertex.groups)):
+                    skip_face = True
+                    break
 
-                    new_index = len(vertices)
-                    vertex_indices.append(new_index)
+                new_index = len(vertices)
+                face_vert_indices.append(new_index)
 
-                    vertex_data = {
-                        "pos": [vertex.co.x, vertex.co.y, vertex.co.z]
-                    }
+                vertex_data = {
+                    "pos": [vertex.co.x, vertex.co.y, vertex.co.z]
+                }
 
-                    if has_materials_with_textures:
-                        uv = uv_layer[loop_index].uv
-                        uvs.append([uv.x, uv.y])
+                if has_materials_with_textures:
+                    uv = uv_layer[loop_index].uv
+                    face_uvs.append([uv.x, uv.y])
 
-                    if vertex_colors:
-                        color = vertex_colors[vi].color_srgb
-                        vertex_data["color"] = [
-                            int(color[0] * 255),
-                            int(color[1] * 255),
-                            int(color[2] * 255)
-                        ]
+                if vertex_colors:
+                    color = vertex_colors[vi].color_srgb
+                    vertex_data["color"] = [
+                        int(color[0] * 255),
+                        int(color[1] * 255),
+                        int(color[2] * 255)
+                    ]
 
-                    vertices.append(vertex_data)
+                vertices.append(vertex_data)
 
-                if not skip_polygon:
-                    faces.append({"vertices": vertex_indices, "uvs": uvs})
+            if not skip_face:
+                faces.append({"vertices": face_vert_indices, "uvs": face_uvs})
 
         meshes_data.append({
             "joint_id": idx,
             "faces": faces,
-            "materials": [0],
+            "materials": [material_idx_map[mat.name] for mat in mesh.materials],
             "vertices": vertices,
         })
 
@@ -483,22 +489,11 @@ def write_psxtools_json(context, filepath):
         # meshes
         data["meshes"] = get_mesh_json_armature(armature.children[0], meshes_list, material_idx_map, joints, joint_name_to_id)
         
-
-        # bone influences
-        # TODO: check if this child exists
-        if armature.children:
-            obj = armature.children[0]
-            bone_influences = [None] * num_joints
-            for idx, joint in enumerate(joints):
-                gid = obj.vertex_groups[joint.name].index
-                bone_influences[idx] = [v.index for v in obj.data.vertices \
-                                        if gid in [g.group for g in v.groups]]
-            armature_data["bone_influences"] = bone_influences
-        else:
-            bone_influences = [[0]] * len(bones)
-            armature_data["bone_influences"] = bone_influences
-
         data["armature"] = armature_data
+
+        # Go into pose mode, otherwise animation bake won't work
+        bpy.context.view_layer.objects.active = armature
+        bpy.ops.object.mode_set(mode='POSE')
 
         data["animations"] = []
         for action in bpy.data.actions:

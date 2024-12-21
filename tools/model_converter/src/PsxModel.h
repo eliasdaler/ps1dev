@@ -38,8 +38,6 @@ struct PsxJoint {
     Vec4<FixedPoint4_12> rotation;
     JointId firstChild{NULL_JOINT_ID};
     JointId nextSibling{NULL_JOINT_ID};
-    std::uint16_t boneInfluencesOffset;
-    std::uint16_t boneInfluencesSize;
 };
 
 struct PsxMatrix {
@@ -51,7 +49,6 @@ struct PsxMatrix {
 struct PsxArmature {
     std::vector<PsxJoint> joints;
     std::vector<PsxMatrix> inverseBindMatrices;
-    std::vector<std::uint16_t> boneInfluences;
 };
 
 struct PsxModel {

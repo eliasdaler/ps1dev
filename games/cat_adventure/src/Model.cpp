@@ -75,13 +75,5 @@ void Model::load(const eastl::vector<uint8_t>& data)
 
         joint.firstChild = fr.GetUInt8();
         joint.nextSibling = fr.GetUInt8();
-        joint.boneInfluencesOffset = fr.GetUInt16();
-        joint.boneInfluencesSize = fr.GetUInt16();
     }
-
-    const auto numInfluences = fr.GetUInt16();
-    armature.boneInfluences.resize(numInfluences);
-    fr.ReadArr(armature.boneInfluences.data(), numInfluences);
-
-    meshes[0].ogVertices = meshes[0].vertices;
 }

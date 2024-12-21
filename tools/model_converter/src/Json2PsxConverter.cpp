@@ -251,15 +251,21 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
                 assert(face.vertices.size() <= 4);
                 for (std::size_t i = 0; i < face.vertices.size(); ++i) {
                     const auto& v = mesh.vertices[face.vertices[i]];
-                    // calculate world pos
+
+                    // From Blender coordinate system to glTF coordinate system
+                    // X' = X
+                    // Y' = Z
+                    // Z' = -Y
                     const auto position = glm::vec3{v.position.x, v.position.z, -v.position.y};
+
+                    // Store vertices in joint space
                     const auto pos = glm::vec3{ib * tm * glm::vec4{position, 1.f}};
 
                     psxFace[i].originalIndex = face.vertices[i];
                     psxFace[i].pos = {
-                        .x = floatToFixed<FixedPoint4_12>(pos.x, params.scale), // X' = X
-                        .y = floatToFixed<FixedPoint4_12>(pos.y, params.scale), // Y' = Z
-                        .z = floatToFixed<FixedPoint4_12>(pos.z, params.scale), // Z' = -Y
+                        .x = floatToFixed<FixedPoint4_12>(pos.x, params.scale),
+                        .y = floatToFixed<FixedPoint4_12>(pos.y, params.scale),
+                        .z = floatToFixed<FixedPoint4_12>(pos.z, params.scale),
                     };
 
                     /* printf(
@@ -339,67 +345,6 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
             const auto& ib = armature.inverseBindMatrices[jointId];
             // TODO?
         } */
-
-        // This is where things get complicated
-        // Vertices in the binary files are stored per-face, so
-        // the original vertex can end up in mesh.triFaces[35][2] or something
-        // We need to iterate through all the vertices and find the correspondence
-        // between old vertex index (from Blender) and new vertex index (in PSX mesh)
-        std::vector<std::vector<std::uint16_t>> newInfluences;
-        newInfluences.resize(numJoints);
-
-        auto& mesh = psxModel.submeshes[0]; // FIXME: handle multiple meshes
-        auto& meshJson = modelJson.meshes[0];
-        const auto tm = modelJson.objects[0].transform.asMatrix();
-        for (auto& mesh : psxModel.submeshes) {
-            const auto jointId = mesh.jointId;
-            const auto& boneInfluences = armatureJson.boneInfluences[jointId];
-            auto& ib = armatureJson.inverseBindMatrices[jointId];
-            for (const auto vid : boneInfluences) {
-                int newVertexId{0};
-                auto findInfluencedVertex = [&]<typename T>(T& facesVector) {
-                    int faceIndex = 0;
-                    for (auto& face : facesVector) {
-                        for (int j = 0; j < face.size(); ++j) {
-                            if (face[j].originalIndex == vid) {
-                                newInfluences[jointId].push_back(newVertexId);
-
-                                const auto& v = meshJson.vertices[vid];
-                                // from Blender to glTF
-                                /* const auto position =
-                                    glm::vec3{v.position.x, v.position.z, -v.position.y};
-                                // Vertices are stored in joint space
-                                const auto pos = glm::vec3{ib * tm * glm::vec4{position, 1.f}};
-                                face[j].pos = {
-                                    .x = floatToFixed<FixedPoint4_12>(pos.x, params.scale),
-                                    .y = floatToFixed<FixedPoint4_12>(pos.y, params.scale),
-                                    .z = floatToFixed<FixedPoint4_12>(pos.z, params.scale),
-                                }; */
-                            }
-                            ++newVertexId;
-                        }
-                        ++faceIndex;
-                    }
-                };
-                findInfluencedVertex(mesh.untexturedTriFaces);
-                findInfluencedVertex(mesh.untexturedQuadFaces);
-                findInfluencedVertex(mesh.triFaces);
-                findInfluencedVertex(mesh.quadFaces);
-            }
-        }
-
-        // store "spans" into boneInfluences array (offset + size)
-        auto boneInfluencesOffset = 0;
-        for (int i = 0; i < armatureJson.joints.size(); ++i) {
-            auto& psxJoint = armature.joints[i];
-            auto& boneInfluences = newInfluences[i];
-            psxJoint.boneInfluencesOffset = boneInfluencesOffset;
-            psxJoint.boneInfluencesSize = boneInfluences.size();
-            // append joint's influences to the end
-            armature.boneInfluences.insert(
-                armature.boneInfluences.end(), boneInfluences.begin(), boneInfluences.end());
-            boneInfluencesOffset += boneInfluences.size();
-        }
     }
     return psxModel;
 }

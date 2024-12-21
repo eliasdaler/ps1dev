@@ -31,8 +31,6 @@ struct Mesh {
     int numTris{0};
     int numQuads{0};
     std::uint16_t jointId;
-
-    eastl::vector<Vertex> ogVertices;
 };
 
 struct Model {

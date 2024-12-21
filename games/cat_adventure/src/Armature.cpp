@@ -20,44 +20,6 @@ void Armature::calculateTransforms()
     calculateTransforms(getRootJoint(), getRootJoint(), true);
 }
 
-void Armature::applySkinning(Mesh& mesh)
-{
-    applySkinning(mesh, getRootJoint());
-}
-
-void Armature::applySkinning(Mesh& mesh, const Joint& joint)
-{
-    const auto& boneInfluences = this->boneInfluences;
-#ifdef USE_GTE_MATH
-    psyqo::GTE::writeUnsafe<JOINT_ROTATION_MATRIX_REGISTER>(joint.globalTransform.rotation);
-#endif
-    const auto& ogVertices = mesh.ogVertices;
-#ifdef TEST
-    for (int i = 0; i < mesh.ogVertices.size(); ++i) {
-#else
-    for (int i = joint.boneInfluencesOffset;
-         i < joint.boneInfluencesOffset + joint.boneInfluencesSize;
-         ++i) {
-#endif
-        const auto vid = boneInfluences[i];
-        psyqo::Vec3 newPos = mesh.ogVertices[vid].pos;
-        // TODO: transformPoint for psyqo::GTE::PackedVec3?
-        newPos = joint.globalTransform.transformPoint(newPos);
-        mesh.vertices[vid].pos = psyqo::GTE::PackedVec3{newPos};
-    }
-
-#ifdef TEST
-    return;
-#endif
-
-    auto currentJointId = joint.firstChild;
-    while (currentJointId != Joint::NULL_JOINT_ID) {
-        auto& child = joints[currentJointId];
-        applySkinning(mesh, child);
-        currentJointId = child.nextSibling;
-    }
-}
-
 void Armature::calculateTransforms(Joint& joint, const Joint& parentJoint, bool isRoot)
 {
     if (isRoot) {
@@ -106,27 +68,5 @@ void Armature::drawDebug(Renderer& renderer, const Joint& joint, Joint::JointId 
         auto& child = joints[currentJointId];
         drawDebug(renderer, child, child.firstChild);
         currentJointId = child.nextSibling;
-    }
-}
-
-void Armature::dehighlightMeshInfluences(Mesh& mesh, Joint::JointId id) const
-{
-    const auto& joint = joints[id];
-    const auto& boneInfluences = this->boneInfluences;
-    for (int i = joint.boneInfluencesOffset;
-         i < joint.boneInfluencesOffset + joint.boneInfluencesSize;
-         ++i) {
-        mesh.vertices[boneInfluences[i]].col = psyqo::Color{.r = 128, .g = 128, .b = 128};
-    }
-}
-
-void Armature::highlightMeshInfluences(Mesh& mesh, Joint::JointId id) const
-{
-    const auto& joint = joints[id];
-    const auto& boneInfluences = this->boneInfluences;
-    for (int i = joint.boneInfluencesOffset;
-         i < joint.boneInfluencesOffset + joint.boneInfluencesSize;
-         ++i) {
-        mesh.vertices[boneInfluences[i]].col = psyqo::Color{.r = 128, .g = 0, .b = 0};
     }
 }

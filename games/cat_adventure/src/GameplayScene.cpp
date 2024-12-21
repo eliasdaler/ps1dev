@@ -55,9 +55,8 @@ void GameplayScene::start(StartReason reason)
             player.setPosition({0.0, 0.0, 0.25});
             player.rotation = {0.0, -1.0};
 
-            npc.setPosition({0.0, 0.0, 0.0});
-            // npc.rotation = {0.0, 0.1};
-            npc.rotation = {0.0, 0.0};
+            npc.setPosition({0.0, 0.0, 0.11});
+            npc.rotation = {0.0, 0.1};
 
             camera.position = {0.12, ToWorldCoords(1.5f), 0.81};
             camera.rotation = {0.0, 1.0};
