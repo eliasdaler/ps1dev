@@ -10,6 +10,7 @@
 
 #include "Common.h"
 #include "Game.h"
+#include "Math.h"
 #include "Renderer.h"
 
 #include "gte-math.h"
@@ -76,7 +77,7 @@ void GameplayScene::start(StartReason reason)
             camera.position = {0.2900, 0.4501, 0.5192};
             camera.rotation = {0.1621, -0.7753};
             // freeCamera = true;
-            followCamera = true;
+            // followCamera = true;
         } else if (game.levelId == 1) {
             player.setPosition({0.5, 0.0, 0.5});
             player.rotation = {0.0, 1.0};
@@ -111,28 +112,15 @@ void GameplayScene::processInput(const PadManager& pad)
     } else if (gameState == GameState::Normal) {
         processPlayerInput(pad);
     } else if (gameState == GameState::Dialogue) {
-        dialogueBox.handleInput(pad);
-        if (dialogueBox.wantClose) {
-            gameState = GameState::Normal;
+        if (dialogueBox.isOpen) {
+            dialogueBox.handleInput(pad);
+            if (dialogueBox.wantClose) {
+                gameState = GameState::Normal;
+            }
         }
     }
 
     processDebugInput(pad);
-}
-
-namespace
-{
-psyqo::Angle lerpAngle(psyqo::Angle a, psyqo::Angle b, psyqo::Angle lerpFactor)
-{
-    auto diff = b - a;
-    if (diff > 1.0) {
-        diff -= 2.0;
-    } else if (diff < -1.0) {
-        diff += 2.0;
-    }
-
-    return a + diff * lerpFactor;
-}
 }
 
 void GameplayScene::processPlayerInput(const PadManager& pad)
@@ -223,35 +211,17 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
     }
 
     if (canTalk && pad.wasButtonJustPressed(psyqo::SimplePad::Cross)) {
-        dialogueBox.setText("Hello!\nDialogues \2work\1!\n\3\4Amazing!");
         gameState = GameState::Dialogue;
 
-        interactionStartAngle = npc.rotation.y;
+        interactStartAngle = npc.rotation.y;
+        interactEndAngle = npc.findInteractionAngle(player);
 
-        { // poor man's atan2
-            static constexpr auto numAttemps = 60.0;
-            psyqo::FixedPoint<> minDistSq = 1000.0;
-            psyqo::Angle currAngle = 0.0;
-            psyqo::Angle bestAngle = 0.0;
-            psyqo::Angle incAngle = 2.0 / numAttemps;
-            for (int i = 0; i < (int)numAttemps; ++i) {
-                npc.rotation.y = currAngle;
-                auto fr = npc.getFront(game.trig);
-                auto checkPoint = npc.getPosition() + fr * 0.1;
-                auto diff = checkPoint - player.getPosition();
-                auto distSq = diff.x * diff.x + diff.z * diff.z;
-                if (distSq < minDistSq) {
-                    bestAngle = currAngle;
-                    minDistSq = distSq;
-                }
-                currAngle += incAngle;
-            }
-            npc.rotation.y = interactionStartAngle;
-            interactionEndAngle = bestAngle;
-        }
+        interactRotationLerpFactor = 0.0;
+        interactRotationLerpSpeed =
+            math::calculateLerpDelta(interactStartAngle, interactEndAngle, 0.04);
+        npcRotatesTowardsPlayer = true;
 
-        lerpFactor = 0.0;
-        shouldRotate = true;
+        player.animator.setAnimation("Idle"_sh);
     }
 }
 
@@ -401,36 +371,22 @@ void GameplayScene::update()
 
     canTalk = circlesIntersect(player.interactionCircle, npc.interactionCircle);
 
-    if (shouldRotate) {
-        auto diff = interactionEndAngle - interactionStartAngle;
-        if (diff > 1.0) {
-            diff -= 2.0;
-        } else if (diff < -1.0) {
-            diff += 2.0;
-        }
-        psyqo::Angle lerpSpeed = 0.0;
-        if (diff.abs() > 0.001) {
-            lerpSpeed = psyqo::FixedPoint<10>(0.04) / diff.abs();
-        } else {
-            lerpFactor = 1.0;
+    if (npcRotatesTowardsPlayer) {
+        interactRotationLerpFactor += interactRotationLerpSpeed;
+        if (interactRotationLerpFactor >= 1.0) { // finished rotation
+            interactRotationLerpFactor = 1.0;
+            npcRotatesTowardsPlayer = false;
+
+            dialogueBox.setText("Hello!\nDialogues \2work\1!\n\3\4Amazing!");
         }
 
-        /* static eastl::fixed_string<char, 512> str;
-        fsprintf(str, "%.2f, %.2f", psyqo::FixedPoint<>(diff), psyqo::FixedPoint<>(lerpSpeed));
-        ramsyscall_printf("%s\n", str.c_str()); */
-
-        lerpFactor += lerpSpeed;
-        if (lerpFactor >= 1.0) {
-            lerpFactor = 1.0;
-            shouldRotate = false;
-        }
-
-        npc.rotation.y = lerpAngle(interactionStartAngle, interactionEndAngle, lerpFactor);
+        npc.rotation.y =
+            math::lerpAngle(interactStartAngle, interactEndAngle, interactRotationLerpFactor);
     }
 
     car.calculateWorldMatrix();
 
-    if (gameState == GameState::Dialogue && !shouldRotate) {
+    if (gameState == GameState::Dialogue && dialogueBox.isOpen) {
         dialogueBox.update();
     }
 }
@@ -488,7 +444,7 @@ void GameplayScene::draw(Renderer& renderer)
         interactionDialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
     }
 
-    if (gameState == GameState::Dialogue && !shouldRotate) {
+    if (gameState == GameState::Dialogue && dialogueBox.isOpen) {
         dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
     }
 
@@ -551,7 +507,7 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
         camera, {-0.15, 0.0, 0.4}, {0.2, 0.1, 0.08}, psyqo::Color{.r = 128, .g = 255, .b = 255});
 
     renderer.drawCircle(camera, player.collisionCircle, psyqo::Color{.r = 255, .g = 0, .b = 255});
-    renderer.drawCircle(camera, npc.interactionCircle, psyqo::Color{.r = 0, .g = 255, .b = 255});
+    renderer.drawCircle(camera, npc.collisionCircle, psyqo::Color{.r = 0, .g = 255, .b = 255});
 
     if (canTalk) {
         renderer
@@ -582,9 +538,9 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
         game.gpu(),
         {{.x = 16, .y = 32}},
         textCol,
-        "cam rot=(%.2f, %.2f)",
-        psyqo::FixedPoint<>(camera.rotation.x),
-        psyqo::FixedPoint<>(camera.rotation.y));
+        "npc rot=(%.2f, %.2f)",
+        psyqo::FixedPoint<>(npc.rotation.x),
+        psyqo::FixedPoint<>(npc.rotation.y));
 
     /* game.romFont.chainprintf(
         game.gpu(),

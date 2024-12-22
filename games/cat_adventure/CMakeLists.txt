@@ -14,6 +14,7 @@ add_executable(game
   src/Bouncer.cpp
   src/FPSCounter.cpp
 
+  src/Math.cpp
   src/Quaternion.cpp
   src/Transform.cpp
 

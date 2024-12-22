@@ -289,7 +289,7 @@ void Sound::load(eastl::string_view filename, const eastl::vector<std::uint8_t>&
     dataSize = byteswap32(fr.GetUInt32());
     sampleFreq = byteswap32(fr.GetUInt32());
 
-    ramsyscall_printf("vag sample freq: %d, data size = %d\n", sampleFreq, (int)dataSize);
+    // ramsyscall_printf("vag sample freq: %d, data size = %d\n", sampleFreq, (int)dataSize);
 
     bytes = data;
 }

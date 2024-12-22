@@ -17,6 +17,7 @@ void DialogueBox::handleInput(const PadManager& pad)
     if (pad.wasButtonJustPressed(psyqo::SimplePad::Cross)) {
         if (allTextShown) {
             wantClose = true;
+            isOpen = false;
         } else {
             numOfCharsToShow = textString.size();
         }
@@ -65,7 +66,7 @@ void DialogueBox::draw(
         drawBorders(renderer, borderTexture);
     }
 
-    if (displayMoreTextArrow) {
+    if (allTextShown && displayMoreTextArrow) {
         drawMoreTextIndicator(renderer, borderTexture);
     }
 
@@ -316,18 +317,16 @@ void DialogueBox::drawMoreTextIndicator(Renderer& renderer, const TextureInfo& b
     auto& primBuffer = renderer.getPrimBuffer();
     auto& gpu = renderer.getGPU();
 
-    if (allTextShown) { // more text
-        auto& spriteFrag = primBuffer.allocateFragment<psyqo::Prim::Sprite8x8>();
-        auto& sprite = spriteFrag.primitive;
-        sprite.texInfo.clut = borderTexture.clut;
+    auto& spriteFrag = primBuffer.allocateFragment<psyqo::Prim::Sprite8x8>();
+    auto& sprite = spriteFrag.primitive;
+    sprite.texInfo.clut = borderTexture.clut;
 
-        sprite.position.x = position.x + size.x - moreTextOffset.x;
-        sprite.position.y = position.y + size.y - moreTextOffset.y + moreTextBouncer.getOffset();
-        sprite.texInfo.u = 48;
-        sprite.texInfo.v = 144;
+    sprite.position.x = position.x + size.x - moreTextOffset.x;
+    sprite.position.y = position.y + size.y - moreTextOffset.y + moreTextBouncer.getOffset();
+    sprite.texInfo.u = 48;
+    sprite.texInfo.v = 144;
 
-        gpu.chain(spriteFrag);
-    }
+    gpu.chain(spriteFrag);
 }
 
 void DialogueBox::drawLine(
@@ -358,6 +357,8 @@ void DialogueBox::setText(const char* text, bool displayImmediately)
     } else {
         numOfCharsToShow = 0;
     }
+    allTextShown = false;
     wantClose = false;
+    isOpen = true;
     letterIncrementTimer.reset();
 }

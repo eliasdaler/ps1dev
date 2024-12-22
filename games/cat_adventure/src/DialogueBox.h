@@ -32,6 +32,7 @@ public:
     psyqo::Vertex size{{.x = 200, .y = 72}};
     psyqo::Vertex textOffset{{.x = 2, .y = 0}};
 
+    bool isOpen{false};
     bool wantClose{false};
 
 private:

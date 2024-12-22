@@ -64,8 +64,9 @@ private:
 
     GameState gameState;
 
-    psyqo::Angle interactionStartAngle;
-    psyqo::Angle interactionEndAngle;
-    psyqo::Angle lerpFactor;
-    bool shouldRotate{false};
+    psyqo::Angle interactStartAngle;
+    psyqo::Angle interactEndAngle;
+    psyqo::Angle interactRotationLerpFactor;
+    psyqo::Angle interactRotationLerpSpeed;
+    bool npcRotatesTowardsPlayer{false};
 };

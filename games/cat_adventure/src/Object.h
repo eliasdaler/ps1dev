@@ -67,6 +67,10 @@ struct MeshObject : Object {
 struct AnimatedModelObject : ModelObject {
     void update();
 
+    // Find the yaw angle to which to rotate to to face "other"
+    // Right now it's a pretty bad impl, but will do for now
+    psyqo::Angle findInteractionAngle(const Object& other);
+
     eastl::vector<TransformMatrix> jointGlobalTransforms;
     SkeletonAnimator animator;
 
