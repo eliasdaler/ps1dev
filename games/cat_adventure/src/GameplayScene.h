@@ -43,6 +43,7 @@ private:
     ModelObject levelObj;
 
     AnimatedModelObject player;
+    psyqo::Vec3 oldPlayerPos;
     AnimatedModelObject npc;
 
     Camera camera;
@@ -69,4 +70,6 @@ private:
     psyqo::Angle interactRotationLerpFactor;
     psyqo::Angle interactRotationLerpSpeed;
     bool npcRotatesTowardsPlayer{false};
+
+    AABB testBox;
 };

@@ -45,6 +45,9 @@ void GameplayScene::start(StartReason reason)
     interactionDialogueBox.displayMoreTextArrow = false;
     interactionDialogueBox.setText("\5(X)\1 Talk", true);
 
+    testBox.min = {-0.34, 0.0, -0.32};
+    testBox.max = {-0.14, 0.1, 0.34};
+
     if (reason == StartReason::Create) {
         player.model = &game.humanModel;
         player.jointGlobalTransforms.resize(player.model->armature.joints.size());
@@ -64,6 +67,8 @@ void GameplayScene::start(StartReason reason)
         if (game.levelId == 0) {
             player.setPosition({0.0, 0.0, 0.25});
             player.rotation = {0.0, -1.0};
+
+            player.rotation = {0.0, -0.5};
 
             npc.setPosition({0.0, 0.0, 0.11});
             npc.rotation = {0.0, 0.1};
@@ -161,6 +166,7 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
     }
 
     auto playerPos = player.getPosition();
+    oldPlayerPos = playerPos;
     if (isMoving) {
         if (moveForward) {
             if (isSprinting) {
@@ -362,32 +368,53 @@ void GameplayScene::update()
 {
     updateCamera();
 
-    // spin the cat
-    // cato.rotation.y += 0.01;
-    // cato.rotation.x = 0.25;
+    if (gameState == GameState::Normal) {
+        player.updateCollision();
+        npc.updateCollision();
+
+        auto playerPos = player.getPosition();
+
+        // collision
+        if (circlesIntersect(player.collisionCircle, npc.collisionCircle)) {
+            const auto res = getResolutionVector(player.collisionCircle, npc.collisionCircle);
+            playerPos.x += res.x;
+            playerPos.z += res.y;
+        }
+
+        if (circleAABBIntersect(player.collisionCircle, testBox)) {
+            const auto res = getResolutionVector(player.collisionCircle, testBox);
+            playerPos.x += res.x;
+            playerPos.z += res.y;
+        }
+
+        player.setPosition(playerPos);
+    }
 
     player.update();
     npc.update();
-
-    canTalk = circlesIntersect(player.interactionCircle, npc.interactionCircle);
-
-    if (npcRotatesTowardsPlayer) {
-        interactRotationLerpFactor += interactRotationLerpSpeed;
-        if (interactRotationLerpFactor >= 1.0) { // finished rotation
-            interactRotationLerpFactor = 1.0;
-            npcRotatesTowardsPlayer = false;
-
-            dialogueBox.setText("Hello!\nDialogues \2work\1!\n\3\4Amazing!");
-        }
-
-        npc.rotation.y =
-            math::lerpAngle(interactStartAngle, interactEndAngle, interactRotationLerpFactor);
-    }
-
     car.calculateWorldMatrix();
 
-    if (gameState == GameState::Dialogue && dialogueBox.isOpen) {
-        dialogueBox.update();
+    if (gameState == GameState::Normal) {
+        canTalk = circlesIntersect(player.interactionCircle, npc.interactionCircle);
+
+    } else if (gameState == GameState::Dialogue) {
+        if (npcRotatesTowardsPlayer) {
+            interactRotationLerpFactor += interactRotationLerpSpeed;
+            if (interactRotationLerpFactor >= 1.0) { // finished rotation
+                interactRotationLerpFactor = 1.0;
+                npcRotatesTowardsPlayer = false;
+
+                // TODO: generic interaction
+                dialogueBox.setText("Hello!\nDialogues \2work\1!\n\3\4Amazing!");
+            }
+
+            npc.rotation.y =
+                math::lerpAngle(interactStartAngle, interactEndAngle, interactRotationLerpFactor);
+        }
+
+        if (dialogueBox.isOpen) {
+            dialogueBox.update();
+        }
     }
 }
 
@@ -503,8 +530,14 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
 
     renderer.drawArmature(npc, camera);
 
-    renderer.drawAABB(
-        camera, {-0.15, 0.0, 0.4}, {0.2, 0.1, 0.08}, psyqo::Color{.r = 128, .g = 255, .b = 255});
+    /* renderer.drawAABB(
+        camera, {-0.15, 0.0, 0.4}, {0.2, 0.1, 0.08}, psyqo::Color{.r = 128, .g = 255, .b = 255}); */
+
+    if (circleAABBIntersect(player.collisionCircle, testBox)) {
+        renderer.drawAABB(camera, testBox, psyqo::Color{.r = 255, .g = 255, .b = 255});
+    } else {
+        renderer.drawAABB(camera, testBox, psyqo::Color{.r = 128, .g = 255, .b = 255});
+    }
 
     renderer.drawCircle(camera, player.collisionCircle, psyqo::Color{.r = 255, .g = 0, .b = 255});
     renderer.drawCircle(camera, npc.collisionCircle, psyqo::Color{.r = 0, .g = 255, .b = 255});
@@ -528,19 +561,19 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
         game.gpu(),
         {{.x = 16, .y = 16}},
         textCol,
-        "cam pos = (%.2f, %.2f, %.2f), st: %s",
-        camera.position.x,
-        camera.position.y,
-        camera.position.z,
+        "p pos = (%.2f, %.2f, %.2f), st: %s",
+        player.getPosition().x,
+        player.getPosition().y,
+        player.getPosition().z,
         (gameState == GameState::Dialogue) ? "d" : "g");
 
     game.romFont.chainprintf(
         game.gpu(),
         {{.x = 16, .y = 32}},
         textCol,
-        "npc rot=(%.2f, %.2f)",
-        psyqo::FixedPoint<>(npc.rotation.x),
-        psyqo::FixedPoint<>(npc.rotation.y));
+        "p rot=(%.2f, %.2f)",
+        psyqo::FixedPoint<>(player.rotation.x),
+        psyqo::FixedPoint<>(player.rotation.y));
 
     /* game.romFont.chainprintf(
         game.gpu(),

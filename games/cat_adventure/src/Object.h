@@ -65,6 +65,7 @@ struct MeshObject : Object {
 };
 
 struct AnimatedModelObject : ModelObject {
+    void updateCollision();
     void update();
 
     // Find the yaw angle to which to rotate to to face "other"

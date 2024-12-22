@@ -40,6 +40,15 @@ void Object::calculateWorldMatrix()
         psyqo::GTE::PseudoRegister::V0>(transform.rotation, rotX, &transform.rotation);
 }
 
+void AnimatedModelObject::updateCollision()
+{
+    collisionCircle.center = getPosition();
+    collisionCircle.radius = 0.04;
+
+    interactionCircle.center = getPosition() + getFront(trig) * 0.05;
+    interactionCircle.radius = 0.07;
+}
+
 void AnimatedModelObject::update()
 {
     calculateWorldMatrix();
@@ -47,10 +56,7 @@ void AnimatedModelObject::update()
     animator.animate(model->armature, jointGlobalTransforms);
 
     collisionCircle.center = getPosition();
-    collisionCircle.radius = 0.04;
-
     interactionCircle.center = getPosition() + getFront(trig) * 0.05;
-    interactionCircle.radius = 0.07;
 }
 
 psyqo::Angle AnimatedModelObject::findInteractionAngle(const Object& other)

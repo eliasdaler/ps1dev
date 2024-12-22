@@ -461,15 +461,13 @@ void Renderer::drawLineWorldSpace(
     gpu.chain(lineFrag);
 }
 
-void Renderer::drawAABB(
-    const Camera& camera,
-    const psyqo::Vec3& min,
-    const psyqo::Vec3& size,
-    const psyqo::Color& c)
+void Renderer::drawAABB(const Camera& camera, const AABB& aabb, const psyqo::Color& c)
 {
+    const auto size = (aabb.max - aabb.min);
+
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
 
-    auto posCamSpace = min - camera.position;
+    auto posCamSpace = aabb.min - camera.position;
     psyqo::GTE::Math::matrixVecMul3<
         psyqo::GTE::PseudoRegister::Rotation,
         psyqo::GTE::PseudoRegister::V0>(posCamSpace, &posCamSpace);
