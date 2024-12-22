@@ -45,8 +45,25 @@ void GameplayScene::start(StartReason reason)
     interactionDialogueBox.displayMoreTextArrow = false;
     interactionDialogueBox.setText("\5(X)\1 Talk", true);
 
-    testBox.min = {-0.34, 0.0, -0.32};
-    testBox.max = {-0.14, 0.1, 0.34};
+    { // TODO: load from level
+        AABB collisionBox;
+
+        collisionBox.min = {-0.34, 0.0, -0.32};
+        collisionBox.max = {-0.1, 0.1, -0.0};
+        collisionBoxes.push_back(collisionBox);
+
+        collisionBox.min = {-0.34, 0.0, -0.32};
+        collisionBox.max = {-0.16, 0.1, 0.34};
+        collisionBoxes.push_back(collisionBox);
+
+        collisionBox.min = {-0.34, 0.0, -0.32};
+        collisionBox.max = {0.22, 0.1, -0.2};
+        collisionBoxes.push_back(collisionBox);
+
+        collisionBox.min = {0.08, 0.0, -0.32};
+        collisionBox.max = {0.22, 0.1, 0.34};
+        collisionBoxes.push_back(collisionBox);
+    }
 
     if (reason == StartReason::Create) {
         player.model = &game.humanModel;
@@ -70,13 +87,11 @@ void GameplayScene::start(StartReason reason)
 
             player.rotation = {0.0, -0.5};
 
-            npc.setPosition({0.0, 0.0, 0.11});
+            npc.setPosition({0.0, 0.0, -0.11});
             npc.rotation = {0.0, 0.1};
 
             camera.position = {0.12, ToWorldCoords(1.5f), 0.81};
             camera.rotation = {0.0, 1.0};
-
-            camera.rotation.x = 0.05;
 
             // debug
             camera.position = {0.2900, 0.4501, 0.5192};
@@ -167,23 +182,24 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
 
     auto playerPos = player.getPosition();
     oldPlayerPos = playerPos;
+
+    player.velocity = {};
+
     if (isMoving) {
+        psyqo::FixedPoint<> speed{};
         if (moveForward) {
             if (isSprinting) {
-                playerPos.x += trig.sin(player.rotation.y) * sprintSpeed;
-                playerPos.z += trig.cos(player.rotation.y) * sprintSpeed;
+                speed = sprintSpeed;
                 player.animator.setAnimation("Run"_sh, 0.05, 0.125);
             } else {
-                playerPos.x += trig.sin(player.rotation.y) * walkSpeed;
-                playerPos.z += trig.cos(player.rotation.y) * walkSpeed;
+                speed = walkSpeed;
                 player.animator.setAnimation("Walk"_sh, 0.035, 0.3);
             }
         } else {
-            playerPos.x -= trig.sin(player.rotation.y) * walkSpeed * 0.4;
-            playerPos.z -= trig.cos(player.rotation.y) * walkSpeed * 0.4;
+            speed = -walkSpeed * 0.4;
             player.animator.setAnimation("Walk"_sh, -0.025, 0.3);
         }
-        player.setPosition(playerPos);
+        player.velocity = player.getFront() * speed;
     } else if (isRotating) {
         player.animator.setAnimation("Walk"_sh, 0.025, 0.3);
     } else {
@@ -209,25 +225,25 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
         }
     }
 
-    if (pad.isButtonPressed(psyqo::SimplePad::L2)) {
-        camera.rotation.x += rotateSpeed;
-    }
-    if (pad.isButtonPressed(psyqo::SimplePad::R2)) {
-        camera.rotation.x -= rotateSpeed;
-    }
-
     if (canTalk && pad.wasButtonJustPressed(psyqo::SimplePad::Cross)) {
         gameState = GameState::Dialogue;
+        player.animator.setAnimation("Idle"_sh);
 
+        // TODO: move to npcInteractStart
         interactStartAngle = npc.rotation.y;
         interactEndAngle = npc.findInteractionAngle(player);
-
         interactRotationLerpFactor = 0.0;
         interactRotationLerpSpeed =
             math::calculateLerpDelta(interactStartAngle, interactEndAngle, 0.04);
         npcRotatesTowardsPlayer = true;
+    }
 
-        player.animator.setAnimation("Idle"_sh);
+    if (pad.wasButtonJustPressed(psyqo::SimplePad::Triangle)) {
+        followCamera = !followCamera;
+        if (!followCamera) {
+            camera.position = {0.2900, 0.4501, 0.5192};
+            camera.rotation = {0.1621, -0.7753};
+        }
     }
 }
 
@@ -329,8 +345,8 @@ void GameplayScene::updateCamera()
         };
         static constexpr auto cameraPitch = psyqo::FixedPoint<10>(0.045);
 
-        const auto fwdVector = player.getFront(trig);
-        const auto rightVector = player.getRight(trig);
+        const auto fwdVector = player.getFront();
+        const auto rightVector = player.getRight();
 
         const auto& playerPos = player.getPosition();
         camera.position.y = playerPos.y + cameraOffset.y;
@@ -369,25 +385,7 @@ void GameplayScene::update()
     updateCamera();
 
     if (gameState == GameState::Normal) {
-        player.updateCollision();
-        npc.updateCollision();
-
-        auto playerPos = player.getPosition();
-
-        // collision
-        if (circlesIntersect(player.collisionCircle, npc.collisionCircle)) {
-            const auto res = getResolutionVector(player.collisionCircle, npc.collisionCircle);
-            playerPos.x += res.x;
-            playerPos.z += res.y;
-        }
-
-        if (circleAABBIntersect(player.collisionCircle, testBox)) {
-            const auto res = getResolutionVector(player.collisionCircle, testBox);
-            playerPos.x += res.x;
-            playerPos.z += res.y;
-        }
-
-        player.setPosition(playerPos);
+        handleCollision();
     }
 
     player.update();
@@ -415,6 +413,63 @@ void GameplayScene::update()
         if (dialogueBox.isOpen) {
             dialogueBox.update();
         }
+    }
+}
+
+void GameplayScene::handleCollision()
+{
+    player.updateCollision();
+    npc.updateCollision();
+
+    const auto oldPos = player.getPosition();
+    bool anyCollision = false;
+    auto newPos = oldPos + player.velocity;
+    player.setPosition(newPos);
+    player.updateCollision();
+
+    // Proper collision (with slide) is commented out - don't want to deal with jitter issues
+    // for now...
+
+    if (circlesIntersect(player.collisionCircle, npc.collisionCircle)) {
+        anyCollision = true;
+        goto collidedWithSomething;
+        /* const auto res = getResolutionVector(player.collisionCircle, npc.collisionCircle);
+        playerPos.x += res.x;
+        playerPos.z += res.y; */
+    }
+
+    for (const auto& testCircle : collisionCircles) {
+        if (circlesIntersect(player.collisionCircle, testCircle)) {
+            anyCollision = true;
+            goto collidedWithSomething;
+        }
+    }
+
+    for (const auto& testBox : collisionBoxes) {
+        if (circleAABBIntersect(player.collisionCircle, testBox)) {
+            anyCollision = true;
+            goto collidedWithSomething;
+            /* const auto res = getResolutionVector(player.collisionCircle, testBox);
+
+            playerPos.x += res.x;
+            playerPos.z += res.y;
+
+            const auto collisionNormal = getCollisionNormal(player.collisionCircle, testBox);
+            const auto dot =
+                player.velocity.x * collisionNormal.x * player.velocity.z * collisionNormal.y;
+
+            // damping makes it a bit better, but eh
+            player.velocity.x -= collisionNormal.x * dot * 2.0;
+            player.velocity.z -= collisionNormal.y * dot * 2.0;
+            player.velocity *= 0.4f; // Damping */
+        }
+    }
+
+collidedWithSomething:
+    if (anyCollision) {
+        player.velocity = {};
+        player.setPosition(oldPos);
+        // player.animator.setAnimation("Idle"_sh);
     }
 }
 
@@ -533,10 +588,13 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
     /* renderer.drawAABB(
         camera, {-0.15, 0.0, 0.4}, {0.2, 0.1, 0.08}, psyqo::Color{.r = 128, .g = 255, .b = 255}); */
 
-    if (circleAABBIntersect(player.collisionCircle, testBox)) {
-        renderer.drawAABB(camera, testBox, psyqo::Color{.r = 255, .g = 255, .b = 255});
-    } else {
-        renderer.drawAABB(camera, testBox, psyqo::Color{.r = 128, .g = 255, .b = 255});
+    static const auto colliderColor = psyqo::Color{.r = 128, .g = 255, .b = 255};
+    for (const auto& testBox : collisionBoxes) {
+        renderer.drawAABB(camera, testBox, colliderColor);
+    }
+
+    for (const auto& testCircle : collisionCircles) {
+        renderer.drawCircle(camera, testCircle, colliderColor);
     }
 
     renderer.drawCircle(camera, player.collisionCircle, psyqo::Color{.r = 255, .g = 0, .b = 255});

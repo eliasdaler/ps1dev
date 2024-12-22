@@ -16,7 +16,7 @@ struct Mesh;
 struct Object {
     void calculateWorldMatrix(); // trashes R
 
-    psyqo::Vec3 getFront(const psyqo::Trig<>& trig) const
+    psyqo::Vec3 getFront() const
     {
         // assume no yaw
         return {
@@ -26,7 +26,7 @@ struct Object {
         };
     }
 
-    psyqo::Vec3 getRight(const psyqo::Trig<>& trig) const
+    psyqo::Vec3 getRight() const
     {
         // assume no yaw
         return {
@@ -45,6 +45,7 @@ struct Object {
         transform.translation.y = y;
         transform.translation.z = z;
     }
+
     void setPosition(const psyqo::Vec3& t) { transform.translation = t; }
     const psyqo::Vec3& getPosition() const { return transform.translation; }
 
@@ -77,4 +78,6 @@ struct AnimatedModelObject : ModelObject {
 
     Circle collisionCircle;
     Circle interactionCircle;
+
+    psyqo::Vec3 velocity{};
 };

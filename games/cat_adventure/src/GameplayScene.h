@@ -30,6 +30,7 @@ private:
     void processFreeCameraInput(const PadManager& pad);
     void processDebugInput(const PadManager& pad);
     void update();
+    void handleCollision();
     void updateCamera();
 
     void draw(Renderer& renderer);
@@ -71,5 +72,6 @@ private:
     psyqo::Angle interactRotationLerpSpeed;
     bool npcRotatesTowardsPlayer{false};
 
-    AABB testBox;
+    eastl::vector<AABB> collisionBoxes;
+    eastl::vector<Circle> collisionCircles;
 };

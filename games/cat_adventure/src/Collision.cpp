@@ -49,6 +49,21 @@ bool circleAABBIntersect(const Circle& circle, const AABB& aabb)
     return distSq <= circle.radius * circle.radius;
 }
 
+psyqo::Vec2 getCollisionNormal(const Circle& circle, const AABB& wall)
+{
+    if (circle.center.x - circle.radius < wall.min.x) {
+        return {-1.0f, 0.0f};
+    } else if (circle.center.x + circle.radius > wall.max.x) {
+        return {1.0f, 0.0f};
+    } else if (circle.center.z - circle.radius < wall.min.z) {
+        return {0.0f, -1.0f};
+    } else if (circle.center.z + circle.radius > wall.max.z) {
+        return {0.0f, 1.0f};
+    }
+
+    return {0.0f, 0.0f}; // No collision
+}
+
 psyqo::Vec2 getResolutionVector(const Circle& circle, const AABB& aabb)
 {
     const auto closestX = clamp(circle.center.x, aabb.min.x, aabb.max.x);
@@ -61,7 +76,13 @@ psyqo::Vec2 getResolutionVector(const Circle& circle, const AABB& aabb)
     const auto penetrationDepth = circle.radius - dist;
 
     psyqo::Vec2 res;
-    res.x -= penetrationDepth * dx / dist;
-    res.y -= penetrationDepth * dz / dist;
+
+    // res.x = -penetrationDepth * dx / dist;
+    // res.y = -penetrationDepth * dz / dist;
+
+    auto normal = getCollisionNormal(circle, aabb);
+    res.x = normal.x * penetrationDepth;
+    res.y = normal.y * penetrationDepth;
+
     return res;
 }

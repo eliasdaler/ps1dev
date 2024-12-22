@@ -45,7 +45,7 @@ void AnimatedModelObject::updateCollision()
     collisionCircle.center = getPosition();
     collisionCircle.radius = 0.04;
 
-    interactionCircle.center = getPosition() + getFront(trig) * 0.05;
+    interactionCircle.center = getPosition() + getFront() * 0.05;
     interactionCircle.radius = 0.07;
 }
 
@@ -54,9 +54,6 @@ void AnimatedModelObject::update()
     calculateWorldMatrix();
     animator.update();
     animator.animate(model->armature, jointGlobalTransforms);
-
-    collisionCircle.center = getPosition();
-    interactionCircle.center = getPosition() + getFront(trig) * 0.05;
 }
 
 psyqo::Angle AnimatedModelObject::findInteractionAngle(const Object& other)
@@ -70,7 +67,7 @@ psyqo::Angle AnimatedModelObject::findInteractionAngle(const Object& other)
     psyqo::Angle incAngle = 2.0 / numAttemps;
     for (int i = 0; i < (int)numAttemps; ++i) {
         rotation.y = currAngle;
-        auto fr = getFront(trig);
+        auto fr = getFront();
         auto checkPoint = getPosition() + fr * 0.1;
         auto diff = checkPoint - other.getPosition();
         auto distSq = diff.x * diff.x + diff.z * diff.z;
