@@ -82,7 +82,6 @@ void GameplayScene::start(StartReason reason)
         npc.animator.animations = &game.animations;
         npc.animator.setAnimation("Idle"_sh);
 
-        car.model = &game.carModel;
         levelObj.model = &game.levelModel;
         levelObj.setPosition({});
         levelObj.rotation = {};
@@ -107,9 +106,6 @@ void GameplayScene::start(StartReason reason)
         } else if (game.levelId == 1) {
             player.setPosition({0.5, 0.0, 0.5});
             player.rotation = {0.0, 1.0};
-
-            car.setPosition({0.0, 0.0, 0.5});
-            car.rotation = {0.0, 0.2};
 
             camera.position = {0.f, ToWorldCoords(1.5f), -1.f};
             camera.rotation = {0.0, 0.0};
@@ -423,18 +419,75 @@ void GameplayScene::update()
             trigger.isEntered = pointInAABB(trigger.aabb, player.getPosition());
 
             if (trigger.wasJustEntered()) {
-                game.levelId = 1;
+                gameState = GameState::SwitchLevel;
+                switchLevelState = SwitchLevelState::FadeOut;
+                fadeLevel = 0;
+                fadeOut = true;
+                fadeFinished = false;
+
+                /* game.levelId = 1;
 
                 player.setPosition({0.5, 0.0, 0.5});
                 player.rotation = {0.0, 1.0};
+                followCamera = true; */
+            }
+        }
+    }
+
+    if (gameState == GameState::SwitchLevel) {
+        if (!fadeFinished) {
+            if (fadeOut) {
+                fadeLevel += 10;
+                if (fadeLevel > 255) {
+                    fadeLevel = 255;
+                    fadeFinished = true;
+                }
+            } else { // fade in
+                fadeLevel -= 10;
+                if (fadeLevel < 0) {
+                    fadeLevel = 0;
+                    fadeFinished = true;
+                }
+            }
+        }
+
+        switch (switchLevelState) {
+        case SwitchLevelState::FadeOut:
+            if (fadeFinished) {
+                switchLevelState = SwitchLevelState::Delay;
+                switchLevelDelayTimer.reset();
+            }
+            break;
+        case SwitchLevelState::Delay:
+            switchLevelDelayTimer.update();
+            if (switchLevelDelayTimer.tick()) {
+                switchLevelState = SwitchLevelState::FadeIn;
+
+                fadeFinished = false;
+                fadeOut = false;
+                fadeLevel = 255;
+
+                // switch level
+                game.levelId = 1;
+                player.setPosition({0.5, 0.0, 0.5});
+                player.rotation = {0.0, 1.0};
+                player.animator.setAnimation("Idle"_sh);
                 followCamera = true;
             }
+            break;
+        case SwitchLevelState::FadeIn:
+            if (fadeFinished) {
+                switchLevelState = SwitchLevelState::Done;
+            }
+            break;
+        case SwitchLevelState::Done:
+            gameState = GameState::Normal;
+            break;
         }
     }
 
     player.update();
     npc.update();
-    car.calculateWorldMatrix();
 
     updateCamera();
 
@@ -551,10 +604,8 @@ void GameplayScene::draw(Renderer& renderer)
         // (won't have to upload camera.viewRot and change PseudoRegister::Rotation then)
 
         renderer.drawAnimatedModelObject(player, camera, game.catoTexture);
-        renderer.drawAnimatedModelObject(npc, camera, game.catoTexture);
-
-        if (game.levelId == 1) {
-            renderer.drawModelObject(car, camera, game.carTexture);
+        if (game.levelId == 0) {
+            renderer.drawAnimatedModelObject(npc, camera, game.catoTexture);
         }
     }
 
@@ -574,44 +625,30 @@ void GameplayScene::draw(Renderer& renderer)
         drawDebugInfo(renderer);
     }
 
-    if (!fadeFinished) {
-        if (fadeLevel < 128) {
-            fadeLevel += 6;
-        } else {
-            fadeLevel += 10;
-        }
-        if (fadeLevel > 255) {
-            fadeLevel = 0;
-            fadeFinished = true;
-        }
-    }
-
-    {
+    if (gameState == GameState::SwitchLevel) {
         auto& primBuffer = renderer.getPrimBuffer();
         auto& gpu = renderer.getGPU();
 
-        if (!fadeFinished) { // bg rect
-            auto& tpage = primBuffer.allocateFragment<psyqo::Prim::TPage>();
-            tpage.primitive.attr.set(psyqo::Prim::TPageAttr::SemiTrans::FullBackSubFullFront);
-            gpu.chain(tpage);
+        auto& tpage = primBuffer.allocateFragment<psyqo::Prim::TPage>();
+        tpage.primitive.attr.set(psyqo::Prim::TPageAttr::SemiTrans::FullBackSubFullFront);
+        gpu.chain(tpage);
 
-            auto& rectFrag = primBuffer.allocateFragment<psyqo::Prim::Rectangle>();
-            auto& rect = rectFrag.primitive;
-            rect.position = {};
-            rect.size.x = 320;
-            rect.size.y = 240;
+        auto& rectFrag = primBuffer.allocateFragment<psyqo::Prim::Rectangle>();
+        auto& rect = rectFrag.primitive;
+        rect.position = {};
+        rect.size.x = SCREEN_WIDTH;
+        rect.size.y = SCREEN_HEIGHT;
 
-            const auto black = psyqo::Color{
-                {uint8_t(255 - fadeLevel), uint8_t(255 - fadeLevel), uint8_t(255 - fadeLevel)}};
-            rect.setColor(black);
-            rect.setSemiTrans();
-            gpu.chain(rectFrag);
+        const auto black =
+            psyqo::Color{{uint8_t(fadeLevel), uint8_t(fadeLevel), uint8_t(fadeLevel)}};
+        rect.setColor(black);
+        rect.setSemiTrans();
+        gpu.chain(rectFrag);
 
-            auto& tpage2 = primBuffer.allocateFragment<psyqo::Prim::TPage>();
-            tpage2.primitive.attr.setDithering(true).set(
-                psyqo::Prim::TPageAttr::SemiTrans::FullBackSubFullFront);
-            gpu.chain(tpage2);
-        }
+        auto& tpage2 = primBuffer.allocateFragment<psyqo::Prim::TPage>();
+        tpage2.primitive.attr.setDithering(true).set(
+            psyqo::Prim::TPageAttr::SemiTrans::FullBackSubFullFront);
+        gpu.chain(tpage2);
     }
 }
 

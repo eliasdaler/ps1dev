@@ -41,7 +41,6 @@ private:
     Game& game;
 
     // game objects
-    ModelObject car;
     ModelObject levelObj;
 
     AnimatedModelObject player;
@@ -63,9 +62,12 @@ private:
 
     bool canTalk{false};
 
-    enum class GameState { Normal, Dialogue };
-
+    enum class GameState { Normal, Dialogue, SwitchLevel };
     GameState gameState;
+
+    enum class SwitchLevelState { FadeOut, Delay, FadeIn, Done };
+    SwitchLevelState switchLevelState;
+    Timer switchLevelDelayTimer{30};
 
     psyqo::Angle interactStartAngle;
     psyqo::Angle interactEndAngle;
@@ -79,4 +81,5 @@ private:
 
     int fadeLevel = 0;
     bool fadeFinished{false};
+    bool fadeOut{false}; // if false - fade in
 };
