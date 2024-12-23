@@ -63,6 +63,12 @@ void GameplayScene::start(StartReason reason)
         collisionBox.min = {0.08, 0.0, -0.32};
         collisionBox.max = {0.22, 0.1, 0.34};
         collisionBoxes.push_back(collisionBox);
+
+        Trigger trigger;
+        trigger.id = 0;
+        trigger.aabb.min = {-0.1145, 0.0000, 0.3488};
+        trigger.aabb.max = {0.0698, 0.1000, 0.4375};
+        triggers.push_back(trigger);
     }
 
     if (reason == StartReason::Create) {
@@ -299,6 +305,11 @@ void GameplayScene::processDebugInput(const PadManager& pad)
         debugInfoDrawn = !debugInfoDrawn;
     }
 
+    if (pad.wasButtonJustPressed(psyqo::SimplePad::Cross)) {
+        fadeFinished = false;
+        fadeLevel = 0;
+    }
+
     if (freeCamera) {
         if (pad.wasButtonJustPressed(psyqo::SimplePad::Cross)) {
             ++animIndex;
@@ -317,9 +328,10 @@ void GameplayScene::processDebugInput(const PadManager& pad)
             player.animator.setAnimation(game.animations[animIndex].name);
         }
 
+        static eastl::fixed_string<char, 512> str;
+
         if (pad.wasButtonJustPressed(psyqo::SimplePad::Square)) {
             // dump camera position/rotation
-            static eastl::fixed_string<char, 512> str;
             fsprintf(
                 str,
                 "camera.position = {%.4f, %.4f, %.4f};\ncamera.rotation = {%.4f, %.4f};\n",
@@ -328,6 +340,19 @@ void GameplayScene::processDebugInput(const PadManager& pad)
                 camera.position.z,
                 psyqo::FixedPoint<>(camera.rotation.x),
                 psyqo::FixedPoint<>(camera.rotation.y));
+            ramsyscall_printf("%s", str.c_str());
+        }
+
+        if (pad.wasButtonJustPressed(psyqo::SimplePad::Circle)) {
+            // dump player position/rotation
+            fsprintf(
+                str,
+                "player.position = {%.4f, %.4f, %.4f};\nplayer.rotation = {%.4f, %.4f};\n",
+                player.transform.translation.x,
+                player.transform.translation.y,
+                player.transform.translation.z,
+                psyqo::FixedPoint<>(player.rotation.x),
+                psyqo::FixedPoint<>(player.rotation.y));
             ramsyscall_printf("%s", str.c_str());
         }
     }
@@ -341,7 +366,7 @@ void GameplayScene::updateCamera()
         static constexpr auto cameraOffset = psyqo::Vec3{
             .x = -0.05,
             .y = 0.21,
-            .z = -0.16,
+            .z = -0.26,
         };
         static constexpr auto cameraPitch = psyqo::FixedPoint<10>(0.045);
 
@@ -382,8 +407,6 @@ void GameplayScene::updateCamera()
 
 void GameplayScene::update()
 {
-    updateCamera();
-
     if (gameState == GameState::Normal) {
         npc.updateCollision();
 
@@ -394,11 +417,26 @@ void GameplayScene::update()
         pos += player.velocity;
         player.setPosition(pos);
         player.updateCollision();
+
+        for (auto& trigger : triggers) {
+            trigger.wasEntered = trigger.isEntered;
+            trigger.isEntered = pointInAABB(trigger.aabb, player.getPosition());
+
+            if (trigger.wasJustEntered()) {
+                game.levelId = 1;
+
+                player.setPosition({0.5, 0.0, 0.5});
+                player.rotation = {0.0, 1.0};
+                followCamera = true;
+            }
+        }
     }
 
     player.update();
     npc.update();
     car.calculateWorldMatrix();
+
+    updateCamera();
 
     if (gameState == GameState::Normal) {
         canTalk = circlesIntersect(player.interactionCircle, npc.interactionCircle);
@@ -535,13 +573,53 @@ void GameplayScene::draw(Renderer& renderer)
     if (debugInfoDrawn) {
         drawDebugInfo(renderer);
     }
+
+    if (!fadeFinished) {
+        if (fadeLevel < 128) {
+            fadeLevel += 6;
+        } else {
+            fadeLevel += 10;
+        }
+        if (fadeLevel > 255) {
+            fadeLevel = 0;
+            fadeFinished = true;
+        }
+    }
+
+    {
+        auto& primBuffer = renderer.getPrimBuffer();
+        auto& gpu = renderer.getGPU();
+
+        if (!fadeFinished) { // bg rect
+            auto& tpage = primBuffer.allocateFragment<psyqo::Prim::TPage>();
+            tpage.primitive.attr.set(psyqo::Prim::TPageAttr::SemiTrans::FullBackSubFullFront);
+            gpu.chain(tpage);
+
+            auto& rectFrag = primBuffer.allocateFragment<psyqo::Prim::Rectangle>();
+            auto& rect = rectFrag.primitive;
+            rect.position = {};
+            rect.size.x = 320;
+            rect.size.y = 240;
+
+            const auto black = psyqo::Color{
+                {uint8_t(255 - fadeLevel), uint8_t(255 - fadeLevel), uint8_t(255 - fadeLevel)}};
+            rect.setColor(black);
+            rect.setSemiTrans();
+            gpu.chain(rectFrag);
+
+            auto& tpage2 = primBuffer.allocateFragment<psyqo::Prim::TPage>();
+            tpage2.primitive.attr.setDithering(true).set(
+                psyqo::Prim::TPageAttr::SemiTrans::FullBackSubFullFront);
+            gpu.chain(tpage2);
+        }
+    }
 }
 
 void GameplayScene::drawTestLevel(Renderer& renderer)
 {
     MeshObject object;
-    auto meshA = &game.levelModel.meshes[0];
-    auto meshB = &game.levelModel.meshes[1];
+    auto meshA = &game.level2Model.meshes[0];
+    auto meshB = &game.level2Model.meshes[1];
     renderer.bias = 1000;
     for (int x = 0; x < 10; ++x) {
         for (int z = -3; z < 3; ++z) {
@@ -556,7 +634,7 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
         }
     }
 
-    auto tree = &game.levelModel.meshes[4];
+    auto tree = &game.level2Model.meshes[4];
     object.mesh = tree;
     for (int i = 0; i < 10; ++i) {
         object.setPosition(psyqo::FixedPoint(i, 0), 0.0, ToWorldCoords(8.0));
@@ -564,7 +642,7 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
         renderer.drawMeshObject(object, camera, game.catoTexture);
     }
 
-    auto lamp = &game.levelModel.meshes[2];
+    auto lamp = &game.level2Model.meshes[2];
     object.mesh = lamp;
     for (int i = 0; i < 10; ++i) {
         object.setPosition(psyqo::FixedPoint(i, 0), 0.0, ToWorldCoords(-8.0));
@@ -572,7 +650,7 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
         renderer.drawMeshObject(object, camera, game.catoTexture);
     }
 
-    auto car = &game.levelModel.meshes[5];
+    auto car = &game.level2Model.meshes[5];
     renderer.bias = -100;
     object.mesh = car;
     object.setPosition(ToWorldCoords(8.0), 0.0, 0.0);
@@ -591,12 +669,20 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
         camera, {-0.15, 0.0, 0.4}, {0.2, 0.1, 0.08}, psyqo::Color{.r = 128, .g = 255, .b = 255}); */
 
     static const auto colliderColor = psyqo::Color{.r = 128, .g = 255, .b = 255};
-    for (const auto& testBox : collisionBoxes) {
-        renderer.drawAABB(camera, testBox, colliderColor);
+    static const auto triggerColor = psyqo::Color{.r = 255, .g = 255, .b = 128};
+    static const auto activeTriggerColor = psyqo::Color{.r = 128, .g = 255, .b = 128};
+
+    for (const auto& box : collisionBoxes) {
+        renderer.drawAABB(camera, box, colliderColor);
     }
 
-    for (const auto& testCircle : collisionCircles) {
-        renderer.drawCircle(camera, testCircle, colliderColor);
+    for (const auto& circle : collisionCircles) {
+        renderer.drawCircle(camera, circle, colliderColor);
+    }
+
+    for (const auto& trigger : triggers) {
+        renderer
+            .drawAABB(camera, trigger.aabb, trigger.isEntered ? activeTriggerColor : triggerColor);
     }
 
     renderer.drawCircle(camera, player.collisionCircle, psyqo::Color{.r = 255, .g = 0, .b = 255});

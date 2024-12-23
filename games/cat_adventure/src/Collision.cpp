@@ -52,6 +52,11 @@ bool circleAABBIntersect(const Circle& circle, const AABB& aabb)
     return distSq <= circle.radius * circle.radius;
 }
 
+bool pointInAABB(const AABB& aabb, const psyqo::Vec3& p)
+{
+    return p.x > aabb.min.x && p.x < aabb.max.x && p.z > aabb.min.z && p.z < aabb.max.z;
+}
+
 psyqo::Vec2 getCollisionNormal(const Circle& circle, const AABB& wall)
 {
     if (circle.center.x - circle.radius < wall.min.x) {

@@ -51,6 +51,9 @@ psyqo::Coroutine<> loadCoroutine(Game& game)
     game.loadModel(getLevelModelPath(game.levelId), game.levelModel);
     co_await awaiter;
 
+    game.loadModel(getLevelModelPath(1), game.level2Model);
+    co_await awaiter;
+
     game.loadModel("CATO.BIN;1", game.catoModel);
     co_await awaiter;
 

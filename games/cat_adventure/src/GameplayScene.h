@@ -11,6 +11,7 @@
 #include "SkeletalAnimation.h"
 #include "SkeletonAnimator.h"
 #include "StringHash.h"
+#include "Trigger.h"
 
 class Game;
 class Renderer;
@@ -74,4 +75,8 @@ private:
 
     eastl::vector<AABB> collisionBoxes;
     eastl::vector<Circle> collisionCircles;
+    eastl::vector<Trigger> triggers;
+
+    int fadeLevel = 0;
+    bool fadeFinished{false};
 };

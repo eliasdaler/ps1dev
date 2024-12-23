@@ -14,6 +14,8 @@ struct AABB {
 
 bool circlesIntersect(const Circle& a, const Circle& b);
 
+bool pointInAABB(const AABB& aabb, const psyqo::Vec3& p);
+
 // returns XZ resolution vector
 psyqo::Vec2 getResolutionVector(const Circle& a, const Circle& b);
 

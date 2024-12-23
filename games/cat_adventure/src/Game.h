@@ -52,6 +52,7 @@ public:
     PadManager pad;
 
     Model levelModel;
+    Model level2Model;
     Model catoModel;
     Model humanModel;
     Model carModel;
