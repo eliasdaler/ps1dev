@@ -385,7 +385,15 @@ void GameplayScene::update()
     updateCamera();
 
     if (gameState == GameState::Normal) {
-        handleCollision();
+        npc.updateCollision();
+
+        handleCollision(psyqo::SoftMath::Axis::X);
+        handleCollision(psyqo::SoftMath::Axis::Z);
+
+        auto pos = player.getPosition();
+        pos += player.velocity;
+        player.setPosition(pos);
+        player.updateCollision();
     }
 
     player.update();
@@ -416,26 +424,26 @@ void GameplayScene::update()
     }
 }
 
-void GameplayScene::handleCollision()
+void GameplayScene::handleCollision(psyqo::SoftMath::Axis axis)
 {
     player.updateCollision();
-    npc.updateCollision();
 
+    // Move on one of the axes first
     const auto oldPos = player.getPosition();
     bool anyCollision = false;
-    auto newPos = oldPos + player.velocity;
+    auto newPos = oldPos;
+    if (axis == psyqo::SoftMath::Axis::X) {
+        newPos.x += player.velocity.x;
+    } else if (axis == psyqo::SoftMath::Axis::Z) {
+        newPos.z += player.velocity.z;
+    }
     player.setPosition(newPos);
     player.updateCollision();
 
-    // Proper collision (with slide) is commented out - don't want to deal with jitter issues
-    // for now...
-
+    // Check if any collisions happened
     if (circlesIntersect(player.collisionCircle, npc.collisionCircle)) {
         anyCollision = true;
         goto collidedWithSomething;
-        /* const auto res = getResolutionVector(player.collisionCircle, npc.collisionCircle);
-        playerPos.x += res.x;
-        playerPos.z += res.y; */
     }
 
     for (const auto& testCircle : collisionCircles) {
@@ -449,28 +457,22 @@ void GameplayScene::handleCollision()
         if (circleAABBIntersect(player.collisionCircle, testBox)) {
             anyCollision = true;
             goto collidedWithSomething;
-            /* const auto res = getResolutionVector(player.collisionCircle, testBox);
-
-            playerPos.x += res.x;
-            playerPos.z += res.y;
-
-            const auto collisionNormal = getCollisionNormal(player.collisionCircle, testBox);
-            const auto dot =
-                player.velocity.x * collisionNormal.x * player.velocity.z * collisionNormal.y;
-
-            // damping makes it a bit better, but eh
-            player.velocity.x -= collisionNormal.x * dot * 2.0;
-            player.velocity.z -= collisionNormal.y * dot * 2.0;
-            player.velocity *= 0.4f; // Damping */
         }
     }
 
 collidedWithSomething:
     if (anyCollision) {
-        player.velocity = {};
-        player.setPosition(oldPos);
-        // player.animator.setAnimation("Idle"_sh);
+        // If they did - set velocity to 0 on that axis so that the player
+        // doesn't move in the direction of the collision
+        if (axis == psyqo::SoftMath::Axis::X) {
+            player.velocity.x = {};
+        } else if (axis == psyqo::SoftMath::Axis::Z) {
+            player.velocity.z = {};
+        }
     }
+
+    // Restore the old position (velocity will be applied later)
+    player.setPosition(oldPos);
 }
 
 void GameplayScene::draw(Renderer& renderer)

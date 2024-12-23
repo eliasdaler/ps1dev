@@ -21,6 +21,9 @@ psyqo::Vec2 getResolutionVector(const Circle& a, const Circle& b)
 {
     const auto diff = a.center - b.center;
     const auto dist = psyqo::SoftMath::squareRoot(diff.x * diff.x + diff.z * diff.z);
+    if (dist == 0) {
+        return {};
+    }
     const auto overlap = (a.radius + b.radius) - dist;
 
     psyqo::Vec2 res;

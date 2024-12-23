@@ -30,7 +30,7 @@ private:
     void processFreeCameraInput(const PadManager& pad);
     void processDebugInput(const PadManager& pad);
     void update();
-    void handleCollision();
+    void handleCollision(psyqo::SoftMath::Axis axis);
     void updateCamera();
 
     void draw(Renderer& renderer);
