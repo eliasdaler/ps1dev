@@ -22,7 +22,8 @@
                 <file name="BRICKS.TIM" type="data" source="assets/bricks.tim"/>
                 <file name="LEVEL.BIN" type="data" source="assets/house_psx.bin"/>
                 <file name="LEVEL2.BIN" type="data" source="assets/level_new.bin"/>
-                <file name="CATO.BIN" type="data" source="assets/human2.bin"/>
+                <file name="CATO.BIN" type="data" source="assets/cato.bin"/>
+                <file name="HUMAN.BIN" type="data" source="assets/human2.bin"/>
                 <file name="HUMAN.ANM" type="data" source="assets/human2.anm"/>
                 <file name="STEP1.VAG" type="data" source="assets/step1.vag"/>
                 <file name="STEP2.VAG" type="data" source="assets/step2.vag"/>
@@ -31,9 +32,9 @@
                 <file name="CAR.TIM" type="data" source="assets/car.tim"/>
                 <file name="FONT.TIM" type="data" source="assets/font.tim"/>
                 <file name="FONT.FNT" type="data" source="assets/font.fnt"/>
-                <file name="SONG.MID" type="data" source="assets/songs/maya/song.mid"/>
-                <file name="INST.VAB" type="data" source="assets/songs/maya/inst.vab"/>
-                <file name="SMPL.PCM" type="data" source="assets/songs/maya/smpl.pcm"/>
+                <file name="SONG.MID" type="data" source="assets/songs/l3/song.mid"/>
+                <file name="INST.VAB" type="data" source="assets/songs/l3/inst.vab"/>
+                <file name="SMPL.PCM" type="data" source="assets/songs/l3/smpl.pcm"/>
                 <dummy sectors="1024"/>
             </directory_tree>
         </track>

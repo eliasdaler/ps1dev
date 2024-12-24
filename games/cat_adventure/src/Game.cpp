@@ -51,11 +51,14 @@ psyqo::Coroutine<> loadCoroutine(Game& game)
     game.loadModel(getLevelModelPath(game.levelId), game.levelModel);
     co_await awaiter;
 
+    game.loadModel(getLevelModelPath(1), game.level2Model);
+    co_await awaiter;
+
     game.loadModel("CATO.BIN;1", game.catoModel);
     co_await awaiter;
 
-    // FIXME: remove
-    game.catoModel2 = game.catoModel;
+    game.loadModel("HUMAN.BIN;1", game.humanModel);
+    co_await awaiter;
 
     game.loadModel("CAR.BIN;1", game.carModel);
     co_await awaiter;

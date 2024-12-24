@@ -6,37 +6,31 @@
 
 class Renderer;
 struct Mesh;
+struct Object;
+struct Camera;
 
 struct Joint {
     Transform localTransform;
-    TransformMatrix globalTransform;
 
     using JointId = std::uint8_t;
     static constexpr JointId NULL_JOINT_ID{0xFF};
     JointId id{NULL_JOINT_ID};
     JointId firstChild{NULL_JOINT_ID};
     JointId nextSibling{NULL_JOINT_ID};
-    std::uint16_t boneInfluencesOffset;
-    std::uint16_t boneInfluencesSize;
 };
 
 struct Armature {
+    const Joint& getRootJoint() const { return joints[0]; }
     Joint& getRootJoint() { return joints[0]; }
 
     eastl::vector<Joint> joints;
-    eastl::vector<std::uint16_t> boneInfluences;
 
-    void applySkinning(Mesh& mesh);
-    void applySkinning(Mesh& mesh, const Joint& joint);
-
-    void calculateTransforms();
-    void calculateTransforms(Joint& joint, const Joint& parentJoint, bool isRoot = false);
-
-    void drawDebug(Renderer& renderer);
-    void drawDebug(Renderer& renderer, const Joint& joint, Joint::JointId childId);
-
-    void dehighlightMeshInfluences(Mesh& mesh, Joint::JointId id) const;
-    void highlightMeshInfluences(Mesh& mesh, Joint::JointId id) const;
+    void calculateTransforms(eastl::vector<TransformMatrix>& jointGlobalTransforms) const;
+    void calculateTransforms(
+        eastl::vector<TransformMatrix>& jointGlobalTransforms,
+        const Joint& joint,
+        const Joint& parentJoint,
+        bool isRoot = false) const;
 
     Joint::JointId selectedJoint{0};
 };

@@ -69,7 +69,9 @@ ModelJson parseJsonFile(
         object.transform.rotation = getQuat(objectObj, "rotation", glm::identity<glm::quat>());
         object.transform.scale = getVec3(objectObj, "scale", glm::vec3{1.f});
 
-        object.mesh = objectObj.at("mesh");
+        if (objectObj.contains("mesh")) {
+            object.mesh = objectObj.at("mesh");
+        }
 
         model.objects.push_back(std::move(object));
     }
@@ -78,6 +80,10 @@ ModelJson parseJsonFile(
     model.meshes.reserve(meshesObj.size());
     for (const auto& meshObj : meshesObj) {
         Mesh mesh{};
+
+        if (meshObj.contains("joint_id")) {
+            mesh.jointId = meshObj.at("joint_id");
+        }
 
         // read vertices
         const auto& verticesObj = meshObj.at("vertices");
@@ -146,10 +152,8 @@ ModelJson parseJsonFile(
         const auto& armatureObj = *armatureIt;
         const auto& jointsArr = armatureObj.at("joints");
         const auto numJoints = jointsArr.size();
-        const auto& boneInfluencesArr = armatureObj.at("bone_influences");
 
         armature.joints.resize(numJoints);
-        armature.boneInfluences.resize(numJoints);
 
         for (std::uint32_t idx = 0; idx < numJoints; ++idx) {
             // load joint
@@ -162,10 +166,6 @@ ModelJson parseJsonFile(
             if (jointObj.contains("children")) {
                 joint.children = jointObj.at("children").get<std::vector<std::uint8_t>>();
             }
-
-            // load bone influences
-            const auto& boneInfluenceArr = boneInfluencesArr[idx];
-            armature.boneInfluences[idx] = boneInfluenceArr.get<std::vector<std::uint16_t>>();
         }
 
         armature.inverseBindMatrices.resize(numJoints);

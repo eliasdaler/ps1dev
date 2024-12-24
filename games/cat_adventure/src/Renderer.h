@@ -14,7 +14,10 @@
 
 struct ModelObject;
 struct MeshObject;
+struct AnimatedModelObject;
 struct Camera;
+struct Circle;
+struct AABB;
 
 class Renderer {
 public:
@@ -28,9 +31,8 @@ public:
         const TextureInfo& texture,
         bool setViewRot = true);
 
-    void drawModelObject(
-        const ModelObject& object,
-        const Armature& armature,
+    void drawAnimatedModelObject(
+        const AnimatedModelObject& object,
         const Camera& camera,
         const TextureInfo& texture,
         bool setViewRot = true);
@@ -75,7 +77,14 @@ public:
         const Camera& camera,
         const psyqo::Vec3& a,
         const psyqo::Vec3& b,
-        const psyqo::Color& c);
+        const psyqo::Color& c,
+        bool cameraViewLoaded = false);
+
+    void drawAABB(const Camera& camera, const AABB& aabb, const psyqo::Color& c);
+
+    void drawCircle(const Camera& camera, const Circle& circle, const psyqo::Color& c);
+
+    void drawArmature(const AnimatedModelObject& object, const Camera& camera);
 
     void setFogNearFar(psyqo::FixedPoint<> near, psyqo::FixedPoint<> far);
     void setFarColor(const psyqo::Color& c);
@@ -83,27 +92,37 @@ public:
 
     void setFOV(uint32_t nh);
 
+    void setFogEnabled(bool b) { fogEnabled = b; };
+
 private:
     bool shouldCullObject(const Object& object, const Camera& camera) const;
 
     psyqo::GPU& gpu;
     psyqo::Trig<> trig;
 
-    template<typename PrimType>
+    template<typename PrimType, bool fogEnabledT>
     void drawTris(
         const Mesh& mesh,
         const TextureInfo& texture,
         int numFaces,
         std::size_t& outVertIdx);
 
-    template<typename PrimType>
+    template<typename PrimType, bool fogEnabledT>
     void drawQuads(
         const Mesh& mesh,
         const TextureInfo& texture,
         int numFaces,
         std::size_t& outVertIdx);
 
-    uint32_t dqa{};
-    uint32_t dqb{};
-    uint32_t h{300};
+    void drawArmature(
+        const Armature& armature,
+        const AnimatedModelObject& object,
+        const Joint& joint,
+        Joint::JointId childId);
+
+    std::uint32_t dqa{};
+    std::uint32_t dqb{};
+    std::uint32_t h{300};
+
+    bool fogEnabled{true};
 };

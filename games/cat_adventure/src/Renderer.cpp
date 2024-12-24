@@ -46,7 +46,7 @@ void interpColor3(
 
 void interpColor(const psyqo::Color& input, uint32_t p, psyqo::Color* out)
 {
-    auto max = 0x1FFFF;
+    const auto max = 0x1FFFF;
     if (p > max) {
         p = max;
     }
@@ -85,7 +85,7 @@ void Renderer::calculateViewModelMatrix(const Object& object, const Camera& came
         psyqo::GTE::Math::multiplyMatrix33<
             psyqo::GTE::PseudoRegister::Rotation,
             psyqo::GTE::PseudoRegister::
-                V0>(camera.viewRot, object.transform.rotation, &viewModelMatrix);
+                V0>(camera.view.rotation, object.transform.rotation, &viewModelMatrix);
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(viewModelMatrix);
     }
 
@@ -97,7 +97,7 @@ void Renderer::calculateViewModelMatrix(const Object& object, const Camera& came
             psyqo::GTE::PseudoRegister::V0>(posCamSpace, &posCamSpace);
     } else {
         // TODO: use L?
-        psyqo::SoftMath::matrixVecMul3(camera.viewRot, posCamSpace, &posCamSpace);
+        psyqo::SoftMath::matrixVecMul3(camera.view.rotation, posCamSpace, &posCamSpace);
     }
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(posCamSpace);
 }
@@ -127,21 +127,54 @@ void Renderer::drawModelObject(
     drawModel(*object.model, texture);
 }
 
-void Renderer::drawModelObject(
-    const ModelObject& object,
-    const Armature& armature,
+void Renderer::drawAnimatedModelObject(
+    const AnimatedModelObject& object,
     const Camera& camera,
     const TextureInfo& texture,
     bool setViewRot)
 {
-    const auto& tm = armature.joints[0].globalTransform;
-
     if (shouldCullObject(object, camera)) {
         return;
     }
-    calculateViewModelMatrix(object, camera, setViewRot);
+
     const auto& model = *object.model;
+    const auto& armature = model.armature;
+
+    if (model.armature.joints.empty()) {
+        drawModelObject(object, camera, texture);
+        return;
+    }
+
+    const auto& globalJointTransforms = object.jointGlobalTransforms;
     for (const auto& mesh : model.meshes) {
+        const auto& jointTransform = globalJointTransforms[mesh.jointId];
+
+        const auto t1 = combineTransforms(object.transform, jointTransform);
+
+        // This is basically combineTransforms(camera.view, t1),
+        // but we do a trick which allows us to prevent 4.12 range overflow
+        {
+            using namespace psyqo::GTE;
+            using namespace psyqo::GTE::Math;
+
+            TransformMatrix t2;
+
+            // V * M * J
+            multiplyMatrix33<
+                PseudoRegister::Rotation,
+                PseudoRegister::V0>(camera.view.rotation, t1.rotation, &t2.rotation);
+
+            // Instead of using camera.view.translation (which is V * (-camPos)),
+            // we're going into the camera/view space and do calculations there
+            t2.translation = t1.translation - camera.position;
+            matrixVecMul3<
+                PseudoRegister::Rotation, // camera.view.rotation
+                PseudoRegister::V0>(t2.translation, &t2.translation);
+
+            writeSafe<PseudoRegister::Rotation>(t2.rotation);
+            writeSafe<PseudoRegister::Translation>(t2.translation);
+        }
+
         drawMesh(mesh, texture);
     }
 }
@@ -167,16 +200,25 @@ void Renderer::drawModel(const Model& model, const TextureInfo& texture)
 
 void Renderer::drawMesh(const Mesh& mesh, const TextureInfo& texture)
 {
+    using namespace psyqo::Prim;
+
     std::size_t vertexIdx = 0;
-    drawTris<psyqo::Prim::GouraudTriangle>(mesh, texture, mesh.numUntexturedTris, vertexIdx);
-    drawQuads<psyqo::Prim::GouraudQuad>(mesh, texture, mesh.numUntexturedQuads, vertexIdx);
-    drawTris<psyqo::Prim::GouraudTexturedTriangle>(mesh, texture, mesh.numTris, vertexIdx);
-    drawQuads<psyqo::Prim::GouraudTexturedQuad>(mesh, texture, mesh.numQuads, vertexIdx);
+    if (fogEnabled) {
+        drawTris<GouraudTriangle, true>(mesh, texture, mesh.numUntexturedTris, vertexIdx);
+        drawQuads<GouraudQuad, true>(mesh, texture, mesh.numUntexturedQuads, vertexIdx);
+        drawTris<GouraudTexturedTriangle, true>(mesh, texture, mesh.numTris, vertexIdx);
+        drawQuads<GouraudTexturedQuad, true>(mesh, texture, mesh.numQuads, vertexIdx);
+    } else {
+        drawTris<GouraudTriangle, false>(mesh, texture, mesh.numUntexturedTris, vertexIdx);
+        drawQuads<GouraudQuad, false>(mesh, texture, mesh.numUntexturedQuads, vertexIdx);
+        drawTris<GouraudTexturedTriangle, false>(mesh, texture, mesh.numTris, vertexIdx);
+        drawQuads<GouraudTexturedQuad, false>(mesh, texture, mesh.numQuads, vertexIdx);
+    }
 
     gpu.pumpCallbacks();
 }
 
-template<typename PrimType>
+template<typename PrimType, bool fogEnabledT>
 void Renderer::drawTris(
     const Mesh& mesh,
     const TextureInfo& texture,
@@ -223,11 +265,12 @@ void Renderer::drawTris(
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&tri2d.pointB.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&tri2d.pointC.packed);
 
-        const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
-        const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
-        const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
+        if constexpr (fogEnabledT) {
+            const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
+            const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
+            const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
 
-        { // per vertex interpolation
+            // per vertex interpolation
             const auto p0 = calcInterpFactor(sz0);
             const auto p1 = calcInterpFactor(sz1);
             const auto p2 = calcInterpFactor(sz2);
@@ -237,6 +280,10 @@ void Renderer::drawTris(
             tri2d.setColorA(col);
             interpColor(v1.col, p1, &tri2d.colorB);
             interpColor(v2.col, p2, &tri2d.colorC);
+        } else {
+            tri2d.setColorA(v0.col);
+            tri2d.setColorB(v1.col);
+            tri2d.setColorC(v2.col);
         }
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedTriangle>) {
@@ -257,7 +304,7 @@ void Renderer::drawTris(
     outVertIdx = vertexIdx;
 }
 
-template<typename PrimType>
+template<typename PrimType, bool fogEnabledT>
 void Renderer::drawQuads(
     const Mesh& mesh,
     const TextureInfo& texture,
@@ -310,7 +357,7 @@ void Renderer::drawQuads(
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointC.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
 
-        { // per vertex interpolation
+        if constexpr (fogEnabledT) { // per vertex interpolation
             const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
             const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
             const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
@@ -327,6 +374,11 @@ void Renderer::drawQuads(
             interpColor(v1.col, p1, &quad2d.colorB);
             interpColor(v2.col, p2, &quad2d.colorC);
             interpColor(v3.col, p3, &quad2d.colorD);
+        } else {
+            quad2d.setColorA(v0.col);
+            quad2d.setColorB(v1.col);
+            quad2d.setColorC(v2.col);
+            quad2d.setColorD(v3.col);
         }
 
         if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedQuad>) {
@@ -381,16 +433,18 @@ void Renderer::drawLineWorldSpace(
     const Camera& camera,
     const psyqo::Vec3& a,
     const psyqo::Vec3& b,
-    const psyqo::Color& c)
+    const psyqo::Color& c,
+    bool cameraViewLoaded)
 {
     auto& primBuffer = getPrimBuffer();
 
-    // TODO: allow to not do this over and over?
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(camera.viewRot);
+    if (!cameraViewLoaded) {
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
+    }
 
     // what 4th column would be if we did V * M
     auto posCamSpace = a - camera.position;
-    psyqo::SoftMath::matrixVecMul3(camera.viewRot, posCamSpace, &posCamSpace);
+    psyqo::SoftMath::matrixVecMul3(camera.view.rotation, posCamSpace, &posCamSpace);
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(posCamSpace);
 
     auto& lineFrag = primBuffer.allocateFragment<psyqo::Prim::Line>();
@@ -405,6 +459,61 @@ void Renderer::drawLineWorldSpace(
     psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&line.pointB.packed);
 
     gpu.chain(lineFrag);
+}
+
+void Renderer::drawAABB(const Camera& camera, const AABB& aabb, const psyqo::Color& c)
+{
+    const auto size = (aabb.max - aabb.min);
+
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
+
+    auto posCamSpace = aabb.min - camera.position;
+    psyqo::GTE::Math::matrixVecMul3<
+        psyqo::GTE::PseudoRegister::Rotation,
+        psyqo::GTE::PseudoRegister::V0>(posCamSpace, &posCamSpace);
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(posCamSpace);
+
+    // bottom plane
+    drawLineLocalSpace({0.0, 0.0, 0.0}, {0.0, 0.0, size.z}, c);
+    drawLineLocalSpace({0.0, 0.0, 0.0}, {size.x, 0.0, 0.0}, c);
+    drawLineLocalSpace({size.x, 0.0, 0.0}, {size.x, 0.0, size.z}, c);
+    drawLineLocalSpace({0.0, 0.0, size.z}, {size.x, 0.0, size.z}, c);
+
+    // top plane
+    drawLineLocalSpace({0.0, size.y, 0.0}, {0.0, size.y, size.z}, c);
+    drawLineLocalSpace({0.0, size.y, 0.0}, {size.x, size.y, 0.0}, c);
+    drawLineLocalSpace({size.x, size.y, 0.0}, {size.x, size.y, size.z}, c);
+    drawLineLocalSpace({0.0, size.y, size.z}, {size.x, size.y, size.z}, c);
+
+    // sides
+    drawLineLocalSpace({0.0, 0.0, 0.0}, {0.0, size.y, 0.0}, c);
+    drawLineLocalSpace({size.x, 0.0, 0.0}, {size.x, size.y, 0.0}, c);
+    drawLineLocalSpace({0.0, 0.0, size.z}, {0.0, size.y, size.z}, c);
+    drawLineLocalSpace({size.x, 0.0, size.z}, {size.x, size.y, size.z}, c);
+}
+
+void Renderer::drawCircle(const Camera& camera, const Circle& circle, const psyqo::Color& c)
+{
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
+
+    auto posCamSpace = circle.center - camera.position;
+    psyqo::GTE::Math::matrixVecMul3<
+        psyqo::GTE::PseudoRegister::Rotation,
+        psyqo::GTE::PseudoRegister::V0>(posCamSpace, &posCamSpace);
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(posCamSpace);
+
+    static constexpr auto numSegments = 16.0;
+    psyqo::Angle subAngle = 2.0 / numSegments;
+    psyqo::Angle currAngle = 0.0;
+    for (int i = 0; i < (int)numSegments; ++i) {
+        drawLineLocalSpace(
+            {circle.radius * trig.sin(currAngle), 0.0, circle.radius * trig.cos(currAngle)},
+            {circle.radius * trig.sin(currAngle + subAngle),
+             0.0,
+             circle.radius * trig.cos(currAngle + subAngle)},
+            c);
+        currAngle += subAngle;
+    }
 }
 
 void Renderer::setFogNearFar(psyqo::FixedPoint<> near, psyqo::FixedPoint<> far)
@@ -446,5 +555,51 @@ uint32_t Renderer::calcInterpFactor(uint32_t sz)
 void Renderer::setFOV(uint32_t nh)
 {
     h = nh;
-    psyqo::GTE::write<psyqo::GTE::Register::H, psyqo::GTE::Unsafe>(250);
+    psyqo::GTE::write<psyqo::GTE::Register::H, psyqo::GTE::Unsafe>(h);
+}
+
+void Renderer::drawArmature(const AnimatedModelObject& object, const Camera& camera)
+{
+    calculateViewModelMatrix(object, camera, true);
+
+    const auto& armature = object.model->armature;
+    if (armature.joints.empty()) {
+        return;
+    }
+    const auto& rootJoint = armature.getRootJoint();
+    drawArmature(armature, object, rootJoint, rootJoint.firstChild);
+}
+
+void Renderer::drawArmature(
+    const Armature& armature,
+    const AnimatedModelObject& object,
+    const Joint& joint,
+    Joint::JointId childId)
+{
+    using namespace psyqo::GTE;
+    using namespace psyqo::GTE::Math;
+    static constexpr auto L = PseudoRegister::Light;
+    static constexpr auto V0 = PseudoRegister::V0;
+
+    const auto& jt = object.jointGlobalTransforms[joint.id];
+
+    static const auto boneStartL = psyqo::Vec3{};
+    const auto boneEndL = (childId == Joint::NULL_JOINT_ID) ?
+                              psyqo::Vec3{0.0, 0.1 / 8.0, 0.0} : // leaf bones have 0.1m length
+                              armature.joints[childId].localTransform.translation;
+
+    writeSafe<PseudoRegister::Light>(jt.rotation);
+
+    const auto boneStartM = jt.transformPointMatrixLoaded<L, V0>(boneStartL);
+    const auto boneEndM = jt.transformPointMatrixLoaded<L, V0>(boneEndL);
+
+    const auto jointColor = psyqo::Color{.r = 255, .g = 255, .b = 128};
+    drawLineLocalSpace(boneStartM, boneEndM, jointColor);
+
+    auto currentJointId = joint.firstChild;
+    while (currentJointId != Joint::NULL_JOINT_ID) {
+        auto& child = armature.joints[currentJointId];
+        drawArmature(armature, object, child, child.firstChild);
+        currentJointId = child.nextSibling;
+    }
 }

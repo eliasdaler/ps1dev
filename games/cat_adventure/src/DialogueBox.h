@@ -23,8 +23,21 @@ public:
         const TextureInfo& fontAtlasTexture,
         const TextureInfo& borderTexture);
 
+    void setText(const char* text, bool displayImmediately = false);
+
+    bool displayBorders{true};
+    bool displayMoreTextArrow{true};
+
+    psyqo::Vertex position{{.x = 60, .y = 140}};
+    psyqo::Vertex size{{.x = 200, .y = 72}};
+    psyqo::Vertex textOffset{{.x = 2, .y = 0}};
+
+    bool isOpen{false};
+    bool wantClose{false};
+
 private:
     void drawBG(Renderer& renderer, const TextureInfo& borderTexture);
+    void drawBorders(Renderer& renderer, const TextureInfo& borderTexture);
     void drawText(Renderer& renderer, const Font& font, const TextureInfo& fontAtlasTexture);
     void drawMoreTextIndicator(Renderer& renderer, const TextureInfo& borderTexture);
 
@@ -37,13 +50,8 @@ private:
         int16_t bY,
         const psyqo::Color& color);
 
-    psyqo::Vertex position{{.x = 60, .y = 140}};
-    psyqo::Vertex size{{.x = 200, .y = 72}};
-
-    eastl::fixed_string<char, 256> textString{
-        "Hello, \3world\3!\nFonts now \2work\1!\n\3\4Amazing!"};
+    eastl::fixed_string<char, 256> textString;
     int numOfCharsToShow{0};
-    psyqo::Vertex textOffset{{.x = 2, .y = 0}};
 
     bool allTextShown{false};
 

@@ -4,6 +4,10 @@
 #include <psyqo/trigonometry.hh>
 #include <psyqo/vector.hh>
 
+#include <EASTL/vector.h>
+
+#include "Collision.h"
+#include "SkeletonAnimator.h"
 #include "Transform.h"
 
 struct Model;
@@ -12,7 +16,7 @@ struct Mesh;
 struct Object {
     void calculateWorldMatrix(); // trashes R
 
-    psyqo::Vec3 getFront(const psyqo::Trig<>& trig) const
+    psyqo::Vec3 getFront() const
     {
         // assume no yaw
         return {
@@ -22,7 +26,7 @@ struct Object {
         };
     }
 
-    psyqo::Vec3 getRight(const psyqo::Trig<>& trig) const
+    psyqo::Vec3 getRight() const
     {
         // assume no yaw
         return {
@@ -41,6 +45,7 @@ struct Object {
         transform.translation.y = y;
         transform.translation.z = z;
     }
+
     void setPosition(const psyqo::Vec3& t) { transform.translation = t; }
     const psyqo::Vec3& getPosition() const { return transform.translation; }
 
@@ -51,9 +56,28 @@ struct Object {
 };
 
 struct ModelObject : Object {
+    void update();
+
     Model* model{nullptr};
 };
 
 struct MeshObject : Object {
     Mesh* mesh{nullptr};
+};
+
+struct AnimatedModelObject : ModelObject {
+    void updateCollision();
+    void update();
+
+    // Find the yaw angle to which to rotate to to face "other"
+    // Right now it's a pretty bad impl, but will do for now
+    psyqo::Angle findInteractionAngle(const Object& other);
+
+    eastl::vector<TransformMatrix> jointGlobalTransforms;
+    SkeletonAnimator animator;
+
+    Circle collisionCircle;
+    Circle interactionCircle;
+
+    psyqo::Vec3 velocity{};
 };

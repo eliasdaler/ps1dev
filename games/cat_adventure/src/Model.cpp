@@ -19,7 +19,7 @@ void Model::load(const eastl::vector<uint8_t>& data)
     for (int i = 0; i < numSubmeshes; ++i) {
         Mesh mesh;
 
-        mesh.subdivide = (bool)fr.GetUInt16();
+        mesh.jointId = fr.GetUInt16();
         mesh.numUntexturedTris = fr.GetUInt16();
         mesh.numUntexturedQuads = fr.GetUInt16();
         mesh.numTris = fr.GetUInt16();
@@ -75,13 +75,5 @@ void Model::load(const eastl::vector<uint8_t>& data)
 
         joint.firstChild = fr.GetUInt8();
         joint.nextSibling = fr.GetUInt8();
-        joint.boneInfluencesOffset = fr.GetUInt16();
-        joint.boneInfluencesSize = fr.GetUInt16();
     }
-
-    const auto numInfluences = fr.GetUInt16();
-    armature.boneInfluences.resize(numInfluences);
-    fr.ReadArr(armature.boneInfluences.data(), numInfluences);
-
-    meshes[0].ogVertices = meshes[0].vertices;
 }

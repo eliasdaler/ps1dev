@@ -52,8 +52,9 @@ public:
     PadManager pad;
 
     Model levelModel;
+    Model level2Model;
     Model catoModel;
-    Model catoModel2;
+    Model humanModel;
     Model carModel;
 
     TextureInfo bricksTexture;

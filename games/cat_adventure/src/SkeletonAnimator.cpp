@@ -72,15 +72,20 @@ bool SkeletonAnimator::frameJustChanged() const
     return prevFrame != getAnimationFrame();
 }
 
-void SkeletonAnimator::animate(Model& model) const
+void SkeletonAnimator::animate(
+    Armature& armature,
+    eastl::vector<TransformMatrix>& jointGlobalTransforms) const
 {
+    if (armature.joints.empty()) {
+        return;
+    }
+
     if (!currentAnimation) {
         return;
     }
 
-    auto& armature = model.armature;
     const auto& animation = *currentAnimation;
     animateArmature(armature, animation, normalizedAnimTime);
-    armature.calculateTransforms();
-    armature.applySkinning(model.meshes[0]);
+
+    armature.calculateTransforms(jointGlobalTransforms);
 }

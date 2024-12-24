@@ -16,9 +16,11 @@ void DialogueBox::handleInput(const PadManager& pad)
 {
     if (pad.wasButtonJustPressed(psyqo::SimplePad::Cross)) {
         if (allTextShown) {
-            numOfCharsToShow = 0;
+            wantClose = true;
+            isOpen = false;
+        } else {
+            numOfCharsToShow = textString.size();
         }
-        // TODO: if not shown and pressed - show all text
     }
 }
 
@@ -59,7 +61,14 @@ void DialogueBox::draw(
     }
 
     drawBG(renderer, borderTexture);
-    drawMoreTextIndicator(renderer, borderTexture);
+
+    if (displayBorders) {
+        drawBorders(renderer, borderTexture);
+    }
+
+    if (allTextShown && displayMoreTextArrow) {
+        drawMoreTextIndicator(renderer, borderTexture);
+    }
 
     // set tpage
     {
@@ -87,6 +96,12 @@ void DialogueBox::drawBG(Renderer& renderer, const TextureInfo& borderTexture)
         rect.setSemiTrans();
         gpu.chain(rectFrag);
     }
+}
+
+void DialogueBox::drawBorders(Renderer& renderer, const TextureInfo& borderTexture)
+{
+    auto& primBuffer = renderer.getPrimBuffer();
+    auto& gpu = renderer.getGPU();
 
     static const psyqo::Color dbBorderColors[5] =
         {psyqo::Color{{24, 30, 37}}, // black
@@ -258,6 +273,9 @@ void DialogueBox::drawText(
         } else if (c == 4) { // rainbow
             rainbowText = !rainbowText;
             continue;
+        } else if (c == 5) {
+            currTextColor = getRainbowColor(4);
+            continue;
         }
 
         auto& spriteFrag = primBuffer.allocateFragment<psyqo::Prim::Sprite>();
@@ -299,18 +317,16 @@ void DialogueBox::drawMoreTextIndicator(Renderer& renderer, const TextureInfo& b
     auto& primBuffer = renderer.getPrimBuffer();
     auto& gpu = renderer.getGPU();
 
-    if (allTextShown) { // more text
-        auto& spriteFrag = primBuffer.allocateFragment<psyqo::Prim::Sprite8x8>();
-        auto& sprite = spriteFrag.primitive;
-        sprite.texInfo.clut = borderTexture.clut;
+    auto& spriteFrag = primBuffer.allocateFragment<psyqo::Prim::Sprite8x8>();
+    auto& sprite = spriteFrag.primitive;
+    sprite.texInfo.clut = borderTexture.clut;
 
-        sprite.position.x = position.x + size.x - moreTextOffset.x;
-        sprite.position.y = position.y + size.y - moreTextOffset.y + moreTextBouncer.getOffset();
-        sprite.texInfo.u = 48;
-        sprite.texInfo.v = 144;
+    sprite.position.x = position.x + size.x - moreTextOffset.x;
+    sprite.position.y = position.y + size.y - moreTextOffset.y + moreTextBouncer.getOffset();
+    sprite.texInfo.u = 48;
+    sprite.texInfo.v = 144;
 
-        gpu.chain(spriteFrag);
-    }
+    gpu.chain(spriteFrag);
 }
 
 void DialogueBox::drawLine(
@@ -331,4 +347,18 @@ void DialogueBox::drawLine(
     line.setColor(color);
 
     gpu.chain(lineFrag);
+}
+
+void DialogueBox::setText(const char* text, bool displayImmediately)
+{
+    textString = text;
+    if (displayImmediately) {
+        numOfCharsToShow = textString.size();
+    } else {
+        numOfCharsToShow = 0;
+    }
+    allTextShown = false;
+    wantClose = false;
+    isOpen = true;
+    letterIncrementTimer.reset();
 }

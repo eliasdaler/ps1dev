@@ -11,6 +11,7 @@
 #include "SkeletalAnimation.h"
 #include "SkeletonAnimator.h"
 #include "StringHash.h"
+#include "Trigger.h"
 
 class Game;
 class Renderer;
@@ -30,6 +31,7 @@ private:
     void processFreeCameraInput(const PadManager& pad);
     void processDebugInput(const PadManager& pad);
     void update();
+    void handleCollision(psyqo::SoftMath::Axis axis);
     void updateCamera();
 
     void draw(Renderer& renderer);
@@ -39,18 +41,16 @@ private:
     Game& game;
 
     // game objects
-    ModelObject car;
     ModelObject levelObj;
 
-    ModelObject player;
-    SkeletonAnimator playerAnimator;
-
-    ModelObject npc;
-    SkeletonAnimator npcAnimator;
+    AnimatedModelObject player;
+    psyqo::Vec3 oldPlayerPos;
+    AnimatedModelObject npc;
 
     Camera camera;
 
     DialogueBox dialogueBox;
+    DialogueBox interactionDialogueBox;
 
     std::size_t animIndex{1};
 
@@ -58,4 +58,28 @@ private:
 
     bool debugInfoDrawn{true};
     bool freeCamera{false};
+    bool followCamera{false};
+
+    bool canTalk{false};
+
+    enum class GameState { Normal, Dialogue, SwitchLevel };
+    GameState gameState;
+
+    enum class SwitchLevelState { FadeOut, Delay, FadeIn, Done };
+    SwitchLevelState switchLevelState;
+    Timer switchLevelDelayTimer{30};
+
+    psyqo::Angle interactStartAngle;
+    psyqo::Angle interactEndAngle;
+    psyqo::Angle interactRotationLerpFactor;
+    psyqo::Angle interactRotationLerpSpeed;
+    bool npcRotatesTowardsPlayer{false};
+
+    eastl::vector<AABB> collisionBoxes;
+    eastl::vector<Circle> collisionCircles;
+    eastl::vector<Trigger> triggers;
+
+    int fadeLevel = 0;
+    bool fadeFinished{false};
+    bool fadeOut{false}; // if false - fade in
 };
