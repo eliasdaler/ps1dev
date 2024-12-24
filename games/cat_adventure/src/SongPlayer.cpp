@@ -68,15 +68,14 @@ void SongPlayer::init(MidiFile& song, VabFile& vab)
     }
 
     // TODO: handle case where the init is called twice
-    const auto waitHBlanks = calculateHBlanks(bpm);
+    auto waitHBlanks = calculateHBlanks(bpm);
     musicTimer = gpu.armPeriodicTimer(
-        waitHBlanks * psyqo::GPU::US_PER_HBLANK / 2, [this, waitHBlanks](uint32_t) {
+        waitHBlanks * psyqo::GPU::US_PER_HBLANK / 2, [this, &waitHBlanks](uint32_t) {
             updateMusic();
-            musicTime += waitHBlanks * psyqo::GPU::US_PER_HBLANK / 2; // FIXME: use
-            // newWaitHBlanks!
+            musicTime += waitHBlanks * psyqo::GPU::US_PER_HBLANK / 2;
 
-            const auto newWaitHBlanks = calculateHBlanks(bpm);
-            gpu.changeTimerPeriod(musicTimer, newWaitHBlanks * psyqo::GPU::US_PER_HBLANK / 2);
+            waitHBlanks = calculateHBlanks(bpm);
+            gpu.changeTimerPeriod(musicTimer, waitHBlanks * psyqo::GPU::US_PER_HBLANK / 2);
         });
 }
 
