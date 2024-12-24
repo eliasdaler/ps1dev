@@ -113,18 +113,20 @@ void GameplayScene::start(StartReason reason)
     }
 
     game.songPlayer.init(game.midi, game.vab);
+
+    ramsyscall_printf("BPM: %d\n", game.songPlayer.bpm);
 }
 
 void GameplayScene::frame()
 {
-    fpsCounter.update(game.gpu());
+    /* fpsCounter.update(game.gpu());
     game.pad.update();
-    processInput(game.pad);
-    update();
+    processInput(game.pad); */
+    // update();
 
     gpu().pumpCallbacks();
 
-    draw(game.renderer);
+    // draw(game.renderer);
 }
 
 void GameplayScene::processInput(const PadManager& pad)
