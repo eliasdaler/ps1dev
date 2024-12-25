@@ -70,6 +70,7 @@ target_compile_options(game PRIVATE
 
 target_link_libraries(game PRIVATE
   psyqo::psyqo
+  m
 )
 
 set(ASSETS_DIR "${PROJECT_SOURCE_DIR}/assets")
