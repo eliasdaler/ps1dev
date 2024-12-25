@@ -49,12 +49,12 @@ psyqo::Angle calculateLerpDelta(psyqo::Angle a, psyqo::Angle b, psyqo::Angle spe
 
 #define M_PI 3.14159265358979323846;
 
-// angle_t is 0.16 fixed-point to get nice modulo behaviour
-// (UINT16_MAX corresponds to 2pi)
+// angle_t is 0.16 fixed-point to get nice modulo behaviour.
+// It goes from 0 (0) to 2pi (UINT16_MAX)
 using angleFP16 = uint16_t;
 static constexpr auto F_PI = (angleFP16)0x8000; // half-way point of u16 range
 
-/* Compile time atan2 - uses builtin to achieve this - we don't want to use libm here */
+// Compile time atan2 - uses builtin_atan2 to achieve this - we don't want to use libm here
 consteval angleFP16 compileTimeAtan2(int y, int x)
 {
     return F_PI * __builtin_atan2((double)y, (double)x) / M_PI;
