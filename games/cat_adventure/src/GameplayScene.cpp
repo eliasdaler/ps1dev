@@ -12,6 +12,7 @@
 #include "Game.h"
 #include "Math.h"
 #include "Renderer.h"
+#include "TextLabel.h"
 
 #include "gte-math.h"
 
@@ -355,6 +356,8 @@ void GameplayScene::processDebugInput(const PadManager& pad)
             ramsyscall_printf("%s", str.c_str());
         }
     }
+
+    game.debugMenu.processInput(pad);
 }
 
 void GameplayScene::updateCamera()
@@ -623,6 +626,8 @@ void GameplayScene::draw(Renderer& renderer)
     if (gameState == GameState::Dialogue && dialogueBox.isOpen) {
         dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
     }
+
+    game.debugMenu.draw(renderer);
 
     if (debugInfoDrawn) {
         drawDebugInfo(renderer);

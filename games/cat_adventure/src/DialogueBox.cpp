@@ -282,7 +282,7 @@ void DialogueBox::drawText(
         auto& sprite = spriteFrag.primitive;
         sprite.texInfo.clut = fontClut;
 
-        auto& glyphInfo = glyphs[(int)c];
+        const auto& glyphInfo = glyphs[(int)c];
         sprite.position.x = glyphPos.x + lineX + glyphInfo.bearing.x;
         sprite.position.y = glyphPos.y + (ascenderPx - glyphInfo.bearing.y) + lineNum * lineSpacing;
         sprite.texInfo.u = glyphInfo.uv0.x;

@@ -7,6 +7,7 @@
 #include <psyqo/font.hh>
 #include <psyqo/trigonometry.hh>
 
+#include "DebugMenu.h"
 #include "Font.h"
 #include "MidiFile.h"
 #include "Model.h"
@@ -81,4 +82,6 @@ public:
 
     GameplayScene gameplayScene;
     LoadingScene loadingScene;
+
+    DebugMenu debugMenu;
 };

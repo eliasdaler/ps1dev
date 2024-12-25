@@ -34,6 +34,8 @@ add_executable(game
   src/DialogueBox.cpp
   src/SongPlayer.cpp
   src/Object.cpp
+  src/TextLabel.cpp
+  src/DebugMenu.cpp
 
   src/Game.cpp
 
