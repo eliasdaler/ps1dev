@@ -19,24 +19,30 @@ void DebugMenu::init(
 
     menuItems = {
         MenuItem{
-            .text = "Change level", .callback = []() { ramsyscall_printf("Change level!\n"); }},
-        MenuItem{
             .text = "Dump debug info",
-            .callback = []() { ramsyscall_printf("Dump debug info\n"); },
         },
         MenuItem{
-            .text = "Funky mode",
+            .text = "Collision",
+            .checkbox = true,
+            .checkboxOn = false,
+        },
+        MenuItem{
+            .text = "Camera follow",
+            .checkbox = true,
+            .checkboxOn = false,
+        },
+        MenuItem{
+            .text = "Music mute",
+            .checkbox = true,
+            .checkboxOn = false,
         },
     };
-
-    open = true;
 }
 
-void DebugMenu::processInput(const PadManager& pad)
+int DebugMenu::processInput(const PadManager& pad)
 {
     if (!open) {
-        // TODO
-        return;
+        return -1;
     }
 
     if (pad.wasButtonJustPressed(psyqo::SimplePad::Button::Down)) {
@@ -53,12 +59,23 @@ void DebugMenu::processInput(const PadManager& pad)
         }
     }
 
-    if (pad.wasButtonJustPressed(psyqo::SimplePad::Button::Cross)) {
-        const auto& menuItem = menuItems[selectedItemIdx];
+    if (pad.wasButtonJustPressed(psyqo::SimplePad::Button::Cross) ||
+        pad.wasButtonJustPressed(psyqo::SimplePad::Start)) {
+        auto& menuItem = menuItems[selectedItemIdx];
         if (menuItem.callback) {
             menuItem.callback();
         }
+        if (menuItem.checkbox) {
+            if (menuItem.valuePtr) {
+                *menuItem.valuePtr = !*menuItem.valuePtr;
+            } else {
+                menuItem.checkboxOn = !menuItem.checkboxOn;
+            }
+        }
+        return selectedItemIdx;
     }
+
+    return -1;
 }
 
 void DebugMenu::draw(Renderer& renderer)
@@ -92,12 +109,12 @@ void DebugMenu::draw(Renderer& renderer)
         gpu.chain(tpage);
     }
 
-    psyqo::Vertex textPos{.x = 32, .y = 32};
+    psyqo::Vertex textPos{.x = 16, .y = 16};
     for (int i = 0; i < menuItems.size(); ++i) {
         bool selected = (i == selectedItemIdx);
 
         const auto& menuItem = menuItems[i];
-        ui::drawTextLabel(
+        const auto glyphPos = ui::drawTextLabel(
             textPos,
             menuItem.text,
             selected ? selectedItemColor : normalItemColor,
@@ -105,6 +122,18 @@ void DebugMenu::draw(Renderer& renderer)
             *fontPtr,
             *fontAtlasTexturePtr,
             false);
+
+        if (menuItem.checkbox) {
+            bool on = menuItem.valuePtr ? *menuItem.valuePtr : menuItem.checkboxOn;
+            ui::drawTextLabel(
+                glyphPos,
+                on ? ": ON" : ": OFF",
+                selected ? selectedItemColor : normalItemColor,
+                renderer,
+                *fontPtr,
+                *fontAtlasTexturePtr,
+                false);
+        }
 
         textPos.y += 16;
     }

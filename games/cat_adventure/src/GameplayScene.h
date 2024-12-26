@@ -31,12 +31,16 @@ private:
     void processFreeCameraInput(const PadManager& pad);
     void processDebugInput(const PadManager& pad);
     void update();
+    void updateLevelSwitch();
     void handleCollision(psyqo::SoftMath::Axis axis);
     void updateCamera();
 
     void draw(Renderer& renderer);
     void drawTestLevel(Renderer& renderer);
     void drawDebugInfo(Renderer& renderer);
+    void dumpDebugInfoToTTY();
+
+    void switchLevel(int levelId);
 
     Game& game;
 
@@ -61,6 +65,7 @@ private:
     bool followCamera{false};
 
     bool canTalk{false};
+    bool canInteract{false};
 
     enum class GameState { Normal, Dialogue, SwitchLevel };
     GameState gameState;
@@ -82,4 +87,7 @@ private:
     int fadeLevel = 0;
     bool fadeFinished{false};
     bool fadeOut{false}; // if false - fade in
+    int destinationLevelId = 0;
+
+    bool collisionEnabled{true};
 };

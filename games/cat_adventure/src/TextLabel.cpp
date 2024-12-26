@@ -7,7 +7,7 @@
 
 namespace ui
 {
-void drawTextLabel(
+psyqo::Vertex drawTextLabel(
     const psyqo::Vertex& position,
     eastl::string_view str,
     const psyqo::Color color,
@@ -63,5 +63,7 @@ void drawTextLabel(
 
         lineX += glyphInfo.advance;
     }
+
+    return {.x = (int16_t)(glyphPos.x + lineX), .y = (int16_t)(glyphPos.y + lineNum * lineSpacing)};
 }
 }

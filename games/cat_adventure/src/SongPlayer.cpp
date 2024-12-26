@@ -103,8 +103,6 @@ void SongPlayer::findBPM(MidiFile& song)
 
 void SongPlayer::updateMusic()
 {
-    // for debug
-    const auto musicMuted = false;
     if (musicMuted) {
         return;
     }
@@ -216,6 +214,12 @@ void SongPlayer::updateMusic()
 
     spu.setKeyOnOff(voicesKeyOnMask, voicesKeyOffMask);
     spu.setReverbChannels(reverbEnableMask);
+}
+
+void SongPlayer::pauseMusic()
+{
+    spu.setKeyOnOff(0, ~0);
+    musicMuted = true;
 }
 
 int SongPlayer::findChannel(std::uint8_t trackId, std::uint8_t noteId)

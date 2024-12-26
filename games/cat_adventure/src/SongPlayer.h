@@ -20,6 +20,7 @@ struct SongPlayer {
     void findBPM(MidiFile& song);
 
     void updateMusic();
+    void pauseMusic();
 
     int findChannel(std::uint8_t trackId, std::uint8_t noteId);
     int freeChannel(std::uint8_t trackId, std::uint8_t noteId);
@@ -55,6 +56,9 @@ struct SongPlayer {
 
     MidiFile* song{nullptr};
     VabFile* vab{nullptr};
+
+    // for debug
+    bool musicMuted{true};
 
     // TODO: move somewhere else?
     // This is where uploaded PCM samples start on SPU

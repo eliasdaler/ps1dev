@@ -13,13 +13,23 @@ struct DebugMenu {
         const Font& font,
         const TextureInfo& uiElementsTexture,
         const TextureInfo& fontAtlasTexture);
-    void processInput(const PadManager& pad);
+    int processInput(const PadManager& pad);
     void draw(Renderer& renderer);
 
     struct MenuItem {
         const char* text;
         eastl::function<void()> callback;
+
+        bool checkbox{false};
+        bool checkboxOn{false};
+        bool* valuePtr{nullptr}; // value to change on checkbox modify
     };
+
+    static constexpr auto DUMP_DEBUG_INFO_ITEM_ID = 0;
+    static constexpr auto COLLISION_ITEM_ID = 1;
+    static constexpr auto FOLLOW_CAMERA_ITEM_ID = 2;
+    static constexpr auto MUTE_MUSIC_ITEM_ID = 3;
+
     eastl::vector<MenuItem> menuItems;
 
     const Font* fontPtr;

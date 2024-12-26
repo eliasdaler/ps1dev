@@ -276,6 +276,9 @@ void DialogueBox::drawText(
         } else if (c == 5) {
             currTextColor = getRainbowColor(4);
             continue;
+        } else if (c == 6) {
+            currTextColor = getRainbowColor(3);
+            continue;
         }
 
         auto& spriteFrag = primBuffer.allocateFragment<psyqo::Prim::Sprite>();

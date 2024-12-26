@@ -10,7 +10,7 @@ struct TextureInfo;
 
 namespace ui
 {
-void drawTextLabel(
+psyqo::Vertex drawTextLabel(
     const psyqo::Vertex& position,
     eastl::string_view str,
     const psyqo::Color color,

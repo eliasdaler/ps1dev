@@ -11,6 +11,7 @@ struct Trigger {
     bool wasJustEntered() const { return !wasEntered && isEntered; }
     bool wasJustExited() const { return wasEntered && !isEntered; }
 
+    bool interaction{false};
     bool wasEntered{false};
     bool isEntered{false};
 };

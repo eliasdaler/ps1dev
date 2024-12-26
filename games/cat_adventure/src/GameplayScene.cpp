@@ -20,6 +20,8 @@
 
 #include <psyqo/xprintf.h>
 
+#define DEV_TOOLS
+
 namespace
 {
 constexpr auto worldScale = 8.0;
@@ -44,7 +46,6 @@ void GameplayScene::start(StartReason reason)
     interactionDialogueBox.position.y = 180;
     interactionDialogueBox.size.y = 32;
     interactionDialogueBox.displayMoreTextArrow = false;
-    interactionDialogueBox.setText("\5(X)\1 Talk", true);
 
     { // TODO: load from level
         AABB collisionBox;
@@ -69,6 +70,12 @@ void GameplayScene::start(StartReason reason)
         trigger.id = 0;
         trigger.aabb.min = {-0.1145, 0.0000, 0.3488};
         trigger.aabb.max = {0.0698, 0.1000, 0.4375};
+        triggers.push_back(trigger);
+
+        trigger.id = 1;
+        trigger.interaction = true;
+        trigger.aabb.min = {-0.2775, 0.0000, 0.07};
+        trigger.aabb.max = {-0.1821, 0.0000, 0.22};
         triggers.push_back(trigger);
     }
 
@@ -117,6 +124,10 @@ void GameplayScene::start(StartReason reason)
     }
 
     game.songPlayer.init(game.midi, game.vab);
+
+    game.debugMenu.menuItems[DebugMenu::COLLISION_ITEM_ID].valuePtr = &collisionEnabled;
+    game.debugMenu.menuItems[DebugMenu::FOLLOW_CAMERA_ITEM_ID].valuePtr = &followCamera;
+    game.debugMenu.menuItems[DebugMenu::MUTE_MUSIC_ITEM_ID].valuePtr = &game.songPlayer.musicMuted;
 }
 
 void GameplayScene::frame()
@@ -133,6 +144,37 @@ void GameplayScene::frame()
 
 void GameplayScene::processInput(const PadManager& pad)
 {
+#ifdef DEV_TOOLS
+    if ((pad.isButtonHeld(psyqo::SimplePad::Square) &&
+         pad.wasButtonJustPressed(psyqo::SimplePad::Triangle)) ||
+        (pad.wasButtonJustPressed(psyqo::SimplePad::Square) &&
+         pad.isButtonHeld(psyqo::SimplePad::Triangle))) {
+        game.debugMenu.open = !game.debugMenu.open;
+    }
+
+    if (game.debugMenu.open) {
+        auto selectedItemIdx = game.debugMenu.processInput(pad);
+        switch (selectedItemIdx) {
+        case DebugMenu::DUMP_DEBUG_INFO_ITEM_ID:
+            dumpDebugInfoToTTY();
+            break;
+        case DebugMenu::FOLLOW_CAMERA_ITEM_ID:
+            if (!followCamera) {
+                camera.position = {0.2900, 0.4501, 0.5192};
+                camera.rotation = {0.1621, -0.7753};
+            }
+            break;
+        case DebugMenu::MUTE_MUSIC_ITEM_ID:
+            if (game.songPlayer.musicMuted) {
+                game.songPlayer.pauseMusic();
+            }
+            break;
+        }
+
+        return;
+    }
+#endif
+
     if (freeCamera) {
         processFreeCameraInput(pad);
     } else if (gameState == GameState::Normal) {
@@ -231,24 +273,23 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
         }
     }
 
-    if (canTalk && pad.wasButtonJustPressed(psyqo::SimplePad::Cross)) {
-        gameState = GameState::Dialogue;
-        player.animator.setAnimation("Idle"_sh);
+    if (pad.wasButtonJustPressed(psyqo::SimplePad::Cross)) {
+        if (canTalk) {
+            gameState = GameState::Dialogue;
+            player.animator.setAnimation("Idle"_sh);
 
-        // TODO: move to npcInteractStart
-        interactStartAngle = npc.rotation.y;
-        interactEndAngle = npc.findInteractionAngle(player);
-        interactRotationLerpFactor = 0.0;
-        interactRotationLerpSpeed =
-            math::calculateLerpDelta(interactStartAngle, interactEndAngle, 0.04);
-        npcRotatesTowardsPlayer = true;
-    }
+            // TODO: move to npcInteractStart
+            interactStartAngle = npc.rotation.y;
+            interactEndAngle = npc.findInteractionAngle(player);
+            interactRotationLerpFactor = 0.0;
+            interactRotationLerpSpeed =
+                math::calculateLerpDelta(interactStartAngle, interactEndAngle, 0.04);
+            npcRotatesTowardsPlayer = true;
+        } else if (canInteract) {
+            gameState = GameState::Dialogue;
+            player.animator.setAnimation("Idle"_sh);
 
-    if (pad.wasButtonJustPressed(psyqo::SimplePad::Triangle)) {
-        followCamera = !followCamera;
-        if (!followCamera) {
-            camera.position = {0.2900, 0.4501, 0.5192};
-            camera.rotation = {0.1621, -0.7753};
+            dialogueBox.setText("You see a \3\6gleeby-\ndeeby\1\3 on the\nscreen...");
         }
     }
 }
@@ -309,55 +350,6 @@ void GameplayScene::processDebugInput(const PadManager& pad)
         fadeFinished = false;
         fadeLevel = 0;
     }
-
-    if (freeCamera) {
-        if (pad.wasButtonJustPressed(psyqo::SimplePad::Cross)) {
-            ++animIndex;
-            if (animIndex >= game.animations.size()) {
-                animIndex = 0;
-            }
-            player.animator.setAnimation(game.animations[animIndex].name);
-        }
-
-        if (pad.wasButtonJustPressed(psyqo::SimplePad::Triangle)) {
-            if (animIndex != 0) {
-                --animIndex;
-            } else {
-                animIndex = game.animations.size() - 1;
-            }
-            player.animator.setAnimation(game.animations[animIndex].name);
-        }
-
-        static eastl::fixed_string<char, 512> str;
-
-        if (pad.wasButtonJustPressed(psyqo::SimplePad::Square)) {
-            // dump camera position/rotation
-            fsprintf(
-                str,
-                "camera.position = {%.4f, %.4f, %.4f};\ncamera.rotation = {%.4f, %.4f};\n",
-                camera.position.x,
-                camera.position.y,
-                camera.position.z,
-                psyqo::FixedPoint<>(camera.rotation.x),
-                psyqo::FixedPoint<>(camera.rotation.y));
-            ramsyscall_printf("%s", str.c_str());
-        }
-
-        if (pad.wasButtonJustPressed(psyqo::SimplePad::Circle)) {
-            // dump player position/rotation
-            fsprintf(
-                str,
-                "player.position = {%.4f, %.4f, %.4f};\nplayer.rotation = {%.4f, %.4f};\n",
-                player.transform.translation.x,
-                player.transform.translation.y,
-                player.transform.translation.z,
-                psyqo::FixedPoint<>(player.rotation.x),
-                psyqo::FixedPoint<>(player.rotation.y));
-            ramsyscall_printf("%s", str.c_str());
-        }
-    }
-
-    game.debugMenu.processInput(pad);
 }
 
 void GameplayScene::updateCamera()
@@ -412,84 +404,41 @@ void GameplayScene::update()
     if (gameState == GameState::Normal) {
         npc.updateCollision();
 
-        handleCollision(psyqo::SoftMath::Axis::X);
-        handleCollision(psyqo::SoftMath::Axis::Z);
+        if (collisionEnabled) {
+            handleCollision(psyqo::SoftMath::Axis::X);
+            handleCollision(psyqo::SoftMath::Axis::Z);
+        }
 
         auto pos = player.getPosition();
         pos += player.velocity;
         player.setPosition(pos);
         player.updateCollision();
 
-        for (auto& trigger : triggers) {
-            trigger.wasEntered = trigger.isEntered;
-            trigger.isEntered = pointInAABB(trigger.aabb, player.getPosition());
+        canInteract = false;
+        if (collisionEnabled) {
+            for (auto& trigger : triggers) {
+                trigger.wasEntered = trigger.isEntered;
+                if (trigger.interaction) {
+                    trigger.isEntered = circleAABBIntersect(player.interactionCircle, trigger.aabb);
+                } else {
+                    trigger.isEntered = pointInAABB(trigger.aabb, player.getPosition());
+                }
 
-            if (trigger.wasJustEntered()) {
-                gameState = GameState::SwitchLevel;
-                switchLevelState = SwitchLevelState::FadeOut;
-                fadeLevel = 0;
-                fadeOut = true;
-                fadeFinished = false;
+                if (trigger.wasJustEntered()) {
+                    if (trigger.id == 0) {
+                        switchLevel(1);
+                    }
+                }
 
-                /* game.levelId = 1;
-
-                player.setPosition({0.5, 0.0, 0.5});
-                player.rotation = {0.0, 1.0};
-                followCamera = true; */
+                if (trigger.isEntered) {
+                    canInteract = true;
+                }
             }
         }
     }
 
     if (gameState == GameState::SwitchLevel) {
-        if (!fadeFinished) {
-            if (fadeOut) {
-                fadeLevel += 10;
-                if (fadeLevel > 255) {
-                    fadeLevel = 255;
-                    fadeFinished = true;
-                }
-            } else { // fade in
-                fadeLevel -= 10;
-                if (fadeLevel < 0) {
-                    fadeLevel = 0;
-                    fadeFinished = true;
-                }
-            }
-        }
-
-        switch (switchLevelState) {
-        case SwitchLevelState::FadeOut:
-            if (fadeFinished) {
-                switchLevelState = SwitchLevelState::Delay;
-                switchLevelDelayTimer.reset();
-            }
-            break;
-        case SwitchLevelState::Delay:
-            switchLevelDelayTimer.update();
-            if (switchLevelDelayTimer.tick()) {
-                switchLevelState = SwitchLevelState::FadeIn;
-
-                fadeFinished = false;
-                fadeOut = false;
-                fadeLevel = 255;
-
-                // switch level
-                game.levelId = 1;
-                player.setPosition({0.5, 0.0, 0.5});
-                player.rotation = {0.0, 1.0};
-                player.animator.setAnimation("Idle"_sh);
-                followCamera = true;
-            }
-            break;
-        case SwitchLevelState::FadeIn:
-            if (fadeFinished) {
-                switchLevelState = SwitchLevelState::Done;
-            }
-            break;
-        case SwitchLevelState::Done:
-            gameState = GameState::Normal;
-            break;
-        }
+        updateLevelSwitch();
     }
 
     player.update();
@@ -499,7 +448,6 @@ void GameplayScene::update()
 
     if (gameState == GameState::Normal) {
         canTalk = circlesIntersect(player.interactionCircle, npc.interactionCircle);
-
     } else if (gameState == GameState::Dialogue) {
         if (npcRotatesTowardsPlayer) {
             interactRotationLerpFactor += interactRotationLerpSpeed;
@@ -518,6 +466,59 @@ void GameplayScene::update()
         if (dialogueBox.isOpen) {
             dialogueBox.update();
         }
+    }
+}
+
+void GameplayScene::updateLevelSwitch()
+{
+    if (!fadeFinished) {
+        if (fadeOut) {
+            fadeLevel += 10;
+            if (fadeLevel > 255) {
+                fadeLevel = 255;
+                fadeFinished = true;
+            }
+        } else { // fade in
+            fadeLevel -= 10;
+            if (fadeLevel < 0) {
+                fadeLevel = 0;
+                fadeFinished = true;
+            }
+        }
+    }
+
+    switch (switchLevelState) {
+    case SwitchLevelState::FadeOut:
+        if (fadeFinished) {
+            switchLevelState = SwitchLevelState::Delay;
+            switchLevelDelayTimer.reset();
+        }
+        break;
+    case SwitchLevelState::Delay:
+        switchLevelDelayTimer.update();
+        if (switchLevelDelayTimer.tick()) {
+            switchLevelState = SwitchLevelState::FadeIn;
+
+            fadeFinished = false;
+            fadeOut = false;
+            fadeLevel = 255;
+
+            // switch level
+            game.levelId = destinationLevelId;
+            player.setPosition({0.5, 0.0, 0.5});
+            player.rotation = {0.0, 1.0};
+            player.animator.setAnimation("Idle"_sh);
+            followCamera = true;
+        }
+        break;
+    case SwitchLevelState::FadeIn:
+        if (fadeFinished) {
+            switchLevelState = SwitchLevelState::Done;
+        }
+        break;
+    case SwitchLevelState::Done:
+        gameState = GameState::Normal;
+        break;
     }
 }
 
@@ -619,15 +620,19 @@ void GameplayScene::draw(Renderer& renderer)
 
     gp.chain(ot);
 
-    if (gameState == GameState::Normal && canTalk) {
-        interactionDialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
+    if (gameState == GameState::Normal) {
+        if (canTalk) {
+            interactionDialogueBox.setText("\5(X)\1 Talk", true);
+            interactionDialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
+        } else if (canInteract) {
+            interactionDialogueBox.setText("\5(X)\1 Interact", true);
+            interactionDialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
+        }
     }
 
     if (gameState == GameState::Dialogue && dialogueBox.isOpen) {
         dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
     }
-
-    game.debugMenu.draw(renderer);
 
     if (debugInfoDrawn) {
         drawDebugInfo(renderer);
@@ -652,12 +657,9 @@ void GameplayScene::draw(Renderer& renderer)
         rect.setColor(black);
         rect.setSemiTrans();
         gpu.chain(rectFrag);
-
-        auto& tpage2 = primBuffer.allocateFragment<psyqo::Prim::TPage>();
-        tpage2.primitive.attr.setDithering(true).set(
-            psyqo::Prim::TPageAttr::SemiTrans::FullBackSubFullFront);
-        gpu.chain(tpage2);
     }
+
+    game.debugMenu.draw(renderer);
 }
 
 void GameplayScene::drawTestLevel(Renderer& renderer)
@@ -710,102 +712,151 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
 
     renderer.drawArmature(npc, camera);
 
-    /* renderer.drawAABB(
-        camera, {-0.15, 0.0, 0.4}, {0.2, 0.1, 0.08}, psyqo::Color{.r = 128, .g = 255, .b = 255}); */
+    { // draw collisions/triggers
+        static const auto colliderColor = psyqo::Color{.r = 128, .g = 255, .b = 255};
+        static const auto triggerColor = psyqo::Color{.r = 255, .g = 255, .b = 128};
+        static const auto interactionTriggerColor = psyqo::Color{.r = 255, .g = 128, .b = 128};
+        static const auto activeTriggerColor = psyqo::Color{.r = 128, .g = 255, .b = 128};
 
-    static const auto colliderColor = psyqo::Color{.r = 128, .g = 255, .b = 255};
-    static const auto triggerColor = psyqo::Color{.r = 255, .g = 255, .b = 128};
-    static const auto activeTriggerColor = psyqo::Color{.r = 128, .g = 255, .b = 128};
+        for (const auto& box : collisionBoxes) {
+            renderer.drawAABB(camera, box, colliderColor);
+        }
 
-    for (const auto& box : collisionBoxes) {
-        renderer.drawAABB(camera, box, colliderColor);
-    }
+        for (const auto& circle : collisionCircles) {
+            renderer.drawCircle(camera, circle, colliderColor);
+        }
 
-    for (const auto& circle : collisionCircles) {
-        renderer.drawCircle(camera, circle, colliderColor);
-    }
+        for (const auto& trigger : triggers) {
+            const auto& col = trigger.isEntered ?
+                                  activeTriggerColor :
+                                  ((trigger.interaction) ? interactionTriggerColor : triggerColor);
+            renderer.drawAABB(camera, trigger.aabb, col);
+        }
 
-    for (const auto& trigger : triggers) {
         renderer
-            .drawAABB(camera, trigger.aabb, trigger.isEntered ? activeTriggerColor : triggerColor);
+            .drawCircle(camera, player.collisionCircle, psyqo::Color{.r = 255, .g = 0, .b = 255});
+        renderer.drawCircle(camera, npc.collisionCircle, psyqo::Color{.r = 0, .g = 255, .b = 255});
+
+        if (canTalk || canInteract) {
+            renderer.drawCircle(
+                camera, player.interactionCircle, psyqo::Color{.r = 255, .g = 255, .b = 0});
+        } else {
+            renderer.drawCircle(
+                camera, player.interactionCircle, psyqo::Color{.r = 255, .g = 0, .b = 0});
+        }
     }
 
-    renderer.drawCircle(camera, player.collisionCircle, psyqo::Color{.r = 255, .g = 0, .b = 255});
-    renderer.drawCircle(camera, npc.collisionCircle, psyqo::Color{.r = 0, .g = 255, .b = 255});
+    if (!game.debugMenu.open) {
+        static const psyqo::Color textCol = {{.r = 255, .g = 255, .b = 255}};
 
-    if (canTalk) {
-        renderer
-            .drawCircle(camera, player.interactionCircle, psyqo::Color{.r = 255, .g = 255, .b = 0});
-    } else {
-        renderer
-            .drawCircle(camera, player.interactionCircle, psyqo::Color{.r = 255, .g = 0, .b = 0});
+        const auto stateStr = [this]() {
+            switch (gameState) {
+            case GameState::Normal:
+                return "n";
+            case GameState::Dialogue:
+                return "d";
+            case GameState::SwitchLevel:
+                return "sl";
+            }
+            return "";
+        }();
+
+        game.romFont.chainprintf(
+            game.gpu(),
+            {{.x = 16, .y = 16}},
+            textCol,
+            "p pos = (%.2f, %.2f, %.2f), st: %s",
+            player.getPosition().x,
+            player.getPosition().y,
+            player.getPosition().z,
+            stateStr);
+
+        game.romFont.chainprintf(
+            game.gpu(),
+            {{.x = 16, .y = 32}},
+            textCol,
+            "p rot=(%.2f, %.2f)",
+            psyqo::FixedPoint<>(player.rotation.x),
+            psyqo::FixedPoint<>(player.rotation.y));
+
+        /* game.romFont.chainprintf(
+            game.gpu(),
+            {{.x = 16, .y = 64}},
+            textCol,
+            "bpm=%d, t=%d, reverb = %d",
+            (int)game.songPlayer.bpm,
+            (int)game.songPlayer.musicTime,
+            (int)SoundPlayer::reverbEnabled); */
+
+        /* game.romFont.chainprintf(
+            game.gpu(),
+            {{.x = 16, .y = 64}},
+            textCol,
+            "%d, anim=%s",
+            animIndex,
+            player.animator.currentAnimation->name.getStr()); */
+
+        /* game.romFont.chainprintf(
+            game.gpu(),
+            {{.x = 16, .y = 80}},
+            textCol,
+            "q = (%.3f, %.3f, %.3f, %.3f)",
+            psyqo::FixedPoint<>(rot.w),
+            psyqo::FixedPoint<>(rot.x),
+            psyqo::FixedPoint<>(rot.y),
+            psyqo::FixedPoint<>(rot.z)); */
+
+        /* game.romFont.chainprintf(
+            game.gpu(),
+            {{.x = 16, .y = 80}},
+            textCol,
+            "t = (%.3f), f = %d",
+            player.animator.normalizedAnimTime,
+            player.animator.getAnimationFrame()); */
+
+        game.romFont.chainprintf(
+            game.gpu(),
+            {{.x = 16, .y = 48}},
+            textCol,
+            "FPS: %.2f, avg: %.2f",
+            fpsCounter.getMovingAverage(),
+            fpsCounter.getAverage());
     }
+}
 
-    /* static eastl::fixed_string<char, 512> str;
-    auto test = psyqo::Vec4{1.0, 2.0, 3.0, 4.0};
-    fsprintf(str, "%.2f, %.2f, %.2f, %.2f\n", test.x, test.y, test.z, test.w);
-    ramsyscall_printf("vec = %s\n", str.c_str()); */
+void GameplayScene::dumpDebugInfoToTTY()
+{
+    static eastl::fixed_string<char, 512> str;
 
-    static const psyqo::Color textCol = {{.r = 255, .g = 255, .b = 255}};
+    // dump camera position/rotation
+    fsprintf(
+        str,
+        "camera.position = {%.4f, %.4f, %.4f};\ncamera.rotation = {%.4f, %.4f};",
+        camera.position.x,
+        camera.position.y,
+        camera.position.z,
+        psyqo::FixedPoint<>(camera.rotation.x),
+        psyqo::FixedPoint<>(camera.rotation.y));
+    ramsyscall_printf("%s\n", str.c_str());
 
-    game.romFont.chainprintf(
-        game.gpu(),
-        {{.x = 16, .y = 16}},
-        textCol,
-        "p pos = (%.2f, %.2f, %.2f), st: %s",
-        player.getPosition().x,
-        player.getPosition().y,
-        player.getPosition().z,
-        (gameState == GameState::Dialogue) ? "d" : "g");
-
-    game.romFont.chainprintf(
-        game.gpu(),
-        {{.x = 16, .y = 32}},
-        textCol,
-        "p rot=(%.2f, %.2f)",
+    // dump player position/rotation
+    fsprintf(
+        str,
+        "player.setPosition({%.4f, %.4f, %.4f});\nplayer.rotation = {%.4f, %.4f};",
+        player.transform.translation.x,
+        player.transform.translation.y,
+        player.transform.translation.z,
         psyqo::FixedPoint<>(player.rotation.x),
         psyqo::FixedPoint<>(player.rotation.y));
+    ramsyscall_printf("%s\n", str.c_str());
+}
 
-    /* game.romFont.chainprintf(
-        game.gpu(),
-        {{.x = 16, .y = 64}},
-        textCol,
-        "bpm=%d, t=%d, reverb = %d",
-        (int)game.songPlayer.bpm,
-        (int)game.songPlayer.musicTime,
-        (int)SoundPlayer::reverbEnabled); */
-
-    /* game.romFont.chainprintf(
-        game.gpu(),
-        {{.x = 16, .y = 64}},
-        textCol,
-        "%d, anim=%s",
-        animIndex,
-        player.animator.currentAnimation->name.getStr()); */
-
-    /* game.romFont.chainprintf(
-        game.gpu(),
-        {{.x = 16, .y = 80}},
-        textCol,
-        "q = (%.3f, %.3f, %.3f, %.3f)",
-        psyqo::FixedPoint<>(rot.w),
-        psyqo::FixedPoint<>(rot.x),
-        psyqo::FixedPoint<>(rot.y),
-        psyqo::FixedPoint<>(rot.z)); */
-
-    /* game.romFont.chainprintf(
-        game.gpu(),
-        {{.x = 16, .y = 80}},
-        textCol,
-        "t = (%.3f), f = %d",
-        player.animator.normalizedAnimTime,
-        player.animator.getAnimationFrame()); */
-
-    game.romFont.chainprintf(
-        game.gpu(),
-        {{.x = 16, .y = 48}},
-        textCol,
-        "FPS: %.2f, avg: %.2f",
-        fpsCounter.getMovingAverage(),
-        fpsCounter.getAverage());
+void GameplayScene::switchLevel(int levelId)
+{
+    gameState = GameState::SwitchLevel;
+    switchLevelState = SwitchLevelState::FadeOut;
+    fadeLevel = 0;
+    fadeOut = true;
+    fadeFinished = false;
+    destinationLevelId = levelId;
 }

@@ -103,7 +103,7 @@ void MidiFile::load(eastl::string_view filename, const eastl::vector<uint8_t>& d
             }
 
             if (event.type == MidiEvent::Type::PitchBend) {
-                ramsyscall_printf("PITCH BEND IS NOT IMPLEMENTED\n");
+                // ramsyscall_printf("PITCH BEND IS NOT IMPLEMENTED\n");
             }
 
             if (event.type == MidiEvent::Type::MetaEvent) {
