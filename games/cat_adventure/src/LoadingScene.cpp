@@ -29,5 +29,27 @@ void LoadingScene::draw(Renderer& renderer)
     gpu().chain(fill);
     // text
     static const psyqo::Color textCol = {{.r = 255, .g = 255, .b = 255}};
-    game.romFont.chainprintf(game.gpu(), {{.x = 16, .y = 32}}, textCol, "Loading...");
+
+    static int numDots = 0;
+    static int delayTimer;
+    ++delayTimer;
+    if (delayTimer % 10 == 0) {
+        ++numDots;
+        numDots = numDots % 4;
+    }
+
+    const char* str = [](int numDots) {
+        switch (numDots) {
+        case 1:
+            return "Loading.";
+        case 2:
+            return "Loading..";
+        case 3:
+            return "Loading...";
+        default:
+            return "Loading";
+        };
+    }(numDots);
+
+    game.romFont.chainprintf(game.gpu(), {{.x = 16, .y = 32}}, textCol, str);
 }

@@ -18,12 +18,15 @@ struct AnimatedModelObject;
 struct Camera;
 struct Circle;
 struct AABB;
+struct TimFile;
 
 class Renderer {
 public:
     Renderer(psyqo::GPU& gpu);
 
     void init();
+
+    [[nodiscard]] TextureInfo uploadTIM(const TimFile& tim);
 
     void drawModelObject(
         const ModelObject& object,

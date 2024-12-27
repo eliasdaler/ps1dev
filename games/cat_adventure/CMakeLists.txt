@@ -44,6 +44,7 @@ add_executable(game
   ./src/LoadingScene.cpp
   ./src/GameplayScene.cpp
 
+  ./src/CDLoader.cpp
   ./src/Game.cpp
   ./src/main.cpp
 )

@@ -23,6 +23,8 @@
 #include "GameplayScene.h"
 #include "LoadingScene.h"
 
+#include "CDLoader.h"
+
 class Game : public psyqo::Application {
     void prepare() override;
     void createScene() override;
@@ -30,24 +32,13 @@ class Game : public psyqo::Application {
 public:
     Game();
 
-    void loadTIM(eastl::string_view filename, TextureInfo& textureInfo);
-    void loadFont(eastl::string_view filename, Font& font);
-    void loadModel(eastl::string_view filename, Model& model);
-    void loadSound(eastl::string_view filename, uint32_t spuUploadAddr);
-    void loadMIDI(eastl::string_view filename, MidiFile& midi);
-    void loadInstruments(eastl::string_view filename, VabFile& vab);
-    void loadRawPCM(eastl::string_view filename, uint32_t spuUploadAddr);
-    void loadAnimations(eastl::string_view filename, eastl::vector<SkeletalAnimation>& animations);
-
-    [[nodiscard]] TextureInfo uploadTIM(const TimFile& tim);
-
+    CDLoader cd;
     psyqo::Font<> romFont;
     psyqo::Trig<> trig;
 
     psyqo::CDRomDevice cdrom;
     psyqo::ISO9660Parser isoParser{&cdrom};
     psyqo::paths::CDRomLoader cdromLoader;
-    eastl::vector<std::uint8_t> cdReadBuffer;
     psyqo::Coroutine<> gameLoadCoroutine;
 
     PadManager pad;

@@ -703,12 +703,11 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
 
 void GameplayScene::drawDebugInfo(Renderer& renderer)
 {
-    renderer.drawObjectAxes(player, camera);
-    // player.model->armature.drawDebug(renderer);
-
-    renderer.drawArmature(npc, camera);
-
     if (collisionDrawn) { // draw collisions/triggers
+        renderer.drawObjectAxes(player, camera);
+        // player.model->armature.drawDebug(renderer);
+        renderer.drawArmature(npc, camera);
+
         static const auto colliderColor = psyqo::Color{.r = 128, .g = 255, .b = 255};
         static const auto triggerColor = psyqo::Color{.r = 255, .g = 255, .b = 128};
         static const auto interactionTriggerColor = psyqo::Color{.r = 255, .g = 128, .b = 128};
