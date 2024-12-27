@@ -8,6 +8,7 @@
 
 #include <Collision.h>
 #include <Graphics/SkeletonAnimator.h>
+#include <Graphics/TextureInfo.h>
 #include <Math/Transform.h>
 
 struct Model;
@@ -59,10 +60,13 @@ struct ModelObject : Object {
     void update();
 
     Model* model{nullptr};
+    TextureInfo texture;
 };
 
 struct MeshObject : Object {
     Mesh* mesh{nullptr};
+    TextureInfo texture;
+    bool hasTexture{false};
 };
 
 struct AnimatedModelObject : ModelObject {

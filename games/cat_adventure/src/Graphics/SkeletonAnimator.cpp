@@ -9,7 +9,8 @@ void SkeletonAnimator::setAnimation(
     psyqo::FixedPoint<> playbackSpeed,
     psyqo::FixedPoint<> startAnimationPoint)
 {
-    if (animationName == currentAnimationName && this->playbackSpeed == playbackSpeed) {
+    if ((currentAnimation && animationName == currentAnimation->name) &&
+        this->playbackSpeed == playbackSpeed) {
         return;
     }
 
@@ -20,7 +21,6 @@ void SkeletonAnimator::setAnimation(
     }
 
     currentAnimation = anim;
-    currentAnimationName = animationName;
     this->playbackSpeed = playbackSpeed;
 
     if (startAnimationPoint == 0.0) {
@@ -86,6 +86,5 @@ void SkeletonAnimator::animate(
 
     const auto& animation = *currentAnimation;
     animateArmature(armature, animation, normalizedAnimTime);
-
     armature.calculateTransforms(jointGlobalTransforms);
 }

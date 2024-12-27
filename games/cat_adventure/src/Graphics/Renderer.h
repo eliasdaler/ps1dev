@@ -28,22 +28,18 @@ public:
 
     [[nodiscard]] TextureInfo uploadTIM(const TimFile& tim);
 
-    void drawModelObject(
-        const ModelObject& object,
-        const Camera& camera,
-        const TextureInfo& texture,
-        bool setViewRot = true);
+    void drawModelObject(const ModelObject& object, const Camera& camera, bool setViewRot = true);
 
     void drawAnimatedModelObject(
         const AnimatedModelObject& object,
         const Camera& camera,
-        const TextureInfo& texture,
         bool setViewRot = true);
 
-    void drawMeshObject(const MeshObject& object, const Camera& camera, const TextureInfo& texture);
+    void drawMeshObject(const MeshObject& object, const Camera& camera);
 
     void drawModel(const Model& model, const TextureInfo& texture);
     void drawMesh(const Mesh& mesh, const TextureInfo& texture);
+    void drawMesh(const Mesh& mesh);
 
     static constexpr auto OT_SIZE = 4096 * 2;
     using OrderingTableType = psyqo::OrderingTable<OT_SIZE>;

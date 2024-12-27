@@ -61,6 +61,19 @@ public:
         return res;
     }
 
+    /* TODO: don't copy-paste? */
+    static inline std::uint64_t djbProcessRuntime(
+        std::uint64_t hash,
+        const char str[],
+        std::size_t n)
+    {
+        std::uint64_t res = hash;
+        for (std::size_t i = 0; i < n; ++i) {
+            res = res * 33 + str[i];
+        }
+        return res;
+    }
+
     static constexpr std::uint64_t seed{5381};
 };
 
@@ -68,3 +81,12 @@ inline StringHash consteval operator""_sh(const char* str, std::size_t n)
 {
     return StringHash{(std::uint32_t)DJBHash::djbProcess(DJBHash::seed, str, n)};
 }
+
+struct StringViewWithHash {
+    eastl::string_view str;
+    StringHash hash;
+
+    StringViewWithHash(eastl::string_view str) :
+        str(str), hash(DJBHash::djbProcessRuntime(DJBHash::seed, str.begin(), str.size()))
+    {}
+};

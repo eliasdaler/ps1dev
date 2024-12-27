@@ -15,6 +15,8 @@
 #include <Math/gte-math.h>
 #include <UI/TextLabel.h>
 
+#include "Resources.h"
+
 #define DEV_TOOLS
 
 namespace
@@ -32,17 +34,10 @@ GameplayScene::GameplayScene(Game& game) : game(game)
 
 void GameplayScene::start(StartReason reason)
 {
-    game.renderer.setFogNearFar(0.6, 3.125);
-    static const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
-    game.renderer.setFarColor(farColor);
+    collisionBoxes.clear();
+    triggers.clear();
 
-    interactionDialogueBox.displayBorders = false;
-    interactionDialogueBox.textOffset.x = 48;
-    interactionDialogueBox.position.y = 180;
-    interactionDialogueBox.size.y = 32;
-    interactionDialogueBox.displayMoreTextArrow = false;
-
-    { // TODO: load from level
+    if (game.level.id == 0) { // TODO: load from level
         AABB collisionBox;
 
         collisionBox.min = {-0.34, 0.0, -0.32};
@@ -72,58 +67,81 @@ void GameplayScene::start(StartReason reason)
         trigger.aabb.min = {-0.2775, 0.0000, 0.07};
         trigger.aabb.max = {-0.1821, 0.0000, 0.22};
         triggers.push_back(trigger);
+    } else {
+        Trigger trigger;
+        trigger.id = 0;
+        trigger.aabb.min = {-0.1145, 0.0000, 0.3488};
+        trigger.aabb.max = {0.0698, 0.1000, 0.4375};
+        triggers.push_back(trigger);
     }
 
-    if (reason == StartReason::Create) {
+    if (game.firstLoad) {
+        game.renderer.setFogNearFar(0.6, 3.125);
+        static const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
+        game.renderer.setFarColor(farColor);
+
+        uiTexture = game.resourceCache.getResource<TextureInfo>(CATO_TEXTURE_HASH);
+
+        interactionDialogueBox.displayBorders = false;
+        interactionDialogueBox.textOffset.x = 48;
+        interactionDialogueBox.position.y = 180;
+        interactionDialogueBox.size.y = 32;
+        interactionDialogueBox.displayMoreTextArrow = false;
+
         player.model = &game.humanModel;
+        player.texture = game.resourceCache.getResource<TextureInfo>(CATO_TEXTURE_HASH);
         player.jointGlobalTransforms.resize(player.model->armature.joints.size());
         player.animator.animations = &game.animations;
-        player.animator.setAnimation("Idle"_sh);
 
         npc.model = &game.catoModel;
+        npc.texture = game.resourceCache.getResource<TextureInfo>(CATO_TEXTURE_HASH);
         npc.jointGlobalTransforms.resize(npc.model->armature.joints.size());
         npc.animator.animations = &game.animations;
-        npc.animator.setAnimation("Idle"_sh);
 
-        levelObj.model = &game.levelModel;
-        levelObj.setPosition({});
-        levelObj.rotation = {};
+        game.songPlayer.init(game.midi, game.vab);
 
-        if (game.levelId == 0) {
-            player.setPosition({0.0, 0.0, 0.25});
-            player.rotation = {0.0, -1.0};
-
-            player.rotation = {0.0, -0.5};
-
-            npc.setPosition({0.0, 0.0, -0.11});
-            npc.rotation = {0.0, 0.1};
-
-            camera.position = {0.12, ToWorldCoords(1.5f), 0.81};
-            camera.rotation = {0.0, 1.0};
-
-            // debug
-            camera.position = {0.2900, 0.4501, 0.5192};
-            camera.rotation = {0.1621, -0.7753};
-            // freeCamera = true;
-            // followCamera = true;
-
-            // player.setPosition({-0.2033, 0.0000, 0.0827});
-            // player.setPosition({-0.5, 0.0, -0.11});
-        } else if (game.levelId == 1) {
-            player.setPosition({0.5, 0.0, 0.5});
-            player.rotation = {0.0, 1.0};
-
-            camera.position = {0.f, ToWorldCoords(1.5f), -1.f};
-            camera.rotation = {0.0, 0.0};
-        }
+        game.debugMenu.menuItems[DebugMenu::COLLISION_ITEM_ID].valuePtr = &collisionEnabled;
+        game.debugMenu.menuItems[DebugMenu::FOLLOW_CAMERA_ITEM_ID].valuePtr = &followCamera;
+        game.debugMenu.menuItems[DebugMenu::MUTE_MUSIC_ITEM_ID].valuePtr =
+            &game.songPlayer.musicMuted;
+        game.debugMenu.menuItems[DebugMenu::DRAW_COLLISION_ITEM_ID].valuePtr = &collisionDrawn;
     }
 
-    game.songPlayer.init(game.midi, game.vab);
+    levelObj.model = &game.levelModel;
+    levelObj.texture = game.resourceCache.getResource<TextureInfo>(BRICKS_TEXTURE_HASH);
+    levelObj.setPosition({});
+    levelObj.rotation = {};
 
-    game.debugMenu.menuItems[DebugMenu::COLLISION_ITEM_ID].valuePtr = &collisionEnabled;
-    game.debugMenu.menuItems[DebugMenu::FOLLOW_CAMERA_ITEM_ID].valuePtr = &followCamera;
-    game.debugMenu.menuItems[DebugMenu::MUTE_MUSIC_ITEM_ID].valuePtr = &game.songPlayer.musicMuted;
-    game.debugMenu.menuItems[DebugMenu::DRAW_COLLISION_ITEM_ID].valuePtr = &collisionDrawn;
+    if (game.level.id == 0) {
+        player.setPosition({0.0, 0.0, 0.25});
+        player.rotation = {0.0, -1.0};
+
+        player.rotation = {0.0, -0.5};
+
+        npc.setPosition({0.0, 0.0, -0.11});
+        npc.rotation = {0.0, 0.1};
+        npc.animator.setAnimation("Idle"_sh);
+
+        camera.position = {0.12, ToWorldCoords(1.5f), 0.81};
+        camera.rotation = {0.0, 1.0};
+
+        // debug
+        camera.position = {0.2900, 0.4501, 0.5192};
+        camera.rotation = {0.1621, -0.7753};
+        // freeCamera = true;
+        // followCamera = true;
+
+        // player.setPosition({-0.2033, 0.0000, 0.0827});
+        // player.setPosition({-0.5, 0.0, -0.11});
+    } else if (game.level.id == 1) {
+        player.setPosition({0.5, 0.0, 0.5});
+        player.rotation = {0.0, 1.0};
+
+        camera.position = {0.f, ToWorldCoords(1.5f), -1.f};
+        camera.rotation = {0.0, 0.0};
+    }
+
+    player.animator.setAnimation("Idle"_sh);
 }
 
 void GameplayScene::frame()
@@ -253,13 +271,13 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
     if (isMoving) {
         if (player.animator.frameJustChanged()) {
             const auto animFrame = player.animator.getAnimationFrame();
-            if (player.animator.currentAnimationName == "Walk"_sh) {
+            if (player.animator.currentAnimation->name == "Walk"_sh) {
                 if (animFrame == 4) {
                     game.soundPlayer.playSound(20, game.step1Sound);
                 } else if (animFrame == 20) {
                     game.soundPlayer.playSound(21, game.step2Sound);
                 }
-            } else if (player.animator.currentAnimationName == "Run"_sh) {
+            } else if (player.animator.currentAnimation->name == "Run"_sh) {
                 if (animFrame == 3) {
                     game.soundPlayer.playSound(20, game.step1Sound);
                 } else if (animFrame == 15) {
@@ -438,7 +456,9 @@ void GameplayScene::update()
     }
 
     player.update();
-    npc.update();
+    if (game.level.id == 0) {
+        npc.update();
+    }
 
     updateCamera();
 
@@ -500,7 +520,7 @@ void GameplayScene::updateLevelSwitch()
             fadeLevel = 255;
 
             // switch level
-            game.levelId = destinationLevelId;
+            game.loadLevel(destinationLevelId);
             player.setPosition({0.5, 0.0, 0.5});
             player.rotation = {0.0, 1.0};
             player.animator.setAnimation("Idle"_sh);
@@ -592,9 +612,9 @@ void GameplayScene::draw(Renderer& renderer)
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
 
     // draw static objects
-    if (game.levelId == 0) {
-        renderer.drawModelObject(levelObj, camera, game.bricksTexture, false);
-    } else if (game.levelId == 1) {
+    if (game.level.id == 0) {
+        renderer.drawModelObject(levelObj, camera, false);
+    } else if (game.level.id == 1) {
         drawTestLevel(renderer);
     }
 
@@ -606,9 +626,9 @@ void GameplayScene::draw(Renderer& renderer)
         // TODO: first draw objects without rotation
         // (won't have to upload camera.viewRot and change PseudoRegister::Rotation then)
 
-        renderer.drawAnimatedModelObject(player, camera, game.catoTexture);
-        if (game.levelId == 0) {
-            renderer.drawAnimatedModelObject(npc, camera, game.catoTexture);
+        renderer.drawAnimatedModelObject(player, camera);
+        if (game.level.id == 0) {
+            renderer.drawAnimatedModelObject(npc, camera);
         }
     }
 
@@ -619,15 +639,15 @@ void GameplayScene::draw(Renderer& renderer)
     if (gameState == GameState::Normal) {
         if (canTalk) {
             interactionDialogueBox.setText("\5(X)\1 Talk", true);
-            interactionDialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
+            interactionDialogueBox.draw(renderer, game.font, game.fontTexture, uiTexture);
         } else if (canInteract) {
             interactionDialogueBox.setText("\5(X)\1 Interact", true);
-            interactionDialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
+            interactionDialogueBox.draw(renderer, game.font, game.fontTexture, uiTexture);
         }
     }
 
     if (gameState == GameState::Dialogue && dialogueBox.isOpen) {
-        dialogueBox.draw(renderer, game.font, game.fontTexture, game.catoTexture);
+        dialogueBox.draw(renderer, game.font, game.fontTexture, uiTexture);
     }
 
     if (debugInfoDrawn) {
@@ -673,7 +693,7 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
             }
             object.setPosition(psyqo::FixedPoint(x, 0), 0.0, psyqo::FixedPoint(z, 0));
             object.calculateWorldMatrix();
-            renderer.drawMeshObject(object, camera, game.catoTexture);
+            renderer.drawMeshObject(object, camera);
         }
     }
 
@@ -682,7 +702,7 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
     for (int i = 0; i < 10; ++i) {
         object.setPosition(psyqo::FixedPoint(i, 0), 0.0, ToWorldCoords(8.0));
         object.calculateWorldMatrix();
-        renderer.drawMeshObject(object, camera, game.catoTexture);
+        renderer.drawMeshObject(object, camera);
     }
 
     auto lamp = &game.level2Model.meshes[2];
@@ -690,7 +710,7 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
     for (int i = 0; i < 10; ++i) {
         object.setPosition(psyqo::FixedPoint(i, 0), 0.0, ToWorldCoords(-8.0));
         object.calculateWorldMatrix();
-        renderer.drawMeshObject(object, camera, game.catoTexture);
+        renderer.drawMeshObject(object, camera);
     }
 
     auto car = &game.level2Model.meshes[5];
@@ -698,7 +718,7 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
     object.mesh = car;
     object.setPosition(ToWorldCoords(8.0), 0.0, 0.0);
     object.calculateWorldMatrix();
-    renderer.drawMeshObject(object, camera, game.catoTexture);
+    renderer.drawMeshObject(object, camera);
 }
 
 void GameplayScene::drawDebugInfo(Renderer& renderer)
@@ -760,11 +780,12 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
             game.gpu(),
             {{.x = 16, .y = 16}},
             textCol,
-            "p pos = (%.2f, %.2f, %.2f), st: %s",
+            "p pos = (%.2f, %.2f, %.2f), st:%s, l:%d",
             player.getPosition().x,
             player.getPosition().y,
             player.getPosition().z,
-            stateStr);
+            stateStr,
+            game.level.id);
 
         game.romFont.chainprintf(
             game.gpu(),
@@ -854,4 +875,8 @@ void GameplayScene::switchLevel(int levelId)
     fadeOut = true;
     fadeFinished = false;
     destinationLevelId = levelId;
+
+    if (game.level.id == 1) {
+        destinationLevelId = 0;
+    }
 }

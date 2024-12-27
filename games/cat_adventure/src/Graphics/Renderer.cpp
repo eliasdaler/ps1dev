@@ -112,23 +112,18 @@ bool Renderer::shouldCullObject(const Object& object, const Camera& camera) cons
     return false;
 }
 
-void Renderer::drawModelObject(
-    const ModelObject& object,
-    const Camera& camera,
-    const TextureInfo& texture,
-    bool setViewRot)
+void Renderer::drawModelObject(const ModelObject& object, const Camera& camera, bool setViewRot)
 {
     if (shouldCullObject(object, camera)) {
         return;
     }
     calculateViewModelMatrix(object, camera, setViewRot);
-    drawModel(*object.model, texture);
+    drawModel(*object.model, object.texture);
 }
 
 void Renderer::drawAnimatedModelObject(
     const AnimatedModelObject& object,
     const Camera& camera,
-    const TextureInfo& texture,
     bool setViewRot)
 {
     if (shouldCullObject(object, camera)) {
@@ -139,7 +134,7 @@ void Renderer::drawAnimatedModelObject(
     const auto& armature = model.armature;
 
     if (model.armature.joints.empty()) {
-        drawModelObject(object, camera, texture);
+        drawModelObject(object, camera);
         return;
     }
 
@@ -173,20 +168,21 @@ void Renderer::drawAnimatedModelObject(
             writeSafe<PseudoRegister::Translation>(t2.translation);
         }
 
-        drawMesh(mesh, texture);
+        drawMesh(mesh, object.texture);
     }
 }
 
-void Renderer::drawMeshObject(
-    const MeshObject& object,
-    const Camera& camera,
-    const TextureInfo& texture)
+void Renderer::drawMeshObject(const MeshObject& object, const Camera& camera)
 {
     if (shouldCullObject(object, camera)) {
         return;
     }
     calculateViewModelMatrix(object, camera, false);
-    drawMesh(*object.mesh, texture);
+    if (object.hasTexture) {
+        drawMesh(*object.mesh, object.texture);
+    } else {
+        drawMesh(*object.mesh);
+    }
 }
 
 void Renderer::drawModel(const Model& model, const TextureInfo& texture)
@@ -211,6 +207,24 @@ void Renderer::drawMesh(const Mesh& mesh, const TextureInfo& texture)
         drawQuads<GouraudQuad, false>(mesh, texture, mesh.numUntexturedQuads, vertexIdx);
         drawTris<GouraudTexturedTriangle, false>(mesh, texture, mesh.numTris, vertexIdx);
         drawQuads<GouraudTexturedQuad, false>(mesh, texture, mesh.numQuads, vertexIdx);
+    }
+
+    gpu.pumpCallbacks();
+}
+
+void Renderer::drawMesh(const Mesh& mesh)
+{
+    using namespace psyqo::Prim;
+
+    static TextureInfo dummyTextureInfo{};
+
+    std::size_t vertexIdx = 0;
+    if (fogEnabled) {
+        drawTris<GouraudTriangle, true>(mesh, dummyTextureInfo, mesh.numUntexturedTris, vertexIdx);
+        drawQuads<GouraudQuad, true>(mesh, dummyTextureInfo, mesh.numUntexturedQuads, vertexIdx);
+    } else {
+        drawTris<GouraudTriangle, false>(mesh, dummyTextureInfo, mesh.numUntexturedTris, vertexIdx);
+        drawQuads<GouraudQuad, false>(mesh, dummyTextureInfo, mesh.numUntexturedQuads, vertexIdx);
     }
 
     gpu.pumpCallbacks();

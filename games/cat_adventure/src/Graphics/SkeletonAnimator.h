@@ -27,7 +27,6 @@ struct SkeletonAnimator {
     eastl::vector<SkeletalAnimation>* animations{nullptr};
 
     const SkeletalAnimation* currentAnimation{nullptr};
-    StringHash currentAnimationName;
 
     psyqo::FixedPoint<> normalizedAnimTime{0.0};
 

@@ -49,11 +49,11 @@ namespace
 {
 psyqo::Coroutine<> loadCoroutine(Game& game)
 {
-    game.levelId = startLevel;
+    auto& resourceCache = game.resourceCache;
 
     psyqo::Coroutine<>::Awaiter awaiter = game.gameLoadCoroutine.awaiter();
 
-    { // core
+    if (game.firstLoad) { // core
         game.cd.loadTIM("FONT.TIM;1", game.fontTexture);
         co_await awaiter;
 
@@ -63,7 +63,72 @@ psyqo::Coroutine<> loadCoroutine(Game& game)
         game.debugMenu.init(game.font, game.fontTexture, game.fontTexture);
     }
 
-    game.cd.loadModel(getLevelModelPath(game.levelId), game.levelModel);
+    if (game.firstLoad) { // music and sounds
+        game.cd.loadMIDI("SONG.MID;1", game.midi);
+        co_await awaiter;
+
+        game.cd.loadInstruments("INST.VAB;1", game.vab);
+        co_await awaiter;
+
+        game.cd.loadRawPCM("SMPL.PCM;1", 0x1010);
+        co_await awaiter;
+
+        game.step1Sound = 0x3300;
+        game.cd.loadSound("STEP1.VAG;1", game.step1Sound);
+        co_await awaiter;
+
+        game.step2Sound = 0x3F00;
+        game.cd.loadSound("STEP2.VAG;1", game.step2Sound);
+        co_await awaiter;
+    }
+
+    if (!game.firstLoad) {
+        for (const auto filename : game.level.usedTextures) {
+            resourceCache.derefResource<TextureInfo>(filename);
+        }
+    }
+
+    auto texturesToLoad = [](int levelId) -> eastl::vector<StringViewWithHash> {
+        switch (levelId) {
+        case 0:
+            return {
+                StringViewWithHash{"BRICKS.TIM;1"},
+                StringViewWithHash{"CATO.TIM;1"},
+            };
+        case 1:
+            return {
+                StringViewWithHash{"BRICKS.TIM;1"},
+                StringViewWithHash{"CATO.TIM;1"},
+                StringViewWithHash{"CAR.TIM;1"},
+            };
+        default:
+            return {};
+        }
+    }(game.levelToLoad);
+
+    for (const auto filename : texturesToLoad) {
+        resourceCache.refResource<TextureInfo>(filename.hash);
+    }
+
+    resourceCache.removeUnusedResources<TextureInfo>();
+
+    game.level.usedTextures.clear();
+    for (const auto filename : texturesToLoad) {
+        if (!resourceCache.resourceLoaded<TextureInfo>(filename.hash)) {
+            TextureInfo texture;
+            ramsyscall_printf("Loading texture '%s'\n", filename.str);
+            game.cd.loadTIM(filename.str, texture);
+            co_await awaiter;
+
+            resourceCache.putResource<TextureInfo>(filename.hash, eastl::move(texture));
+            game.level.usedTextures.push_back(filename.hash);
+            if (game.firstLoad) {
+                resourceCache.refResource<TextureInfo>(filename.hash);
+            }
+        }
+    }
+
+    game.cd.loadModel(getLevelModelPath(game.levelToLoad), game.levelModel);
     co_await awaiter;
 
     game.cd.loadModel(getLevelModelPath(1), game.level2Model);
@@ -78,37 +143,15 @@ psyqo::Coroutine<> loadCoroutine(Game& game)
     game.cd.loadModel("CAR.BIN;1", game.carModel);
     co_await awaiter;
 
-    game.cd.loadTIM("BRICKS.TIM;1", game.bricksTexture);
-    co_await awaiter;
-
-    game.cd.loadTIM("CATO.TIM;1", game.catoTexture);
-    co_await awaiter;
-
-    game.cd.loadTIM("CAR.TIM;1", game.carTexture);
-    co_await awaiter;
-
     game.cd.loadAnimations("HUMAN.ANM;1", game.animations);
     co_await awaiter;
 
-    game.cd.loadMIDI("SONG.MID;1", game.midi);
-    co_await awaiter;
-
-    game.cd.loadInstruments("INST.VAB;1", game.vab);
-    co_await awaiter;
-
-    game.cd.loadRawPCM("SMPL.PCM;1", 0x1010);
-    co_await awaiter;
-
-    game.step1Sound = 0x3300;
-    game.cd.loadSound("STEP1.VAG;1", game.step1Sound);
-    co_await awaiter;
-
-    game.step2Sound = 0x3F00;
-    game.cd.loadSound("STEP2.VAG;1", game.step2Sound);
-    co_await awaiter;
+    game.level.id = game.levelToLoad;
 
     game.popScene(); // pop loading scene
     game.pushScene(&game.gameplayScene);
+
+    game.firstLoad = false;
 }
 }
 
@@ -118,6 +161,18 @@ void Game::createScene()
 
     pad.init();
 
+    loadLevel(startLevel);
+}
+
+void Game::loadLevel(int levelId)
+{
+    ramsyscall_printf("Loading level: %d\n", levelId);
+
+    levelToLoad = levelId;
+
+    if (getCurrentScene() == &gameplayScene) {
+        popScene();
+    }
     pushScene(&loadingScene);
 
     // load resources

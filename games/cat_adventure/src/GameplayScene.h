@@ -52,6 +52,8 @@ private:
 
     Camera camera;
 
+    TextureInfo uiTexture;
+
     DialogueBox dialogueBox;
     DialogueBox interactionDialogueBox;
 

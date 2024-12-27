@@ -1,8 +1,6 @@
 #pragma once
 
-#include <psyqo-paths/cdrom-loader.hh>
 #include <psyqo/application.hh>
-#include <psyqo/cdrom-device.hh>
 #include <psyqo/coroutine.hh>
 #include <psyqo/font.hh>
 #include <psyqo/trigonometry.hh>
@@ -24,6 +22,8 @@
 #include "LoadingScene.h"
 
 #include "CDLoader.h"
+#include "Level.h"
+#include "ResourceCache.h"
 
 class Game : public psyqo::Application {
     void prepare() override;
@@ -32,16 +32,18 @@ class Game : public psyqo::Application {
 public:
     Game();
 
+    void loadLevel(int levelId);
+
     CDLoader cd;
     psyqo::Font<> romFont;
     psyqo::Trig<> trig;
 
-    psyqo::CDRomDevice cdrom;
-    psyqo::ISO9660Parser isoParser{&cdrom};
-    psyqo::paths::CDRomLoader cdromLoader;
     psyqo::Coroutine<> gameLoadCoroutine;
 
     PadManager pad;
+
+    TextureInfo fontTexture;
+    Font font;
 
     Model levelModel;
     Model level2Model;
@@ -49,16 +51,10 @@ public:
     Model humanModel;
     Model carModel;
 
-    TextureInfo bricksTexture;
-    TextureInfo catoTexture;
-    TextureInfo carTexture;
-
     eastl::vector<SkeletalAnimation> animations;
 
-    TextureInfo fontTexture;
-    Font font;
-
-    int levelId{0};
+    Level level;
+    int levelToLoad;
 
     Renderer renderer;
 
@@ -74,5 +70,9 @@ public:
     GameplayScene gameplayScene;
     LoadingScene loadingScene;
 
+    bool firstLoad{true};
+
     DebugMenu debugMenu;
+
+    ResourceCache resourceCache;
 };
