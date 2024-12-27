@@ -128,23 +128,25 @@ psyqo::Coroutine<> loadCoroutine(Game& game)
         }
     }
 
-    game.cd.loadModel(getLevelModelPath(game.levelToLoad), game.levelModel);
-    co_await awaiter;
+    if (game.firstLoad) {
+        game.cd.loadModel(getLevelModelPath(game.levelToLoad), game.levelModel);
+        co_await awaiter;
 
-    game.cd.loadModel(getLevelModelPath(1), game.level2Model);
-    co_await awaiter;
+        game.cd.loadModel(getLevelModelPath(1), game.level2Model);
+        co_await awaiter;
 
-    game.cd.loadModel("CATO.BIN;1", game.catoModel);
-    co_await awaiter;
+        game.cd.loadModel("CATO.BIN;1", game.catoModel);
+        co_await awaiter;
 
-    game.cd.loadModel("HUMAN.BIN;1", game.humanModel);
-    co_await awaiter;
+        game.cd.loadModel("HUMAN.BIN;1", game.humanModel);
+        co_await awaiter;
 
-    game.cd.loadModel("CAR.BIN;1", game.carModel);
-    co_await awaiter;
+        game.cd.loadModel("CAR.BIN;1", game.carModel);
+        co_await awaiter;
 
-    game.cd.loadAnimations("HUMAN.ANM;1", game.animations);
-    co_await awaiter;
+        game.cd.loadAnimations("HUMAN.ANM;1", game.animations);
+        co_await awaiter;
+    }
 
     game.level.id = game.levelToLoad;
 
