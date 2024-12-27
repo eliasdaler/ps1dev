@@ -1,6 +1,6 @@
 #include "MidiFile.h"
 
-#include "FileReader.h"
+#include <Core/FileReader.h>
 
 #include <common/syscalls/syscalls.h>
 

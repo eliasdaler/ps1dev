@@ -4,9 +4,9 @@
 
 #include <EASTL/fixed_string.h>
 
-#include "Bouncer.h"
-#include "Renderer.h"
-#include "Timer.h"
+#include <Core/Timer.h>
+#include <Graphics/Renderer.h>
+#include <Util/Bouncer.h>
 
 struct TextureInfo;
 struct Font;

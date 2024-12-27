@@ -29,6 +29,7 @@ struct DebugMenu {
     static constexpr auto COLLISION_ITEM_ID = 1;
     static constexpr auto FOLLOW_CAMERA_ITEM_ID = 2;
     static constexpr auto MUTE_MUSIC_ITEM_ID = 3;
+    static constexpr auto DRAW_COLLISION_ITEM_ID = 4;
 
     eastl::vector<MenuItem> menuItems;
 

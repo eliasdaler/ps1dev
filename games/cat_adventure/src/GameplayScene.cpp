@@ -1,24 +1,19 @@
 #include "GameplayScene.h"
 
+#include <common/syscalls/syscalls.h>
 #include <psyqo/gte-registers.hh>
-#include <psyqo/simplepad.hh>
-#include <psyqo/soft-math.hh>
-
 #include <psyqo/primitives/lines.hh>
 #include <psyqo/primitives/rectangles.hh>
 #include <psyqo/primitives/sprites.hh>
-
-#include "Common.h"
-#include "Game.h"
-#include "Math.h"
-#include "Renderer.h"
-#include "TextLabel.h"
-
-#include "gte-math.h"
-
-#include <common/syscalls/syscalls.h>
-
+#include <psyqo/soft-math.hh>
 #include <psyqo/xprintf.h>
+
+#include <Common.h>
+#include <Game.h>
+#include <Graphics/Renderer.h>
+#include <Math/Math.h>
+#include <Math/gte-math.h>
+#include <UI/TextLabel.h>
 
 #define DEV_TOOLS
 
@@ -128,6 +123,7 @@ void GameplayScene::start(StartReason reason)
     game.debugMenu.menuItems[DebugMenu::COLLISION_ITEM_ID].valuePtr = &collisionEnabled;
     game.debugMenu.menuItems[DebugMenu::FOLLOW_CAMERA_ITEM_ID].valuePtr = &followCamera;
     game.debugMenu.menuItems[DebugMenu::MUTE_MUSIC_ITEM_ID].valuePtr = &game.songPlayer.musicMuted;
+    game.debugMenu.menuItems[DebugMenu::DRAW_COLLISION_ITEM_ID].valuePtr = &collisionDrawn;
 }
 
 void GameplayScene::frame()
@@ -712,7 +708,7 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
 
     renderer.drawArmature(npc, camera);
 
-    { // draw collisions/triggers
+    if (collisionDrawn) { // draw collisions/triggers
         static const auto colliderColor = psyqo::Color{.r = 128, .g = 255, .b = 255};
         static const auto triggerColor = psyqo::Color{.r = 255, .g = 255, .b = 128};
         static const auto interactionTriggerColor = psyqo::Color{.r = 255, .g = 128, .b = 128};

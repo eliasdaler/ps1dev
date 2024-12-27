@@ -10,11 +10,11 @@
 #include <common/syscalls/syscalls.h>
 #include <psyqo/xprintf.h>
 
-#include "Camera.h"
-#include "Math.h"
-#include "Model.h"
-#include "Transform.h"
-#include "gte-math.h"
+#include <Camera.h>
+#include <Graphics/Model.h>
+#include <Math/Math.h>
+#include <Math/Transform.h>
+#include <Math/gte-math.h>
 
 namespace
 {

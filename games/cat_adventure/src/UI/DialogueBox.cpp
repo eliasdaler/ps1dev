@@ -1,13 +1,13 @@
 #include "DialogueBox.h"
 
-#include "Font.h"
-#include "PadManager.h"
-#include "RainbowColors.h"
-#include "Renderer.h"
-
 #include <psyqo/primitives/lines.hh>
 #include <psyqo/primitives/rectangles.hh>
 #include <psyqo/primitives/sprites.hh>
+
+#include <Core/PadManager.h>
+#include <Graphics/Font.h>
+#include <Graphics/RainbowColors.h>
+#include <Graphics/Renderer.h>
 
 DialogueBox::DialogueBox()
 {}

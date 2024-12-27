@@ -7,44 +7,49 @@ project(
 )
 
 add_executable(game
-  src/matrix_test.cpp
+  ./src/Audio/MidiFile.cpp
+  ./src/Audio/SongPlayer.cpp
+  ./src/Audio/SoundPlayer.cpp
+  ./src/Audio/VabFile.cpp
 
-  src/StringHash.cpp
-  src/Timer.cpp
-  src/Bouncer.cpp
-  src/FPSCounter.cpp
+  ./src/Core/PadManager.cpp
+  ./src/Core/StringHash.cpp
+  ./src/Core/Timer.cpp
+  
+  ./src/Dev/DebugMenu.cpp
 
-  src/Math.cpp
-  src/Quaternion.cpp
-  src/Transform.cpp
+  ./src/Graphics/Armature.cpp
+  ./src/Graphics/Font.cpp
+  ./src/Graphics/Model.cpp
+  ./src/Graphics/RainbowColors.cpp
+  ./src/Graphics/Renderer.cpp
+  ./src/Graphics/SkeletalAnimation.cpp
+  ./src/Graphics/SkeletonAnimator.cpp
+  ./src/Graphics/TimFile.cpp
 
-  src/Armature.cpp
-  src/Collision.cpp
-  src/SkeletalAnimation.cpp
-  src/SkeletonAnimator.cpp
-  src/PadManager.cpp
+  ./src/Math/Math.cpp
+  ./src/Math/matrix_test.cpp
+  ./src/Math/Quaternion.cpp
+  ./src/Math/Transform.cpp
 
-  src/RainbowColors.cpp
-  src/Model.cpp
-  src/TimFile.cpp
-  src/MidiFile.cpp
-  src/Font.cpp
-  src/Renderer.cpp
-  src/VabFile.cpp
-  src/DialogueBox.cpp
-  src/SongPlayer.cpp
-  src/Object.cpp
-  src/TextLabel.cpp
-  src/DebugMenu.cpp
+  ./src/UI/DialogueBox.cpp
+  ./src/UI/TextLabel.cpp
 
-  src/Game.cpp
+  ./src/Util/Bouncer.cpp
+  ./src/Util/FPSCounter.cpp
 
-  src/GameplayScene.cpp
-  src/LoadingScene.cpp
+  ./src/Collision.cpp
+  ./src/Object.cpp
 
-  src/SoundPlayer.cpp
+  ./src/LoadingScene.cpp
+  ./src/GameplayScene.cpp
 
-  src/main.cpp
+  ./src/Game.cpp
+  ./src/main.cpp
+)
+
+target_include_directories(game PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}/src"
 )
 
 target_compile_options(game PRIVATE

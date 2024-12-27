@@ -8,8 +8,8 @@
 #include <psyqo/fixed-point.hh>
 #include <psyqo/vector.hh>
 
-#include "Quaternion.h"
-#include "StringHash.h"
+#include <Core/StringHash.h>
+#include <Math/Quaternion.h>
 
 struct Armature;
 struct TransformMatrix;
@@ -30,7 +30,7 @@ static constexpr uint8_t TRACK_TYPE_SCALE = 2;
 struct AnimationTrack {
     std::uint8_t info; // first two bytes - type (00 - rot, 01 - trans, 10 - scale)
     std::uint8_t joint;
-    std::uint16_t _pad;
+    std::uint16_t _pad{}; // {} to stop GCC from complaining about uninitialized var
     eastl::vector<AnimationKey> keys;
 };
 

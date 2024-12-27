@@ -1,8 +1,8 @@
-#include "SkeletonAnimator.h"
+#include <Graphics/SkeletonAnimator.h>
+
+#include <Graphics/Model.h>
 
 #include <common/syscalls/syscalls.h>
-
-#include "Model.h"
 
 void SkeletonAnimator::setAnimation(
     StringHash animationName,

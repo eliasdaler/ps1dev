@@ -1,7 +1,8 @@
 #include "LoadingScene.h"
 
 #include "Game.h"
-#include "Renderer.h"
+
+#include <Graphics/Renderer.h>
 
 LoadingScene::LoadingScene(Game& game) : game(game)
 {}

@@ -9,8 +9,8 @@
 #include <psyqo/primitives/triangles.hh>
 #include <psyqo/trigonometry.hh>
 
-#include "Model.h"
-#include "TextureInfo.h"
+#include <Graphics/Model.h>
+#include <Graphics/TextureInfo.h>
 
 struct ModelObject;
 struct MeshObject;

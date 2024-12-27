@@ -1,9 +1,9 @@
 #include "TextLabel.h"
 
-#include "Font.h"
-#include "Renderer.h"
-
 #include <psyqo/primitives/sprites.hh>
+
+#include <Graphics/Font.h>
+#include <Graphics/Renderer.h>
 
 namespace ui
 {

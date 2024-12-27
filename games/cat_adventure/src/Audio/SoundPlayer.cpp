@@ -1,21 +1,15 @@
 #include "SoundPlayer.h"
 
-#include <EASTL/array.h>
-#include <bit>
-#include <stdio.h>
-
-#include "FileReader.h"
-
-#include <common/syscalls/syscalls.h>
-
-#include <stdint.h>
-
-#include "common/hardware/dma.h"
-#include "common/hardware/spu.h"
-
 #include "VabFile.h"
 
+#include <EASTL/array.h>
+
+#include <common/hardware/dma.h>
+#include <common/hardware/spu.h>
+#include <common/syscalls/syscalls.h>
 #include <psyqo/fixed-point.hh>
+
+#include <Core/FileReader.h>
 
 namespace
 {

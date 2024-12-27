@@ -6,9 +6,9 @@
 
 #include <EASTL/vector.h>
 
-#include "Collision.h"
-#include "SkeletonAnimator.h"
-#include "Transform.h"
+#include <Collision.h>
+#include <Graphics/SkeletonAnimator.h>
+#include <Math/Transform.h>
 
 struct Model;
 struct Mesh;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "StringHash.h"
+#include <Core/StringHash.h>
 
 // TODO: automate this process - figure out how to not do this?
 inline void initStringHashes()

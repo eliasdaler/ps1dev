@@ -1,16 +1,13 @@
 #include "Renderer.h"
 
-#include "Camera.h"
-#include "Common.h"
-#include "Object.h"
-
+#include <common/syscalls/syscalls.h>
+#include <psyqo/primitives/lines.hh>
 #include <psyqo/soft-math.hh>
 
-#include "gte-math.h"
-
-#include <common/syscalls/syscalls.h>
-
-#include <psyqo/primitives/lines.hh>
+#include <Camera.h>
+#include <Common.h>
+#include <Math/gte-math.h>
+#include <Object.h>
 
 namespace
 {

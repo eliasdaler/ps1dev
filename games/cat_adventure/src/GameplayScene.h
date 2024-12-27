@@ -2,16 +2,15 @@
 
 #include <psyqo/scene.hh>
 
-#include "Armature.h"
-#include "Camera.h"
-#include "DialogueBox.h"
-#include "FPSCounter.h"
-#include "Object.h"
-#include "Quaternion.h"
-#include "SkeletalAnimation.h"
-#include "SkeletonAnimator.h"
-#include "StringHash.h"
-#include "Trigger.h"
+#include <Camera.h>
+#include <Core/StringHash.h>
+#include <Graphics/SkeletalAnimation.h>
+#include <Graphics/SkeletonAnimator.h>
+#include <Math/Quaternion.h>
+#include <Object.h>
+#include <Trigger.h>
+#include <UI/DialogueBox.h>
+#include <Util/FPSCounter.h>
 
 class Game;
 class Renderer;
@@ -61,6 +60,7 @@ private:
     FPSCounter fpsCounter;
 
     bool debugInfoDrawn{true};
+    bool collisionDrawn{false};
     bool freeCamera{false};
     bool followCamera{false};
 

@@ -7,18 +7,18 @@
 #include <psyqo/font.hh>
 #include <psyqo/trigonometry.hh>
 
-#include "DebugMenu.h"
-#include "Font.h"
-#include "MidiFile.h"
-#include "Model.h"
-#include "PadManager.h"
-#include "Renderer.h"
-#include "SkeletalAnimation.h"
-#include "SongPlayer.h"
-#include "SoundPlayer.h"
-#include "TextureInfo.h"
-#include "TimFile.h"
-#include "VabFile.h"
+#include <Audio/MidiFile.h>
+#include <Audio/SongPlayer.h>
+#include <Audio/SoundPlayer.h>
+#include <Audio/VabFile.h>
+#include <Core/PadManager.h>
+#include <Dev/DebugMenu.h>
+#include <Graphics/Font.h>
+#include <Graphics/Model.h>
+#include <Graphics/Renderer.h>
+#include <Graphics/SkeletalAnimation.h>
+#include <Graphics/TextureInfo.h>
+#include <Graphics/TimFile.h>
 
 #include "GameplayScene.h"
 #include "LoadingScene.h"

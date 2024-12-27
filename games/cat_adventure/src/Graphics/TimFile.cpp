@@ -1,10 +1,9 @@
 #include "TimFile.h"
 
-#include "FileReader.h"
-
+#include <common/syscalls/syscalls.h>
 #include <psyqo/kernel.hh>
 
-#include <common/syscalls/syscalls.h>
+#include <Core/FileReader.h>
 
 // #define DEBUG_TIM
 

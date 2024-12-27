@@ -1,12 +1,11 @@
 #include "SkeletalAnimation.h"
 
-#include "Armature.h"
-#include "FileReader.h"
-
-#include <common/syscalls/syscalls.h>
-
 #include <EASTL/fixed_string.h>
+#include <common/syscalls/syscalls.h>
 #include <psyqo/xprintf.h>
+
+#include <Core/FileReader.h>
+#include <Graphics/Armature.h>
 
 namespace
 {

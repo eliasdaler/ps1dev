@@ -1,6 +1,6 @@
 #include "Font.h"
 
-#include "FileReader.h"
+#include "Core/FileReader.h"
 
 #include <psyqo/kernel.hh>
 

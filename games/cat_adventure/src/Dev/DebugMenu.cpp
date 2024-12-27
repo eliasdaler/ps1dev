@@ -1,12 +1,12 @@
 #include "DebugMenu.h"
 
-#include "Common.h"
-#include "PadManager.h"
-#include "Renderer.h"
-#include "TextLabel.h"
-
 #include <common/syscalls/syscalls.h>
 #include <psyqo/primitives/rectangles.hh>
+
+#include <Common.h>
+#include <Core/PadManager.h>
+#include <Graphics/Renderer.h>
+#include <UI/TextLabel.h>
 
 void DebugMenu::init(
     const Font& font,
@@ -24,17 +24,18 @@ void DebugMenu::init(
         MenuItem{
             .text = "Collision",
             .checkbox = true,
-            .checkboxOn = false,
         },
         MenuItem{
             .text = "Camera follow",
             .checkbox = true,
-            .checkboxOn = false,
         },
         MenuItem{
             .text = "Music mute",
             .checkbox = true,
-            .checkboxOn = false,
+        },
+        MenuItem{
+            .text = "Draw collision",
+            .checkbox = true,
         },
     };
 }

@@ -2,8 +2,8 @@
 
 #include <EASTL/vector.h>
 
-#include "SkeletalAnimation.h"
-#include "StringHash.h"
+#include <Core/StringHash.h>
+#include <Graphics/SkeletalAnimation.h>
 
 struct Model;
 

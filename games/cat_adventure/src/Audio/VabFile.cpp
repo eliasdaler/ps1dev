@@ -1,8 +1,8 @@
 #include "VabFile.h"
 
-#include "FileReader.h"
-
 #include <common/syscalls/syscalls.h>
+
+#include <Core/FileReader.h>
 
 void VabFile::load(eastl::string_view filename, const eastl::vector<uint8_t>& data)
 {
