@@ -37,7 +37,6 @@ struct AnimationTrack {
 struct SkeletalAnimation {
     StringHash name;
     std::uint8_t numTracks;
-    std::uint8_t numConstTracks;
     std::uint16_t length;
     eastl::vector<AnimationTrack> tracks;
 };

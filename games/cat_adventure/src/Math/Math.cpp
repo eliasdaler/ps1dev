@@ -35,7 +35,6 @@ psyqo::Angle calculateLerpDelta(psyqo::Angle a, psyqo::Angle b, psyqo::Angle spe
         diff += 2.0;
     }
 
-    psyqo::Angle lerpSpeed = 0.0;
     if (diff.abs() < 0.001) {
         return 1.0;
     }

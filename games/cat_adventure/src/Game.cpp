@@ -23,9 +23,9 @@ const char* getLevelModelPath(int levelId)
 Game::Game() :
     cd(*this),
     renderer(gpu()),
-    songPlayer(gpu(), soundPlayer),
     gameplayScene(*this),
-    loadingScene(*this)
+    loadingScene(*this),
+    songPlayer(gpu(), soundPlayer)
 {}
 
 void Game::prepare()
@@ -82,17 +82,17 @@ psyqo::Coroutine<> loadCoroutine(Game& game)
         co_await awaiter;
     }
 
-    const auto texturesToLoad = [](int levelId) -> eastl::vector<StringViewWithHash> {
+    const auto texturesToLoad = [](int levelId) -> eastl::vector<StringHash> {
         switch (levelId) {
         case 0:
             return {
-                StringViewWithHash{"BRICKS.TIM;1"},
-                StringViewWithHash{"CATO.TIM;1"},
+                "BRICKS.TIM;1"_sh,
+                "CATO.TIM;1"_sh,
             };
         case 1:
             return {
-                StringViewWithHash{"CATO.TIM;1"},
-                StringViewWithHash{"CAR.TIM;1"},
+                "CATO.TIM;1"_sh,
+                "CAR.TIM;1"_sh,
             };
         default:
             return {};
@@ -107,8 +107,8 @@ psyqo::Coroutine<> loadCoroutine(Game& game)
         }
 
         for (const auto& filename : texturesToLoad) {
-            if (resourceCache.resourceLoaded<TextureInfo>(filename.hash)) {
-                resourceCache.refResource<TextureInfo>(filename.hash);
+            if (resourceCache.resourceLoaded<TextureInfo>(filename)) {
+                resourceCache.refResource<TextureInfo>(filename);
             }
         }
 
@@ -116,31 +116,33 @@ psyqo::Coroutine<> loadCoroutine(Game& game)
 
         game.level.usedTextures.clear();
         for (const auto& filename : texturesToLoad) {
-            if (!resourceCache.resourceLoaded<TextureInfo>(filename.hash)) {
+            if (!resourceCache.resourceLoaded<TextureInfo>(filename)) {
+                const auto& filenameStr = filename.getStr();
+                ramsyscall_printf("[!] Loading texture '%s'\n", filenameStr);
+
                 TextureInfo texture;
-                ramsyscall_printf("[!] Loading texture '%s'\n", filename.str);
-                game.cd.loadTIM(filename.str, texture);
+                game.cd.loadTIM(filenameStr, texture);
                 co_await awaiter;
 
-                resourceCache.putResource<TextureInfo>(filename.hash, eastl::move(texture));
+                resourceCache.putResource<TextureInfo>(filename, eastl::move(texture));
             }
-            game.level.usedTextures.push_back(filename.hash);
+            game.level.usedTextures.push_back(filename);
         }
     }
 
-    const auto modelsToLoad = [](int levelId) -> eastl::vector<StringViewWithHash> {
+    const auto modelsToLoad = [](int levelId) -> eastl::vector<StringHash> {
         switch (levelId) {
         case 0:
             return {
-                StringViewWithHash{"HUMAN.BIN;1"},
-                StringViewWithHash{"LEVEL.BIN;1"},
-                StringViewWithHash{"CATO.BIN;1"},
+                "HUMAN.BIN;1"_sh,
+                "LEVEL.BIN;1"_sh,
+                "CATO.BIN;1"_sh,
             };
         case 1:
             return {
-                StringViewWithHash{"HUMAN.BIN;1"},
-                StringViewWithHash{"LEVEL2.BIN;1"},
-                StringViewWithHash{"CAR.BIN;1"},
+                "HUMAN.BIN;1"_sh,
+                "LEVEL2.BIN;1"_sh,
+                "CAR.BIN;1"_sh,
             };
         default:
             return {};
@@ -155,8 +157,8 @@ psyqo::Coroutine<> loadCoroutine(Game& game)
         }
 
         for (const auto& filename : modelsToLoad) {
-            if (resourceCache.resourceLoaded<Model>(filename.hash)) {
-                resourceCache.refResource<Model>(filename.hash);
+            if (resourceCache.resourceLoaded<Model>(filename)) {
+                resourceCache.refResource<Model>(filename);
             }
         }
 
@@ -164,16 +166,18 @@ psyqo::Coroutine<> loadCoroutine(Game& game)
 
         game.level.usedModels.clear();
         for (const auto& filename : modelsToLoad) {
-            if (!resourceCache.resourceLoaded<Model>(filename.hash)) {
+            if (!resourceCache.resourceLoaded<Model>(filename)) {
+                const auto& filenameStr = filename.getStr();
+                ramsyscall_printf("[!] Loading model '%s'\n", filenameStr);
+
                 Model model;
-                ramsyscall_printf("[!] Loading model '%s'\n", filename.str);
-                game.cd.loadModel(filename.str, model);
+                game.cd.loadModel(filenameStr, model);
                 co_await awaiter;
 
-                resourceCache.putResource<Model>(filename.hash, eastl::move(model));
+                resourceCache.putResource<Model>(filename, eastl::move(model));
             }
 
-            game.level.usedModels.push_back(filename.hash);
+            game.level.usedModels.push_back(filename);
         }
     }
 

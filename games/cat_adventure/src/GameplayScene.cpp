@@ -254,7 +254,6 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
         isSprinting = true;
     }
 
-    auto playerPos = player.getPosition();
     player.velocity = {};
 
     if (isMoving) {

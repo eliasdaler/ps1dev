@@ -70,6 +70,7 @@ target_compile_options(game PRIVATE
   -Wno-stringop-overread
   -Wno-tautological-compare
   -Wno-attributes
+  -Wno-dangling-reference
 )
 
 # TODO: try LTO and see how good it works

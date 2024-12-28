@@ -29,10 +29,18 @@ struct StringHashMap {
 
 struct StringHash {
     std::uint32_t value;
+    const char* str{nullptr}; // set when created using _sh string literal
 
-    const char* getStr() const { return FROM_HASH(*this); }
+    const char* getStr() const
+    {
+        if (str) {
+            return str;
+        }
+        return FROM_HASH(*this);
+    }
 
-    auto operator<=>(const StringHash&) const = default;
+    bool operator==(const StringHash& o) const { return value == o.value; }
+    bool operator<(const StringHash& o) const { return value < o.value; }
 };
 
 struct DJBHash {
@@ -79,7 +87,10 @@ public:
 
 inline StringHash consteval operator""_sh(const char* str, std::size_t n)
 {
-    return StringHash{(std::uint32_t)DJBHash::djbProcess(DJBHash::seed, str, n)};
+    return StringHash{
+        .value = (std::uint32_t)DJBHash::djbProcess(DJBHash::seed, str, n),
+        .str = str,
+    };
 }
 
 struct StringViewWithHash {
