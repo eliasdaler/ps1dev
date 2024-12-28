@@ -1,6 +1,7 @@
 #include "GameplayScene.h"
 
 #include <common/syscalls/syscalls.h>
+#include <psyqo/alloc.h>
 #include <psyqo/gte-registers.hh>
 #include <psyqo/primitives/lines.hh>
 #include <psyqo/primitives/rectangles.hh>
@@ -34,6 +35,33 @@ GameplayScene::GameplayScene(Game& game) : game(game)
 
 void GameplayScene::start(StartReason reason)
 {
+    if (reason == StartReason::Create) {
+        game.renderer.setFogNearFar(0.6, 3.125);
+        static const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
+        game.renderer.setFarColor(farColor);
+
+        uiTexture = game.resourceCache.getResource<TextureInfo>(CATO_TEXTURE_HASH);
+
+        interactionDialogueBox.displayBorders = false;
+        interactionDialogueBox.textOffset.x = 48;
+        interactionDialogueBox.position.y = 180;
+        interactionDialogueBox.size.y = 32;
+        interactionDialogueBox.displayMoreTextArrow = false;
+
+        player.model = &game.resourceCache.getResource<Model>(HUMAN_MODEL_HASH);
+        player.texture = game.resourceCache.getResource<TextureInfo>(CATO_TEXTURE_HASH);
+        player.jointGlobalTransforms.resize(player.model->armature.joints.size());
+        player.animator.animations = &game.animations;
+
+        game.songPlayer.init(game.midi, game.vab);
+
+        game.debugMenu.menuItems[DebugMenu::COLLISION_ITEM_ID].valuePtr = &collisionEnabled;
+        game.debugMenu.menuItems[DebugMenu::FOLLOW_CAMERA_ITEM_ID].valuePtr = &followCamera;
+        game.debugMenu.menuItems[DebugMenu::MUTE_MUSIC_ITEM_ID].valuePtr =
+            &game.songPlayer.musicMuted;
+        game.debugMenu.menuItems[DebugMenu::DRAW_COLLISION_ITEM_ID].valuePtr = &collisionDrawn;
+    }
+
     collisionBoxes.clear();
     triggers.clear();
 
@@ -75,48 +103,23 @@ void GameplayScene::start(StartReason reason)
         triggers.push_back(trigger);
     }
 
-    if (game.firstLoad) {
-        game.renderer.setFogNearFar(0.6, 3.125);
-        static const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
-        game.renderer.setFarColor(farColor);
-
-        uiTexture = game.resourceCache.getResource<TextureInfo>(CATO_TEXTURE_HASH);
-
-        interactionDialogueBox.displayBorders = false;
-        interactionDialogueBox.textOffset.x = 48;
-        interactionDialogueBox.position.y = 180;
-        interactionDialogueBox.size.y = 32;
-        interactionDialogueBox.displayMoreTextArrow = false;
-
-        player.model = &game.humanModel;
-        player.texture = game.resourceCache.getResource<TextureInfo>(CATO_TEXTURE_HASH);
-        player.jointGlobalTransforms.resize(player.model->armature.joints.size());
-        player.animator.animations = &game.animations;
-
-        npc.model = &game.catoModel;
-        npc.texture = game.resourceCache.getResource<TextureInfo>(CATO_TEXTURE_HASH);
-        npc.jointGlobalTransforms.resize(npc.model->armature.joints.size());
-        npc.animator.animations = &game.animations;
-
-        game.songPlayer.init(game.midi, game.vab);
-
-        game.debugMenu.menuItems[DebugMenu::COLLISION_ITEM_ID].valuePtr = &collisionEnabled;
-        game.debugMenu.menuItems[DebugMenu::FOLLOW_CAMERA_ITEM_ID].valuePtr = &followCamera;
-        game.debugMenu.menuItems[DebugMenu::MUTE_MUSIC_ITEM_ID].valuePtr =
-            &game.songPlayer.musicMuted;
-        game.debugMenu.menuItems[DebugMenu::DRAW_COLLISION_ITEM_ID].valuePtr = &collisionDrawn;
-    }
-
-    levelObj.model = &game.levelModel;
-    levelObj.texture = game.resourceCache.getResource<TextureInfo>(BRICKS_TEXTURE_HASH);
     levelObj.setPosition({});
     levelObj.rotation = {};
 
     if (game.level.id == 0) {
+        levelObj.texture = game.resourceCache.getResource<TextureInfo>(BRICKS_TEXTURE_HASH);
+
+        game.renderer.setFogEnabled(false);
+
+        levelObj.model = &game.resourceCache.getResource<Model>(LEVEL1_MODEL_HASH);
+
         player.setPosition({0.0, 0.0, 0.25});
         player.rotation = {0.0, -1.0};
 
-        player.rotation = {0.0, -0.5};
+        npc.model = &game.resourceCache.getResource<Model>(CATO_MODEL_HASH);
+        npc.texture = game.resourceCache.getResource<TextureInfo>(CATO_TEXTURE_HASH);
+        npc.jointGlobalTransforms.resize(npc.model->armature.joints.size());
+        npc.animator.animations = &game.animations;
 
         npc.setPosition({0.0, 0.0, -0.11});
         npc.rotation = {0.0, 0.1};
@@ -133,14 +136,23 @@ void GameplayScene::start(StartReason reason)
 
         // player.setPosition({-0.2033, 0.0000, 0.0827});
         // player.setPosition({-0.5, 0.0, -0.11});
+        followCamera = false;
     } else if (game.level.id == 1) {
+        game.renderer.setFogEnabled(true);
+
+        levelObj.model = &game.resourceCache.getResource<Model>(LEVEL2_MODEL_HASH);
+
         player.setPosition({0.5, 0.0, 0.5});
-        player.rotation = {0.0, 1.0};
+        player.rotation = {0.0, 0.5};
 
         camera.position = {0.f, ToWorldCoords(1.5f), -1.f};
         camera.rotation = {0.0, 0.0};
+
+        followCamera = true;
     }
 
+    canTalk = false;
+    canInteract = false;
     player.animator.setAnimation("Idle"_sh);
 }
 
@@ -243,8 +255,6 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
     }
 
     auto playerPos = player.getPosition();
-    oldPlayerPos = playerPos;
-
     player.velocity = {};
 
     if (isMoving) {
@@ -506,26 +516,17 @@ void GameplayScene::updateLevelSwitch()
     switch (switchLevelState) {
     case SwitchLevelState::FadeOut:
         if (fadeFinished) {
-            switchLevelState = SwitchLevelState::Delay;
-            switchLevelDelayTimer.reset();
+            switchLevelState = SwitchLevelState::LoadLevel;
         }
         break;
-    case SwitchLevelState::Delay:
-        switchLevelDelayTimer.update();
-        if (switchLevelDelayTimer.tick()) {
-            switchLevelState = SwitchLevelState::FadeIn;
+    case SwitchLevelState::LoadLevel:
+        // switch level
+        game.loadLevel(destinationLevelId);
 
-            fadeFinished = false;
-            fadeOut = false;
-            fadeLevel = 255;
-
-            // switch level
-            game.loadLevel(destinationLevelId);
-            player.setPosition({0.5, 0.0, 0.5});
-            player.rotation = {0.0, 1.0};
-            player.animator.setAnimation("Idle"_sh);
-            followCamera = true;
-        }
+        fadeFinished = false;
+        fadeOut = false;
+        fadeLevel = 255;
+        switchLevelState = SwitchLevelState::FadeIn;
         break;
     case SwitchLevelState::FadeIn:
         if (fadeFinished) {
@@ -681,8 +682,10 @@ void GameplayScene::draw(Renderer& renderer)
 void GameplayScene::drawTestLevel(Renderer& renderer)
 {
     MeshObject object;
-    auto meshA = &game.level2Model.meshes[0];
-    auto meshB = &game.level2Model.meshes[1];
+    const auto& levelModel = *levelObj.model;
+    auto meshA = &levelModel.meshes[0];
+    auto meshB = &levelModel.meshes[1];
+
     renderer.bias = 1000;
     for (int x = 0; x < 10; ++x) {
         for (int z = -3; z < 3; ++z) {
@@ -697,7 +700,7 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
         }
     }
 
-    auto tree = &game.level2Model.meshes[4];
+    auto tree = &levelModel.meshes[4];
     object.mesh = tree;
     for (int i = 0; i < 10; ++i) {
         object.setPosition(psyqo::FixedPoint(i, 0), 0.0, ToWorldCoords(8.0));
@@ -705,7 +708,7 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
         renderer.drawMeshObject(object, camera);
     }
 
-    auto lamp = &game.level2Model.meshes[2];
+    auto lamp = &levelModel.meshes[2];
     object.mesh = lamp;
     for (int i = 0; i < 10; ++i) {
         object.setPosition(psyqo::FixedPoint(i, 0), 0.0, ToWorldCoords(-8.0));
@@ -713,7 +716,7 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
         renderer.drawMeshObject(object, camera);
     }
 
-    auto car = &game.level2Model.meshes[5];
+    auto car = &levelModel.meshes[5];
     renderer.bias = -100;
     object.mesh = car;
     object.setPosition(ToWorldCoords(8.0), 0.0, 0.0);
@@ -829,6 +832,13 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
             "t = (%.3f), f = %d",
             player.animator.normalizedAnimTime,
             player.animator.getAnimationFrame()); */
+
+        game.romFont.chainprintf(
+            game.gpu(),
+            {{.x = 16, .y = 64}},
+            textCol,
+            "heap used: %d",
+            (int)((uint8_t*)psyqo_heap_end() - (uint8_t*)psyqo_heap_start()));
 
         game.romFont.chainprintf(
             game.gpu(),

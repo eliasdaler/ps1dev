@@ -7,4 +7,5 @@
 struct Level {
     int id{0};
     eastl::vector<StringHash> usedTextures;
+    eastl::vector<StringHash> usedModels;
 };

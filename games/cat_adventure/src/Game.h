@@ -12,18 +12,16 @@
 #include <Core/PadManager.h>
 #include <Dev/DebugMenu.h>
 #include <Graphics/Font.h>
-#include <Graphics/Model.h>
 #include <Graphics/Renderer.h>
 #include <Graphics/SkeletalAnimation.h>
 #include <Graphics/TextureInfo.h>
-#include <Graphics/TimFile.h>
 
-#include "GameplayScene.h"
-#include "LoadingScene.h"
+#include <GameplayScene.h>
+#include <LoadingScene.h>
 
-#include "CDLoader.h"
-#include "Level.h"
-#include "ResourceCache.h"
+#include <CDLoader.h>
+#include <Level.h>
+#include <ResourceCache.h>
 
 class Game : public psyqo::Application {
     void prepare() override;
@@ -35,44 +33,36 @@ public:
     void loadLevel(int levelId);
 
     CDLoader cd;
+    psyqo::Coroutine<> gameLoadCoroutine;
+    ResourceCache resourceCache;
+    bool firstLoad{true};
+
     psyqo::Font<> romFont;
     psyqo::Trig<> trig;
 
-    psyqo::Coroutine<> gameLoadCoroutine;
-
     PadManager pad;
 
-    TextureInfo fontTexture;
-    Font font;
-
-    Model levelModel;
-    Model level2Model;
-    Model catoModel;
-    Model humanModel;
-    Model carModel;
-
-    eastl::vector<SkeletalAnimation> animations;
+    Renderer renderer;
 
     Level level;
     int levelToLoad;
 
-    Renderer renderer;
-
-    SoundPlayer soundPlayer;
-    SongPlayer songPlayer;
-
-    uint32_t step1Sound{0};
-    uint32_t step2Sound{0};
-
-    MidiFile midi;
-    VabFile vab;
-
+    // scenes
     GameplayScene gameplayScene;
     LoadingScene loadingScene;
 
-    bool firstLoad{true};
+    // data resources
+    TextureInfo fontTexture;
+    Font font;
+    eastl::vector<SkeletalAnimation> animations;
+
+    // audio
+    MidiFile midi;
+    VabFile vab;
+    SoundPlayer soundPlayer;
+    SongPlayer songPlayer;
+    uint32_t step1Sound{0};
+    uint32_t step2Sound{0};
 
     DebugMenu debugMenu;
-
-    ResourceCache resourceCache;
 };

@@ -5,6 +5,7 @@
 
 #include <Core/StringHash.h>
 
+#include <Graphics/Model.h>
 #include <Graphics/TextureInfo.h>
 
 #include <common/syscalls/syscalls.h>
@@ -27,6 +28,10 @@ struct ResourceCache {
     {
         if constexpr (eastl::is_same<T, TextureInfo>()) {
             return textures;
+        } else if constexpr (eastl::is_same<T, Model>()) {
+            return models;
+        } else {
+            static_assert(false, "No resource container for the type");
         }
     }
 
@@ -35,6 +40,10 @@ struct ResourceCache {
     {
         if constexpr (eastl::is_same<T, TextureInfo>()) {
             return textures;
+        } else if constexpr (eastl::is_same<T, Model>()) {
+            return models;
+        } else {
+            static_assert(false, "No resource container for the type");
         }
     }
 
@@ -71,7 +80,7 @@ struct ResourceCache {
         eastl::erase_if(container, [](auto& v) {
 #ifdef DEBUG_RESOURCE_LOAD
             if (!v.second.persistent && v.second.refCount <= 0) {
-                ramsyscall_printf("removing '%s': (ref == 0)\n", v.first.getStr());
+                ramsyscall_printf("[!] Removing '%s': (ref == 0)\n", v.first.getStr());
             }
 #endif
             return v.second.refCount <= 0;
@@ -88,8 +97,14 @@ struct ResourceCache {
     template<typename T>
     void putResource(StringHash hash, T&& value)
     {
+#ifdef DEBUG_RESOURCE_LOAD
+        if (resourceLoaded<T>(hash)) {
+            ramsyscall_printf("[!!!!] Error '%s' was already loaded\n");
+            return;
+        }
+#endif
         auto& container = getResourceContainter<T>();
-        container.emplace(hash, Resource<T>{.value = eastl::move(value), .refCount = 0});
+        container.emplace(hash, Resource<T>{.value = eastl::move(value), .refCount = 1});
     }
 
     template<typename T>
@@ -101,7 +116,7 @@ struct ResourceCache {
             it->second.persistent = b;
 #ifdef DEBUG_RESOURCE_LOAD
             ramsyscall_printf(
-                "resources '%s' persistent: %d\n", hash.getStr(), (int)it->second.persistent);
+                "Resource '%s' persistent: %d\n", hash.getStr(), (int)it->second.persistent);
 #endif
         }
     }
@@ -121,4 +136,5 @@ struct ResourceCache {
     }
 
     ResourceContainer<TextureInfo> textures;
+    ResourceContainer<Model> models;
 };

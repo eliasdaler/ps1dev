@@ -47,7 +47,6 @@ private:
     ModelObject levelObj;
 
     AnimatedModelObject player;
-    psyqo::Vec3 oldPlayerPos;
     AnimatedModelObject npc;
 
     Camera camera;
@@ -72,9 +71,8 @@ private:
     enum class GameState { Normal, Dialogue, SwitchLevel };
     GameState gameState;
 
-    enum class SwitchLevelState { FadeOut, Delay, FadeIn, Done };
+    enum class SwitchLevelState { FadeOut, LoadLevel, FadeIn, Done };
     SwitchLevelState switchLevelState;
-    Timer switchLevelDelayTimer{30};
 
     psyqo::Angle interactStartAngle;
     psyqo::Angle interactEndAngle;

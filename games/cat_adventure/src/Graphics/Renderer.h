@@ -45,7 +45,8 @@ public:
     using OrderingTableType = psyqo::OrderingTable<OT_SIZE>;
     eastl::array<OrderingTableType, 2> ots;
 
-    static constexpr int PRIMBUFFLEN = 32768 * 8;
+    // TODO: can make much smaller once static geometry stores primitives on heap
+    static constexpr int PRIMBUFFLEN = 32768 * 2;
     using PrimBufferAllocatorType = psyqo::BumpAllocator<PRIMBUFFLEN>;
     eastl::array<PrimBufferAllocatorType, 2> primBuffers;
 

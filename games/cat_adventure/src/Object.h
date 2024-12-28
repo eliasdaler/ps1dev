@@ -59,12 +59,12 @@ struct Object {
 struct ModelObject : Object {
     void update();
 
-    Model* model{nullptr};
+    const Model* model{nullptr};
     TextureInfo texture;
 };
 
 struct MeshObject : Object {
-    Mesh* mesh{nullptr};
+    const Mesh* mesh{nullptr};
     TextureInfo texture;
     bool hasTexture{false};
 };
