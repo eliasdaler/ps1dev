@@ -127,10 +127,11 @@ struct ResourceCache {
         auto& container = getResourceContainter<T>();
         const auto it = container.find(hash);
 
-        // TODO: ifdef debug?
+#ifdef DEBUG_RESOURCE_LOAD
         if (it == container.end()) {
             ramsyscall_printf("Resource '%s' was not loaded", hash.getStr());
         }
+#endif
 
         return it->second.value;
     }

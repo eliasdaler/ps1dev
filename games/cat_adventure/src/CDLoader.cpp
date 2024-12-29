@@ -3,6 +3,7 @@
 #include <Audio/SoundPlayer.h>
 #include <Game.h>
 #include <Graphics/TimFile.h>
+#include <Level.h>
 
 CDLoader::CDLoader(Game& game) : game(game)
 {}
@@ -67,6 +68,11 @@ void CDLoader::loadAnimations(
     loadFromCD(filename, [&animations](eastl::vector<uint8_t>&& buffer) {
         ::loadAnimations(buffer, animations);
     });
+}
+
+void CDLoader::loadLevel(eastl::string_view filename, Level& level)
+{
+    loadFromCD(filename, [&level](eastl::vector<uint8_t>&& buffer) { level.load(buffer); });
 }
 
 void CDLoader::loadFromCD(

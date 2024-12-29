@@ -41,11 +41,9 @@ public:
     psyqo::Trig<> trig;
 
     PadManager pad;
-
     Renderer renderer;
 
     Level level;
-    int levelToLoad;
 
     // scenes
     GameplayScene gameplayScene;
@@ -65,4 +63,7 @@ public:
     uint32_t step2Sound{0};
 
     DebugMenu debugMenu;
+
+    // set by loadLevel
+    int levelToLoad;
 };

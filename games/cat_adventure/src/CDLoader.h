@@ -11,6 +11,8 @@ struct Model;
 struct MidiFile;
 struct VabFile;
 struct SkeletalAnimation;
+struct Level;
+
 class Game;
 
 struct CDLoader {
@@ -25,6 +27,7 @@ struct CDLoader {
     void loadInstruments(eastl::string_view filename, VabFile& vab);
     void loadRawPCM(eastl::string_view filename, uint32_t spuUploadAddr);
     void loadAnimations(eastl::string_view filename, eastl::vector<SkeletalAnimation>& animations);
+    void loadLevel(eastl::string_view filename, Level& level);
 
     void loadFromCD(
         eastl::string_view filename,

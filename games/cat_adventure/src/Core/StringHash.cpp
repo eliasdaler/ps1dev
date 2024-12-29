@@ -21,9 +21,14 @@ const char* StringHashMap::getCStr(StringHash hash)
         return it->second.c_str();
     }
     ramsyscall_printf(
-        "[!!!] StringHashMap::gestCStr: string wasn't found for hash %d\n", hash.value);
+        "[!!!] StringHashMap::gestCStr: string wasn't found for hash %u\n", hash.value);
     return "???";
 };
+
+void StringHashMap::putString(StringHash hash)
+{
+    putString(hash, hash.str);
+}
 
 void StringHashMap::putString(StringHash hash, const char* str)
 {

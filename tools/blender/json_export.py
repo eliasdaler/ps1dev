@@ -22,6 +22,20 @@ bl_info = {
     "category": "Import-Export",
 }
 
+identity_quat = Quaternion()
+identity_scale = Vector((1.0, 1.0, 1.0))
+
+# Go from Blender's coordinate system into glTF's coordinate system:
+#   X' =  X
+#   Y' = -Z
+#   Z' =  Y 
+axis_basis_change = mathutils.Matrix(
+            ((1.0,  0.0, 0.0, 0.0), 
+             (0.0,  0.0, 1.0, 0.0), 
+             (0.0, -1.0, 0.0, 0.0), 
+             (0.0,  0.0, 0.0, 1.0))
+            )
+
 def apply_modifiers(obj):
     ctx = bpy.context.copy()
     ctx['object'] = obj
@@ -51,17 +65,42 @@ def material_has_texture(mat):
     return get_texture_filename(mat) is not None
 
 
-def collect_meshes(scene):
-    meshes_set = set(o.data for o in scene.objects if o.type == 'MESH')
+def collect_meshes(obj_list):
+    meshes_set = set(o.data for o in obj_list)
     mesh_list = list(meshes_set)
     mesh_list.sort(key=attrgetter("name"))
     return mesh_list
 
-def collect_objects(scene):
-    obj_set = set(o for o in scene.objects if o.type == 'MESH')
+def collect_objects(collection_objects):
+    obj_set = set(o for o in collection_objects if o.type == 'MESH')
     obj_list = list(obj_set)
     obj_list.sort(key=attrgetter("name"))
     return obj_list
+
+def assert_no_rotation(obj):
+    quat = obj.matrix_local.to_quaternion()
+    if quat != identity_quat:
+        raise ValueError(f'"{obj.name}" has rotation')
+
+def get_aabb(o):
+    ps = [axis_basis_change @ o.matrix_world @ Vector(corner) for corner in o.bound_box]
+    x_coords, y_coords, z_coords = zip(*ps)
+
+    return {
+        "min": [min(x_coords), min(y_coords), min(z_coords)],
+        "max": [max(x_coords), max(y_coords), max(z_coords)],
+    }
+
+def get_collisions_json():
+    collection = bpy.data.collections.get("Collision")
+    if collection is None:
+        return
+
+    cs = []
+    for o in collection.objects:
+        assert_no_rotation(o)
+        cs.append({"type":"box", "aabb": get_aabb(o)})
+    return cs
 
 def collect_materials(scene):
     material_set = set()
@@ -71,9 +110,6 @@ def collect_materials(scene):
     material_list = list(material_set)
     material_list.sort(key=attrgetter("name"))
     return material_list
-
-identity_quat = Quaternion()
-identity_scale = Vector((1.0, 1.0, 1.0))
 
 def get_object_data_json(obj, meshes_idx_map, has_armature):
     object_data = {
@@ -117,7 +153,7 @@ def get_mesh_json(mesh, material_idx_map):
 
             vertex = mesh.vertices[vi]
             vertex_data = {
-                "pos": [vertex.co.x, vertex.co.y, vertex.co.z]
+                "pos": [vertex.co.x, vertex.co.z, -vertex.co.y]
             }
 
             if has_materials_with_textures:
@@ -185,7 +221,7 @@ def get_mesh_json_armature(obj, meshes_list, material_idx_map, joints, joint_nam
                 face_vert_indices.append(new_index)
 
                 vertex_data = {
-                    "pos": [vertex.co.x, vertex.co.y, vertex.co.z]
+                    "pos": [vertex.co.x, vertex.co.z, -vertex.co.y]
                 }
 
                 if has_materials_with_textures:
@@ -240,17 +276,6 @@ def find_root_bone(armature):
     for bone in root_bone.children:
         if not skip_bone(bone):
             return bone
-
-# Go from Blender's coordinate system into glTF's coordinate system:
-#   X' =  X
-#   Y' = -Z
-#   Z' =  Y 
-axis_basis_change = mathutils.Matrix(
-            ((1.0,  0.0, 0.0, 0.0), 
-             (0.0,  0.0, 1.0, 0.0), 
-             (0.0, -1.0, 0.0, 0.0), 
-             (0.0,  0.0, 0.0, 1.0))
-            )
 
 class Joint():
     def __init__(self, name, transform, translation, rotation, scale, children):
@@ -409,19 +434,21 @@ def write_psxtools_json(context, filepath):
 
     scene = context.scene
 
+    # apply modifiers
+    for o in scene.objects:
+        apply_modifiers(o)
+
+    # TODO: somehow allow to place objects in other collections?
+    default_collection = bpy.data.collections.get("Collection")
+    obj_list = collect_objects(default_collection.objects)
+
     # collect meshes
-    meshes_list = collect_meshes(scene)
+    meshes_list = collect_meshes(obj_list)
     meshes_idx_map = {mesh.name: idx for idx, mesh in enumerate(meshes_list)}
 
     # collect materials
     material_list = collect_materials(scene)
     material_idx_map = {mat.name: idx for idx, mat in enumerate(material_list)}
-
-    # apply modifiers
-    for o in scene.objects:
-        apply_modifiers(o)
-
-    obj_list = collect_objects(scene)
 
     if bpy.context.object:
         # in Edit/Pose/etc. modes some things don't work properly
@@ -435,6 +462,10 @@ def write_psxtools_json(context, filepath):
         "materials": [get_material_json(mat)
                       for mat in material_list],
     }
+
+    collisions = get_collisions_json()
+    if collisions:
+        data["collision"] = collisions
 
     # HACK: if no armature - each object gets a corresponding mesh
     # Otherwise, we assume that all meshes are submeshes of the only object in the file

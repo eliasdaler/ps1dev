@@ -61,7 +61,7 @@ private:
     FPSCounter fpsCounter;
 
     bool debugInfoDrawn{true};
-    bool collisionDrawn{false};
+    bool collisionDrawn{true};
     bool freeCamera{false};
     bool followCamera{false};
 
@@ -73,6 +73,7 @@ private:
 
     enum class SwitchLevelState { FadeOut, LoadLevel, FadeIn, Done };
     SwitchLevelState switchLevelState;
+    bool startedLevelLoad{false}; // needed to not update/draw GameplayState during level load
 
     psyqo::Angle interactStartAngle;
     psyqo::Angle interactEndAngle;
@@ -80,7 +81,6 @@ private:
     psyqo::Angle interactRotationLerpSpeed;
     bool npcRotatesTowardsPlayer{false};
 
-    eastl::vector<AABB> collisionBoxes;
     eastl::vector<Circle> collisionCircles;
     eastl::vector<Trigger> triggers;
 

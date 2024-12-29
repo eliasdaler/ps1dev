@@ -1,0 +1,11 @@
+{
+  "used_textures": [
+    "BRICKS.TIM;1",
+    "CATO.TIM;1"
+  ],
+  "used_models": [
+    "HUMAN.BIN;1",
+    "LEVEL.BIN;1",
+    "CATO.BIN;1"
+  ]
+}

@@ -82,12 +82,20 @@ struct Animation {
     std::vector<AnimationTrack> tracks;
 };
 
+struct AABB {
+    glm::vec3 min;
+    glm::vec3 max;
+};
+
 struct ModelJson {
     std::vector<Object> objects;
     std::vector<Mesh> meshes;
     std::vector<Material> materials;
     Armature armature;
     std::vector<Animation> animations;
+
+    // level only
+    std::vector<AABB> collision;
 };
 
 ModelJson parseJsonFile(

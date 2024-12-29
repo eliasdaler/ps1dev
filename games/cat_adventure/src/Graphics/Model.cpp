@@ -7,7 +7,6 @@
 
 void Model::load(const eastl::vector<uint8_t>& data)
 {
-    // vertices
     util::FileReader fr{
         .bytes = data.data(),
     };

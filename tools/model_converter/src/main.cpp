@@ -4,6 +4,8 @@
 
 #include "AnimationWriter.h"
 #include "Json2PsxConverter.h"
+#include "LevelJsonFile.h"
+#include "LevelWriter.h"
 #include "ModelJsonFile.h"
 #include "PsxModel.h"
 
@@ -59,6 +61,22 @@ int main(int argc, char* argv[])
             std::cout << "Writing animations to " << outAnimPath << std::endl;
             writeAnimationsToFile(outAnimPath, modelJson.animations, conversionParams);
         }
+
+        bool isLevel = !modelJson.collision.empty(); // TODO: special flag?
+
+        if (isLevel) {
+            auto outLevelPath = outputFilePath;
+            outLevelPath.replace_extension(".lvl");
+
+            auto levelMetaPath =
+                assetDirPath / "levels" / inputFilePath.stem().replace_extension(".json");
+            std::cout << "level metadata:" << levelMetaPath << std::endl;
+            LevelJson levelJson = parseLevelJsonFile(levelMetaPath, assetDirPath);
+
+            std::cout << "Writing level data to " << outLevelPath << std::endl;
+            writeLevelToFile(outLevelPath, modelJson, levelJson, conversionParams);
+        }
+
         writePsxModel(psxModel, outputFilePath);
     } else {
         assert(false && "unsupported format");

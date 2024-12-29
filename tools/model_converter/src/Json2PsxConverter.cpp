@@ -92,14 +92,8 @@ PsxSubmesh processMesh(
         for (std::size_t i = 0; i < face.vertices.size(); ++i) {
             const auto& v = mesh.vertices[face.vertices[i]];
 
-            // From Blender coordinate system to glTF coordinate system
-            // X' = X
-            // Y' = Z
-            // Z' = -Y
-            const auto position = glm::vec3{v.position.x, v.position.z, -v.position.y};
-
             // Note: if not affected by a joint, ib will be I here
-            const auto pos = glm::vec3{ib * tm * glm::vec4{position, 1.f}};
+            const auto pos = glm::vec3{ib * tm * glm::vec4{v.position, 1.f}};
 
             psxFace[i].originalIndex = face.vertices[i];
             psxFace[i].pos = {

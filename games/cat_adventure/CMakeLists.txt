@@ -40,6 +40,7 @@ add_executable(game
 
   ./src/Collision.cpp
   ./src/Object.cpp
+  ./src/Level.cpp
 
   ./src/LoadingScene.cpp
   ./src/GameplayScene.cpp

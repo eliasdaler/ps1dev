@@ -62,28 +62,9 @@ void GameplayScene::start(StartReason reason)
         game.debugMenu.menuItems[DebugMenu::DRAW_COLLISION_ITEM_ID].valuePtr = &collisionDrawn;
     }
 
-    collisionBoxes.clear();
     triggers.clear();
 
     if (game.level.id == 0) { // TODO: load from level
-        AABB collisionBox;
-
-        collisionBox.min = {-0.34, 0.0, -0.32};
-        collisionBox.max = {-0.1, 0.1, -0.0};
-        collisionBoxes.push_back(collisionBox);
-
-        collisionBox.min = {-0.34, 0.0, -0.32};
-        collisionBox.max = {-0.16, 0.1, 0.34};
-        collisionBoxes.push_back(collisionBox);
-
-        collisionBox.min = {-0.34, 0.0, -0.32};
-        collisionBox.max = {0.22, 0.1, -0.2};
-        collisionBoxes.push_back(collisionBox);
-
-        collisionBox.min = {0.08, 0.0, -0.32};
-        collisionBox.max = {0.22, 0.1, 0.34};
-        collisionBoxes.push_back(collisionBox);
-
         Trigger trigger;
         trigger.id = 0;
         trigger.aabb.min = {-0.1145, 0.0000, 0.3488};
@@ -162,6 +143,10 @@ void GameplayScene::frame()
     game.pad.update();
     processInput(game.pad);
     update();
+
+    if (startedLevelLoad) {
+        return;
+    }
 
     gpu().pumpCallbacks();
 
@@ -462,6 +447,9 @@ void GameplayScene::update()
 
     if (gameState == GameState::SwitchLevel) {
         updateLevelSwitch();
+        if (startedLevelLoad) {
+            return;
+        }
     }
 
     player.update();
@@ -520,6 +508,7 @@ void GameplayScene::updateLevelSwitch()
         break;
     case SwitchLevelState::LoadLevel:
         // switch level
+        startedLevelLoad = true;
         game.loadLevel(destinationLevelId);
 
         fadeFinished = false;
@@ -528,6 +517,7 @@ void GameplayScene::updateLevelSwitch()
         switchLevelState = SwitchLevelState::FadeIn;
         break;
     case SwitchLevelState::FadeIn:
+        startedLevelLoad = false;
         if (fadeFinished) {
             switchLevelState = SwitchLevelState::Done;
         }
@@ -553,6 +543,8 @@ void GameplayScene::handleCollision(psyqo::SoftMath::Axis axis)
     }
     player.setPosition(newPos);
     player.updateCollision();
+
+    const auto& collisionBoxes = game.level.collisionBoxes;
 
     // Check if any collisions happened
     if (circlesIntersect(player.collisionCircle, npc.collisionCircle)) {
@@ -728,13 +720,16 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
     if (collisionDrawn) { // draw collisions/triggers
         renderer.drawObjectAxes(player, camera);
         // player.model->armature.drawDebug(renderer);
-        renderer.drawArmature(npc, camera);
+        if (game.level.id == 0) {
+            renderer.drawArmature(npc, camera);
+        }
 
         static const auto colliderColor = psyqo::Color{.r = 128, .g = 255, .b = 255};
         static const auto triggerColor = psyqo::Color{.r = 255, .g = 255, .b = 128};
         static const auto interactionTriggerColor = psyqo::Color{.r = 255, .g = 128, .b = 128};
         static const auto activeTriggerColor = psyqo::Color{.r = 128, .g = 255, .b = 128};
 
+        const auto& collisionBoxes = game.level.collisionBoxes;
         for (const auto& box : collisionBoxes) {
             renderer.drawAABB(camera, box, colliderColor);
         }

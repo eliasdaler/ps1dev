@@ -220,5 +220,18 @@ ModelJson parseJsonFile(
         }
     }
 
+    const auto collisionIt = root.find("collision");
+    if (collisionIt != root.end()) {
+        const auto& collisionArr = *collisionIt;
+        model.collision.reserve(collisionArr.size());
+        for (const auto& collObj : collisionArr) {
+            AABB aabb;
+            const auto& aabbObj = collObj.at("aabb");
+            aabb.min = getVec3(aabbObj, "min", {});
+            aabb.max = getVec3(aabbObj, "max", {});
+            model.collision.push_back(std::move(aabb));
+        }
+    }
+
     return model;
 }

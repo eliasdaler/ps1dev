@@ -14,6 +14,7 @@ struct StringHash;
 struct StringHashMap {
     static const eastl::string& getStr(StringHash hash);
     static const char* getCStr(StringHash hash);
+    static void putString(StringHash hash);
     static void putString(StringHash hash, const char* str);
 
     static eastl::map<std::uint32_t, eastl::string> map;
@@ -21,9 +22,11 @@ struct StringHashMap {
 
 #ifdef DEBUG_HASH
 #define HASH_PUT(str) StringHashMap::putString(str##_sh, str)
+#define HASH_PUT2(h) StringHashMap::putString(h)
 #define FROM_HASH(hash) (StringHashMap::getCStr(hash))
 #else
 #define HASH_PUT(str)
+#define HASH_PUT2(h)
 #define FROM_HASH(hash) "???"
 #endif
 
