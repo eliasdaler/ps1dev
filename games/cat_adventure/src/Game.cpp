@@ -157,6 +157,9 @@ psyqo::Coroutine<> loadCoroutine(Game& game)
         }
     }
 
+    game.cd.loadFastModel("CATO.FM;1", game.catoModelFast);
+    co_await awaiter;
+
     if (game.firstLoad) {
         game.cd.loadAnimations("HUMAN.ANM;1", game.animations);
         co_await awaiter;

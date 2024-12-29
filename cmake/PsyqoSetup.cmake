@@ -47,7 +47,6 @@ target_include_directories(EASTL PUBLIC
 
 add_library(EASTL::EASTL ALIAS EASTL)
 
-
 add_library(psyqo STATIC
   ${PSYQO_DIR}/src/hardware/cdrom.cpp
   ${PSYQO_DIR}/src/hardware/cpu.cpp

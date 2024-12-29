@@ -31,6 +31,11 @@ void CDLoader::loadModel(eastl::string_view filename, Model& model)
     loadFromCD(filename, [&model](eastl::vector<uint8_t>&& buffer) { model.load(buffer); });
 }
 
+void CDLoader::loadFastModel(eastl::string_view filename, FastModel& model)
+{
+    loadFromCD(filename, [&model](eastl::vector<uint8_t>&& buffer) { model.load(buffer); });
+}
+
 void CDLoader::loadSound(eastl::string_view filename, uint32_t spuUploadAddr)
 {
     loadFromCD(filename, [this, filename, spuUploadAddr](eastl::vector<uint8_t>&& buffer) {

@@ -118,7 +118,12 @@ void Renderer::drawModelObject(const ModelObject& object, const Camera& camera, 
         return;
     }
     calculateViewModelMatrix(object, camera, setViewRot);
-    drawModel(*object.model, object.texture);
+
+    if (object.model) {
+        drawModel(*object.model, object.texture);
+    } else if (object.fastModel) {
+        drawModel(*object.fastModel);
+    }
 }
 
 void Renderer::drawAnimatedModelObject(
@@ -189,6 +194,87 @@ void Renderer::drawModel(const Model& model, const TextureInfo& texture)
 {
     for (const auto& mesh : model.meshes) {
         drawMesh(mesh, texture);
+    }
+}
+
+void Renderer::drawModel(const FastModel& model)
+{
+    for (const auto& mesh : model.meshes) {
+        auto& ot = getOrderingTable();
+        auto& primBuffer = getPrimBuffer();
+
+        for (const auto& gt4 : mesh.gt4) {
+            const auto& v0 = gt4.vs[0];
+            const auto& v1 = gt4.vs[1];
+            const auto& v2 = gt4.vs[2];
+            const auto& v3 = gt4.vs[3];
+
+            psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
+            psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
+            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
+            psyqo::GTE::Kernels::rtpt();
+
+            psyqo::GTE::Kernels::nclip();
+            const auto dot =
+                (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
+            if (dot < 0) {
+                continue;
+            }
+
+            // TODO: pass non-const model!
+            auto& quadFrag =
+                const_cast<psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedQuad>&>(
+                    gt4.frag);
+            auto& quad2d = quadFrag.primitive;
+
+            psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointA.packed);
+
+            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v3.pos);
+            psyqo::GTE::Kernels::rtps();
+
+            psyqo::GTE::Kernels::avsz4();
+
+            auto avgZ = (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
+            if (avgZ == 0) { // cull
+                continue;
+            }
+
+            avgZ += bias; // add bias
+            if (avgZ >= Renderer::OT_SIZE) {
+                continue;
+            }
+
+            psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointB.packed);
+            psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointC.packed);
+            psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
+
+            // FIXME: enable fog again
+            /* if constexpr (fogEnabledT) { // per vertex interpolation
+                const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
+                const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
+                const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
+                const auto sz3 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
+
+                const auto p0 = calcInterpFactor(sz0);
+                const auto p1 = calcInterpFactor(sz1);
+                const auto p2 = calcInterpFactor(sz2);
+                const auto p3 = calcInterpFactor(sz3);
+
+                psyqo::Color col;
+                interpColor(v0.col, p0, &col);
+                quad2d.setColorA(col);
+                interpColor(v1.col, p1, &quad2d.colorB);
+                interpColor(v2.col, p2, &quad2d.colorC);
+                interpColor(v3.col, p3, &quad2d.colorD);
+            } else {
+                quad2d.setColorA(v0.col);
+                quad2d.setColorB(v1.col);
+                quad2d.setColorC(v2.col);
+                quad2d.setColorD(v3.col);
+            } */
+
+            ot.insert(quadFrag, avgZ);
+        }
     }
 }
 

@@ -112,6 +112,10 @@ set(models
   "${ASSETS_DIR_RAW}/car.blend"
 )
 
+set(fast_models
+  "${ASSETS_DIR_RAW}/cato.blend"
+)
+
 if (BUILD_ASSETS) 
   include(BuildAssets)
   add_dependencies(build_iso assets)

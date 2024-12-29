@@ -57,3 +57,5 @@ struct PsxModel {
 };
 
 void writePsxModel(const PsxModel& model, const std::filesystem::path& path);
+
+void writeFastPsxModel(const PsxModel& model, const std::filesystem::path& path);

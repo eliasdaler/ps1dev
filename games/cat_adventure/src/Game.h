@@ -66,4 +66,6 @@ public:
 
     // set by loadLevel
     int levelToLoad;
+
+    FastModel catoModelFast;
 };

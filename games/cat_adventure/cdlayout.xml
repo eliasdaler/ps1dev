@@ -24,6 +24,7 @@
                 <file name="LEVEL.LVL" type="data" source="assets/house_psx.lvl"/>
                 <file name="LEVEL2.BIN" type="data" source="assets/level_new.bin"/>
                 <file name="CATO.BIN" type="data" source="assets/cato.bin"/>
+                <file name="CATO.FM" type="data" source="assets/cato.fm"/>
                 <file name="HUMAN.BIN" type="data" source="assets/human2.bin"/>
                 <file name="HUMAN.ANM" type="data" source="assets/human2.anm"/>
                 <file name="STEP1.VAG" type="data" source="assets/step1.vag"/>

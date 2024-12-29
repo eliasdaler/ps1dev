@@ -50,9 +50,6 @@ int main(int argc, char* argv[])
 
     if (inputFilePath.extension() == ".json") {
         const auto modelJson = parseJsonFile(inputFilePath, assetDirPath);
-        if (fastModel) {
-            assert(false && "not implemented");
-        }
 
         const auto psxModel = jsonToPsxModel(modelJson, conversionParams);
         if (!modelJson.animations.empty()) {
@@ -77,7 +74,11 @@ int main(int argc, char* argv[])
             writeLevelToFile(outLevelPath, modelJson, levelJson, conversionParams);
         }
 
-        writePsxModel(psxModel, outputFilePath);
+        if (fastModel) {
+            writeFastPsxModel(psxModel, outputFilePath);
+        } else {
+            writePsxModel(psxModel, outputFilePath);
+        }
     } else {
         assert(false && "unsupported format");
     }

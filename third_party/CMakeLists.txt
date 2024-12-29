@@ -25,4 +25,3 @@ option(FT_ENABLE_ERROR_STRINGS
   "Enable support for meaningful error descriptions." ON)
 add_subdirectory(freetype)
 add_library(freetype::freetype ALIAS freetype)
-

@@ -5,6 +5,8 @@
 
 #include <FsUtil.h>
 
+#include "GTETypes.h"
+
 namespace
 {
 
@@ -34,6 +36,50 @@ void writePsxModelVerts(std::ofstream& file, const std::vector<std::array<PsxVer
     }
 }
 
+void writeGT4Prims(std::ofstream& file, const std::vector<std::array<PsxVert, 4>>& faces)
+{
+    for (const auto& face : faces) {
+        GouraudTexturedQuad quad{
+            // 0
+            .r0 = face[0].color.x,
+            .g0 = face[0].color.z,
+            .b0 = face[0].color.y,
+            .code = 0x3c,
+            .u0 = face[0].uv.x,
+            .v0 = face[0].uv.y,
+            .clut = getClut(0, 241), // TODO: don't hardcode
+            // 1
+            .r1 = face[1].color.x,
+            .g1 = face[1].color.z,
+            .b1 = face[1].color.y,
+            .u1 = face[1].uv.x,
+            .v1 = face[1].uv.y,
+            .tpage = getTPage(1, 1, 512, 0), // TODO: don't hardcode
+            // 2
+            .r2 = face[2].color.x,
+            .g2 = face[2].color.z,
+            .b2 = face[2].color.y,
+            .u2 = face[2].uv.x,
+            .v2 = face[2].uv.y,
+            // 3
+            .r3 = face[3].color.x,
+            .g3 = face[3].color.z,
+            .b3 = face[3].color.y,
+            .u3 = face[3].uv.x,
+            .v3 = face[3].uv.y,
+        };
+        fsutil::binaryWrite(file, quad);
+
+        // write world positions
+        for (int i = 0; i < 4; ++i) {
+            fsutil::binaryWrite(file, face[i].pos.x);
+            fsutil::binaryWrite(file, face[i].pos.y);
+            fsutil::binaryWrite(file, face[i].pos.z);
+            fsutil::binaryWrite(file, pad16);
+        }
+    }
+}
+
 } // end of anonymous namespace
 
 void writePsxModel(const PsxModel& model, const std::filesystem::path& path)
@@ -52,6 +98,46 @@ void writePsxModel(const PsxModel& model, const std::filesystem::path& path)
         writePsxModelVerts(file, mesh.untexturedQuadFaces);
         writePsxModelVerts(file, mesh.triFaces);
         writePsxModelVerts(file, mesh.quadFaces);
+    }
+
+    if (!model.armature.joints.empty()) {
+        fsutil::binaryWrite(file, static_cast<std::uint16_t>(model.armature.joints.size()));
+        for (const auto& joint : model.armature.joints) {
+            fsutil::binaryWrite(file, joint.translation.x);
+            fsutil::binaryWrite(file, joint.translation.y);
+            fsutil::binaryWrite(file, joint.translation.z);
+            fsutil::binaryWrite(file, pad16);
+
+            fsutil::binaryWrite(file, joint.rotation.x);
+            fsutil::binaryWrite(file, joint.rotation.y);
+            fsutil::binaryWrite(file, joint.rotation.z);
+            fsutil::binaryWrite(file, joint.rotation.w);
+            fsutil::binaryWrite(file, joint.firstChild);
+            fsutil::binaryWrite(file, joint.nextSibling);
+        }
+    }
+}
+
+void writeFastPsxModel(const PsxModel& model, const std::filesystem::path& path)
+{
+    std::ofstream file(path, std::ios::binary);
+    fsutil::binaryWrite(file, static_cast<std::uint16_t>(model.submeshes.size()));
+
+    for (const auto& mesh : model.submeshes) {
+        fsutil::binaryWrite(file, static_cast<std::uint16_t>(mesh.jointId));
+        // fsutil::binaryWrite(file, static_cast<std::uint16_t>(mesh.untexturedTriFaces.size()));
+        // fsutil::binaryWrite(file, static_cast<std::uint16_t>(mesh.untexturedQuadFaces.size()));
+        // fsutil::binaryWrite(file, static_cast<std::uint16_t>(mesh.triFaces.size()));
+
+        fsutil::binaryWrite(file, static_cast<std::uint16_t>(0));
+        fsutil::binaryWrite(file, static_cast<std::uint16_t>(0));
+        fsutil::binaryWrite(file, static_cast<std::uint16_t>(0));
+        fsutil::binaryWrite(file, static_cast<std::uint16_t>(mesh.quadFaces.size()));
+
+        // writePsxModelVerts(file, mesh.untexturedTriFaces);
+        // writePsxModelVerts(file, mesh.untexturedQuadFaces);
+        // writePsxModelVerts(file, mesh.triFaces);
+        writeGT4Prims(file, mesh.quadFaces);
     }
 
     if (!model.armature.joints.empty()) {

@@ -12,6 +12,7 @@
 #include <Math/Transform.h>
 
 struct Model;
+struct FastModel;
 struct Mesh;
 
 struct Object {
@@ -60,6 +61,7 @@ struct ModelObject : Object {
     void update();
 
     const Model* model{nullptr};
+    const FastModel* fastModel{nullptr};
     TextureInfo texture;
 };
 

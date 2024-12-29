@@ -97,7 +97,9 @@ void GameplayScene::start(StartReason reason)
         player.setPosition({0.0, 0.0, 0.25});
         player.rotation = {0.0, -1.0};
 
-        npc.model = &game.resourceCache.getResource<Model>(CATO_MODEL_HASH);
+        // npc.model = &game.resourceCache.getResource<Model>(CATO_MODEL_HASH);
+        npc.fastModel = &game.catoModelFast;
+
         npc.texture = game.resourceCache.getResource<TextureInfo>(CATO_TEXTURE_HASH);
         npc.jointGlobalTransforms.resize(npc.model->armature.joints.size());
         npc.animator.animations = &game.animations;
