@@ -61,7 +61,7 @@ struct ModelObject : Object {
     void update();
 
     const Model* model{nullptr};
-    const FastModel* fastModel{nullptr};
+    FastModel* fastModel{nullptr};
     TextureInfo texture;
 };
 

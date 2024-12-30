@@ -38,7 +38,7 @@ public:
     void drawMeshObject(const MeshObject& object, const Camera& camera);
 
     void drawModel(const Model& model, const TextureInfo& texture);
-    void drawModel(const FastModel& model);
+    void drawModel(FastModel& model);
 
     void drawMesh(const Mesh& mesh, const TextureInfo& texture);
     void drawMesh(const Mesh& mesh);

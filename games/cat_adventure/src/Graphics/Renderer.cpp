@@ -197,13 +197,75 @@ void Renderer::drawModel(const Model& model, const TextureInfo& texture)
     }
 }
 
-void Renderer::drawModel(const FastModel& model)
+void Renderer::drawModel(FastModel& model)
 {
-    for (const auto& mesh : model.meshes) {
-        auto& ot = getOrderingTable();
-        auto& primBuffer = getPrimBuffer();
+    auto& ot = getOrderingTable();
 
-        for (const auto& gt4 : mesh.gt4) {
+    for (auto& mesh : model.meshes) {
+        auto& gt3s = mesh.gt3[gpu.getParity()];
+        for (auto& gt3 : gt3s) {
+            const auto& v0 = gt3.vs[0];
+            const auto& v1 = gt3.vs[1];
+            const auto& v2 = gt3.vs[2];
+
+            psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
+            psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
+            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
+            psyqo::GTE::Kernels::rtpt();
+
+            psyqo::GTE::Kernels::nclip();
+            const auto dot =
+                (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
+            if (dot < 0) {
+                continue;
+            }
+
+            psyqo::GTE::Kernels::avsz3();
+
+            auto avgZ = (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
+            if (avgZ == 0) { // cull
+                continue;
+            }
+
+            avgZ += bias; // add bias
+            if (avgZ >= Renderer::OT_SIZE) {
+                continue;
+            }
+
+            auto& triFrag = gt3.frag;
+            auto& tri2d = triFrag.primitive;
+
+            psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&tri2d.pointA.packed);
+            psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&tri2d.pointB.packed);
+            psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&tri2d.pointC.packed);
+
+            // FIXME: enable fog again
+            /* if constexpr (fogEnabledT) {
+                const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
+                const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
+                const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
+
+                // per vertex interpolation
+                const auto p0 = calcInterpFactor(sz0);
+                const auto p1 = calcInterpFactor(sz1);
+                const auto p2 = calcInterpFactor(sz2);
+
+                psyqo::Color col;
+                interpColor(v0.col, p0, &col);
+                tri2d.setColorA(col);
+                interpColor(v1.col, p1, &tri2d.colorB);
+                interpColor(v2.col, p2, &tri2d.colorC);
+            } else {
+                tri2d.setColorA(v0.col);
+                tri2d.setColorB(v1.col);
+                tri2d.setColorC(v2.col);
+            } */
+
+            ot.insert(triFrag, avgZ);
+        }
+
+        auto& gt4s = mesh.gt4[gpu.getParity()];
+        for (auto& gt4 : gt4s) {
             const auto& v0 = gt4.vs[0];
             const auto& v1 = gt4.vs[1];
             const auto& v2 = gt4.vs[2];
@@ -221,10 +283,7 @@ void Renderer::drawModel(const FastModel& model)
                 continue;
             }
 
-            // TODO: pass non-const model!
-            auto& quadFrag =
-                const_cast<psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedQuad>&>(
-                    gt4.frag);
+            auto& quadFrag = gt4.frag;
             auto& quad2d = quadFrag.primitive;
 
             psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointA.packed);

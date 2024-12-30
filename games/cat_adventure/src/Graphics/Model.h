@@ -8,6 +8,7 @@
 
 #include <psyqo/fragments.hh>
 #include <psyqo/primitives/quads.hh>
+#include <psyqo/primitives/triangles.hh>
 
 #include <cstdint>
 
@@ -43,14 +44,18 @@ struct Model {
     void load(const eastl::vector<uint8_t>& data);
 };
 
+struct Vec3Pad {
+    psyqo::GTE::PackedVec3 pos;
+    std::uint16_t pad;
+};
+
+struct GT3Data {
+    psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedTriangle> frag;
+    eastl::array<Vec3Pad, 3> vs;
+};
+
 struct GT4Data {
     psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedQuad> frag;
-
-    struct Vec3Pad {
-        psyqo::GTE::PackedVec3 pos;
-        std::uint16_t pad;
-    };
-
     eastl::array<Vec3Pad, 4> vs;
 };
 
@@ -61,7 +66,8 @@ struct FastMesh {
     int numQuads{0};
     std::uint16_t jointId;
 
-    eastl::vector<GT4Data> gt4;
+    eastl::array<eastl::vector<GT3Data>, 2> gt3;
+    eastl::array<eastl::vector<GT4Data>, 2> gt4;
 };
 
 struct FastModel {

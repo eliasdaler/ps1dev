@@ -36,35 +36,91 @@ void writePsxModelVerts(std::ofstream& file, const std::vector<std::array<PsxVer
     }
 }
 
+void writeGT3Prims(std::ofstream& file, const std::vector<std::array<PsxVert, 3>>& faces)
+{
+    auto clut = getClut(0, 241); // TODO: don't hardcode
+    auto tpage = getTPage(1, 1, 512, 0);
+    if (faces.size() == 16) {
+        clut = getClut(0, 240);
+        tpage = getTPage(1, 1, 320, 0);
+    }
+
+    for (const auto& face : faces) {
+        fsutil::binaryWrite(file, static_cast<std::uint32_t>(0)); // head
+
+        GouraudTexturedTriangle quad{
+            // 0
+            .r0 = face[0].color.x,
+            .g0 = face[0].color.y,
+            .b0 = face[0].color.z,
+            .code = 0x34,
+            .u0 = face[0].uv.x,
+            .v0 = face[0].uv.y,
+            .clut = static_cast<uint16_t>(clut),
+            // 1
+            .r1 = face[1].color.x,
+            .g1 = face[1].color.y,
+            .b1 = face[1].color.z,
+            .u1 = face[1].uv.x,
+            .v1 = face[1].uv.y,
+            .tpage = static_cast<uint16_t>(tpage),
+            // 2
+            .r2 = face[2].color.x,
+            .g2 = face[2].color.y,
+            .b2 = face[2].color.z,
+            .u2 = face[2].uv.x,
+            .v2 = face[2].uv.y,
+        };
+        fsutil::binaryWrite(file, quad);
+
+        // write world positions
+        for (int i = 0; i < 3; ++i) {
+            fsutil::binaryWrite(file, face[i].pos.x);
+            fsutil::binaryWrite(file, face[i].pos.y);
+            fsutil::binaryWrite(file, face[i].pos.z);
+            fsutil::binaryWrite(file, pad16);
+        }
+    }
+}
+
 void writeGT4Prims(std::ofstream& file, const std::vector<std::array<PsxVert, 4>>& faces)
 {
+    auto clut = getClut(0, 241); // TODO: don't hardcode
+    auto tpage = getTPage(1, 1, 512, 0);
+    if (faces.size() == 955) {
+        clut = getClut(0, 240);
+        tpage = getTPage(1, 1, 320, 0);
+    }
+
     for (const auto& face : faces) {
+        fsutil::binaryWrite(file, static_cast<std::uint32_t>(0)); // head
+
         GouraudTexturedQuad quad{
             // 0
             .r0 = face[0].color.x,
-            .g0 = face[0].color.z,
-            .b0 = face[0].color.y,
+            .g0 = face[0].color.y,
+            .b0 = face[0].color.z,
             .code = 0x3c,
             .u0 = face[0].uv.x,
             .v0 = face[0].uv.y,
-            .clut = getClut(0, 241), // TODO: don't hardcode
+            .clut = static_cast<uint16_t>(clut),
             // 1
             .r1 = face[1].color.x,
-            .g1 = face[1].color.z,
-            .b1 = face[1].color.y,
+            .g1 = face[1].color.y,
+            .b1 = face[1].color.z,
             .u1 = face[1].uv.x,
             .v1 = face[1].uv.y,
-            .tpage = getTPage(1, 1, 512, 0), // TODO: don't hardcode
+            .tpage = static_cast<uint16_t>(tpage),
             // 2
             .r2 = face[2].color.x,
-            .g2 = face[2].color.z,
-            .b2 = face[2].color.y,
+            .g2 = face[2].color.y,
+            .b2 = face[2].color.z,
             .u2 = face[2].uv.x,
             .v2 = face[2].uv.y,
             // 3
             .r3 = face[3].color.x,
-            .g3 = face[3].color.z,
-            .b3 = face[3].color.y,
+            .g3 = face[3].color.y,
+            .b3 = face[3].color.z,
             .u3 = face[3].uv.x,
             .v3 = face[3].uv.y,
         };
@@ -131,12 +187,13 @@ void writeFastPsxModel(const PsxModel& model, const std::filesystem::path& path)
 
         fsutil::binaryWrite(file, static_cast<std::uint16_t>(0));
         fsutil::binaryWrite(file, static_cast<std::uint16_t>(0));
-        fsutil::binaryWrite(file, static_cast<std::uint16_t>(0));
+        fsutil::binaryWrite(file, static_cast<std::uint16_t>(mesh.triFaces.size()));
         fsutil::binaryWrite(file, static_cast<std::uint16_t>(mesh.quadFaces.size()));
 
         // writePsxModelVerts(file, mesh.untexturedTriFaces);
         // writePsxModelVerts(file, mesh.untexturedQuadFaces);
         // writePsxModelVerts(file, mesh.triFaces);
+        writeGT3Prims(file, mesh.triFaces);
         writeGT4Prims(file, mesh.quadFaces);
     }
 

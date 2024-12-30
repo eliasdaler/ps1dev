@@ -68,4 +68,5 @@ public:
     int levelToLoad;
 
     FastModel catoModelFast;
+    FastModel levelModelFast;
 };

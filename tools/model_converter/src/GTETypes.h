@@ -27,12 +27,26 @@ struct P_TAG {
     std::uint8_t r0, g0, b0, code;
 };
 
-struct GouraudTexturedQuad {
-    std::uint32_t tag;
-
+struct GouraudTexturedTriangle {
     std::uint8_t r0, g0, b0, code;
     std::int16_t x0, y0;
+    std::uint8_t u0, v0;
+    std::uint16_t clut;
 
+    std::uint8_t r1, g1, b1, p1;
+    std::int16_t x1, y1;
+    std::uint8_t u1, v1;
+    std::uint16_t tpage;
+
+    std::uint8_t r2, g2, b2, p2;
+    std::int16_t x2, y2;
+    std::uint8_t u2, v2;
+    std::uint16_t pad2;
+};
+
+struct GouraudTexturedQuad {
+    std::uint8_t r0, g0, b0, code;
+    std::int16_t x0, y0;
     std::uint8_t u0, v0;
     std::uint16_t clut;
 

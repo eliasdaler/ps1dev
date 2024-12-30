@@ -94,9 +94,15 @@ void FastModel::load(const eastl::vector<uint8_t>& data)
         mesh.numTris = fr.GetUInt16();
         mesh.numQuads = fr.GetUInt16();
 
-        mesh.gt4.resize(mesh.numQuads);
+        // ramsyscall_printf("%d, %d\n", mesh.numTris, mesh.numQuads);
 
-        fr.ReadArr(mesh.gt4.data(), mesh.numQuads);
+        mesh.gt3[0].resize(mesh.numTris);
+        fr.ReadArr(mesh.gt3[0].data(), mesh.numTris);
+        mesh.gt3[1] = mesh.gt3[0];
+
+        mesh.gt4[0].resize(mesh.numQuads);
+        fr.ReadArr(mesh.gt4[0].data(), mesh.numQuads);
+        mesh.gt4[1] = mesh.gt4[0];
 
         /* for (const auto& vertex : mesh.gt4) {
             ramsyscall_printf(

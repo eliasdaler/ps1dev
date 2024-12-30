@@ -92,7 +92,9 @@ void GameplayScene::start(StartReason reason)
 
         game.renderer.setFogEnabled(false);
 
-        levelObj.model = &game.resourceCache.getResource<Model>(LEVEL1_MODEL_HASH);
+        // levelObj.model = &game.resourceCache.getResource<Model>(LEVEL1_MODEL_HASH);
+        levelObj.model = nullptr;
+        levelObj.fastModel = &game.levelModelFast;
 
         player.setPosition({0.0, 0.0, 0.25});
         player.rotation = {0.0, -1.0};
@@ -124,6 +126,7 @@ void GameplayScene::start(StartReason reason)
         game.renderer.setFogEnabled(true);
 
         levelObj.model = &game.resourceCache.getResource<Model>(LEVEL2_MODEL_HASH);
+        levelObj.fastModel = nullptr;
 
         player.setPosition({0.5, 0.0, 0.5});
         player.rotation = {0.0, 0.5};
@@ -619,7 +622,6 @@ void GameplayScene::draw(Renderer& renderer)
     {
         // TODO: first draw objects without rotation
         // (won't have to upload camera.viewRot and change PseudoRegister::Rotation then)
-
         renderer.drawAnimatedModelObject(player, camera);
         if (game.level.id == 0) {
             renderer.drawAnimatedModelObject(npc, camera);
