@@ -75,8 +75,8 @@ void SongPlayer::init(MidiFile& song, VabFile& vab)
             musicTime += waitHBlanks * psyqo::GPU::US_PER_HBLANK / 2; // FIXME: use
             // newWaitHBlanks!
 
-            const auto newWaitHBlanks = calculateHBlanks(bpm);
-            gpu.changeTimerPeriod(musicTimer, newWaitHBlanks * psyqo::GPU::US_PER_HBLANK / 2);
+            // const auto newWaitHBlanks = calculateHBlanks(bpm);
+            // gpu.changeTimerPeriod(musicTimer, newWaitHBlanks * psyqo::GPU::US_PER_HBLANK / 2);
         });
 }
 

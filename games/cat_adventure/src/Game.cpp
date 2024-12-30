@@ -53,6 +53,16 @@ psyqo::Coroutine<> loadCoroutine(Game& game)
 
     psyqo::Coroutine<>::Awaiter awaiter = game.gameLoadCoroutine.awaiter();
 
+    if (game.firstLoad) {
+        ramsyscall_printf("[!] Loading fast model 'CATO.FM'\n");
+        game.cd.loadFastModel("CATO.FM;1", game.catoModelFast);
+        co_await awaiter;
+
+        ramsyscall_printf("[!] Loading fast model 'LEVEL.FM'\n");
+        game.cd.loadFastModel("LEVEL.FM;1", game.levelModelFast);
+        co_await awaiter;
+    }
+
     if (game.firstLoad) { // core
         game.cd.loadTIM("FONT.TIM;1", game.fontTexture);
         co_await awaiter;
@@ -158,12 +168,6 @@ psyqo::Coroutine<> loadCoroutine(Game& game)
     }
 
     if (game.firstLoad) {
-        game.cd.loadFastModel("CATO.FM;1", game.catoModelFast);
-        co_await awaiter;
-
-        game.cd.loadFastModel("LEVEL.FM;1", game.levelModelFast);
-        co_await awaiter;
-
         game.cd.loadAnimations("HUMAN.ANM;1", game.animations);
         co_await awaiter;
     }

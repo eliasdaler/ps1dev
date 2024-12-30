@@ -51,12 +51,10 @@ struct Vec3Pad {
 
 struct GT3Data {
     psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedTriangle> frag;
-    eastl::array<Vec3Pad, 3> vs;
 };
 
 struct GT4Data {
     psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedQuad> frag;
-    eastl::array<Vec3Pad, 4> vs;
 };
 
 struct FastMesh {
@@ -65,6 +63,8 @@ struct FastMesh {
     int numTris{0};
     int numQuads{0};
     std::uint16_t jointId;
+
+    eastl::vector<Vec3Pad> vertices;
 
     eastl::array<eastl::vector<GT3Data>, 2> gt3;
     eastl::array<eastl::vector<GT4Data>, 2> gt4;

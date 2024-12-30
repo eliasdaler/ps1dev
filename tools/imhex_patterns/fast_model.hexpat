@@ -56,6 +56,25 @@ struct RGB8 {
   u8 r, g, b;
 } [[sealed, static, format("format_color"), color(std::format("{:02X}{:02X}{:02X}", r*2, g*2, b*2))]];
 
+struct GouraudTexturedTriangle {
+    u32 tag;
+
+    u8 r0, g0, b0, code;
+    s16 x0, y0;
+
+    u8 u0, v0;
+    u16 clut;
+
+    u8 r1, g1, b1, p1;
+    s16 x1, y1;
+    u8 u1, v1;
+    u16 tpage;
+
+    u8 r2, g2, b2, p2;
+    s16 x2, y2;
+    u8 u2, v2;
+    u16 pad2;
+};
 
 struct GouraudTexturedQuad {
     u32 tag;
@@ -82,9 +101,12 @@ struct GouraudTexturedQuad {
     u16 pad3;
 };
 
+struct GT3Data {
+    GouraudTexturedTriangle tri;
+};
+
 struct GT4Data {
     GouraudTexturedQuad quad;
-    Vec3WithPadding vs[4];
 };
 
 struct Submesh {
@@ -94,6 +116,9 @@ struct Submesh {
     u16 tri_num;
     u16 quad_num;
     
+    Vec3WithPadding vs[3*tri_num+4*quad_num];
+    
+    GT3Data tris[tri_num];
     GT4Data quads[quad_num];
 };
 

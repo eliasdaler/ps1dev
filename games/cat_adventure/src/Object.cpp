@@ -54,11 +54,16 @@ void AnimatedModelObject::updateCollision()
     interactionCircle.radius = 0.07;
 }
 
+#include <common/syscalls/syscalls.h>
+
 void AnimatedModelObject::update()
 {
     calculateWorldMatrix();
     animator.update();
-    animator.animate(const_cast<Armature&>(model->armature), jointGlobalTransforms);
+
+    if (model) {
+        animator.animate(const_cast<Armature&>(model->armature), jointGlobalTransforms);
+    }
 }
 
 psyqo::Angle AnimatedModelObject::findInteractionAngle(const Object& other)

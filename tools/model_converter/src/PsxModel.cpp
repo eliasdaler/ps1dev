@@ -72,14 +72,6 @@ void writeGT3Prims(std::ofstream& file, const std::vector<std::array<PsxVert, 3>
             .v2 = face[2].uv.y,
         };
         fsutil::binaryWrite(file, quad);
-
-        // write world positions
-        for (int i = 0; i < 3; ++i) {
-            fsutil::binaryWrite(file, face[i].pos.x);
-            fsutil::binaryWrite(file, face[i].pos.y);
-            fsutil::binaryWrite(file, face[i].pos.z);
-            fsutil::binaryWrite(file, pad16);
-        }
     }
 }
 
@@ -125,14 +117,6 @@ void writeGT4Prims(std::ofstream& file, const std::vector<std::array<PsxVert, 4>
             .v3 = face[3].uv.y,
         };
         fsutil::binaryWrite(file, quad);
-
-        // write world positions
-        for (int i = 0; i < 4; ++i) {
-            fsutil::binaryWrite(file, face[i].pos.x);
-            fsutil::binaryWrite(file, face[i].pos.y);
-            fsutil::binaryWrite(file, face[i].pos.z);
-            fsutil::binaryWrite(file, pad16);
-        }
     }
 }
 
@@ -189,6 +173,23 @@ void writeFastPsxModel(const PsxModel& model, const std::filesystem::path& path)
         fsutil::binaryWrite(file, static_cast<std::uint16_t>(0));
         fsutil::binaryWrite(file, static_cast<std::uint16_t>(mesh.triFaces.size()));
         fsutil::binaryWrite(file, static_cast<std::uint16_t>(mesh.quadFaces.size()));
+
+        for (const auto& face : mesh.triFaces) {
+            for (int i = 0; i < 3; ++i) {
+                fsutil::binaryWrite(file, face[i].pos.x);
+                fsutil::binaryWrite(file, face[i].pos.y);
+                fsutil::binaryWrite(file, face[i].pos.z);
+                fsutil::binaryWrite(file, pad16);
+            }
+        }
+        for (const auto& face : mesh.quadFaces) {
+            for (int i = 0; i < 4; ++i) {
+                fsutil::binaryWrite(file, face[i].pos.x);
+                fsutil::binaryWrite(file, face[i].pos.y);
+                fsutil::binaryWrite(file, face[i].pos.z);
+                fsutil::binaryWrite(file, pad16);
+            }
+        }
 
         // writePsxModelVerts(file, mesh.untexturedTriFaces);
         // writePsxModelVerts(file, mesh.untexturedQuadFaces);

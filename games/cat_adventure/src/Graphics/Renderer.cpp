@@ -135,6 +135,11 @@ void Renderer::drawAnimatedModelObject(
         return;
     }
 
+    if (!object.model) {
+        drawModelObject(object, camera);
+        return;
+    }
+
     const auto& model = *object.model;
     const auto& armature = model.armature;
 
@@ -203,10 +208,10 @@ void Renderer::drawModel(FastModel& model)
 
     for (auto& mesh : model.meshes) {
         auto& gt3s = mesh.gt3[gpu.getParity()];
-        for (auto& gt3 : gt3s) {
-            const auto& v0 = gt3.vs[0];
-            const auto& v1 = gt3.vs[1];
-            const auto& v2 = gt3.vs[2];
+        for (std::size_t i = 0; i < gt3s.size(); ++i) {
+            const auto& v0 = mesh.vertices[i * 3 + 0];
+            const auto& v1 = mesh.vertices[i * 3 + 1];
+            const auto& v2 = mesh.vertices[i * 3 + 2];
 
             psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
             psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
@@ -232,7 +237,7 @@ void Renderer::drawModel(FastModel& model)
                 continue;
             }
 
-            auto& triFrag = gt3.frag;
+            auto& triFrag = gt3s[i].frag;
             auto& tri2d = triFrag.primitive;
 
             psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&tri2d.pointA.packed);
@@ -265,11 +270,12 @@ void Renderer::drawModel(FastModel& model)
         }
 
         auto& gt4s = mesh.gt4[gpu.getParity()];
-        for (auto& gt4 : gt4s) {
-            const auto& v0 = gt4.vs[0];
-            const auto& v1 = gt4.vs[1];
-            const auto& v2 = gt4.vs[2];
-            const auto& v3 = gt4.vs[3];
+        const auto numTris = mesh.numTris;
+        for (std::size_t i = 0; i < gt4s.size(); ++i) {
+            const auto& v0 = mesh.vertices[numTris * 3 + i * 4 + 0];
+            const auto& v1 = mesh.vertices[numTris * 3 + i * 4 + 1];
+            const auto& v2 = mesh.vertices[numTris * 3 + i * 4 + 2];
+            const auto& v3 = mesh.vertices[numTris * 3 + i * 4 + 3];
 
             psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
             psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
@@ -283,7 +289,7 @@ void Renderer::drawModel(FastModel& model)
                 continue;
             }
 
-            auto& quadFrag = gt4.frag;
+            auto& quadFrag = gt4s[i].frag;
             auto& quad2d = quadFrag.primitive;
 
             psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointA.packed);

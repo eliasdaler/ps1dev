@@ -100,10 +100,13 @@ void GameplayScene::start(StartReason reason)
         player.rotation = {0.0, -1.0};
 
         // npc.model = &game.resourceCache.getResource<Model>(CATO_MODEL_HASH);
+        npc.model = nullptr;
         npc.fastModel = &game.catoModelFast;
 
         npc.texture = game.resourceCache.getResource<TextureInfo>(CATO_TEXTURE_HASH);
-        npc.jointGlobalTransforms.resize(npc.model->armature.joints.size());
+        if (npc.model) {
+            npc.jointGlobalTransforms.resize(npc.model->armature.joints.size());
+        }
         npc.animator.animations = &game.animations;
 
         npc.setPosition({0.0, 0.0, -0.11});
@@ -800,15 +803,6 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
             game.gpu(),
             {{.x = 16, .y = 64}},
             textCol,
-            "bpm=%d, t=%d, reverb = %d",
-            (int)game.songPlayer.bpm,
-            (int)game.songPlayer.musicTime,
-            (int)SoundPlayer::reverbEnabled); */
-
-        /* game.romFont.chainprintf(
-            game.gpu(),
-            {{.x = 16, .y = 64}},
-            textCol,
             "%d, anim=%s",
             animIndex,
             player.animator.currentAnimation->name.getStr()); */
@@ -831,20 +825,35 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
             player.animator.normalizedAnimTime,
             player.animator.getAnimationFrame()); */
 
-        game.romFont.chainprintf(
+        /* game.romFont.chainprintf(
             game.gpu(),
             {{.x = 16, .y = 64}},
             textCol,
             "heap used: %d",
-            (int)((uint8_t*)psyqo_heap_end() - (uint8_t*)psyqo_heap_start()));
+            (int)((uint8_t*)psyqo_heap_end() - (uint8_t*)psyqo_heap_start())); */
+
+        if (!freeCamera) {
+            /* game.romFont.chainprintf(
+                game.gpu(),
+                {{.x = 16, .y = 64}},
+                textCol,
+                "bpm=%d, t=%d, reverb = %d",
+                (int)game.songPlayer.bpm,
+                (int)game.songPlayer.musicTime,
+                (int)SoundPlayer::reverbEnabled); */
+        }
+        /* if (!freeCamera) {
+            game.romFont.chainprintf(
+                game.gpu(),
+                {{.x = 16, .y = 64}},
+                textCol,
+                "%d, %d",
+                game.levelModelFast.meshes[0].numTris,
+                game.levelModelFast.meshes[0].numQuads);
+        } */
 
         game.romFont.chainprintf(
-            game.gpu(),
-            {{.x = 16, .y = 48}},
-            textCol,
-            "FPS: %.2f, avg: %.2f",
-            fpsCounter.getMovingAverage(),
-            fpsCounter.getAverage());
+            game.gpu(), {{.x = 16, .y = 48}}, textCol, "FPS: %.2f", fpsCounter.getMovingAverage());
     }
 }
 
