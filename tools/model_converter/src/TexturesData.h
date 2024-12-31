@@ -9,6 +9,7 @@ struct TextureData {
 
     // precomputed
     int tpage;
+    int tpagePlusOne;
     int clut;
 };
 

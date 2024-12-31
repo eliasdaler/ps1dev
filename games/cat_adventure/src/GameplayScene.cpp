@@ -122,6 +122,9 @@ void GameplayScene::start(StartReason reason)
         // freeCamera = true;
         // followCamera = true;
 
+        camera.position = {0.1318, 0.1899, 0.1994};
+        camera.rotation = {0.0156, -0.8828};
+
         // player.setPosition({-0.2033, 0.0000, 0.0827});
         // player.setPosition({-0.5, 0.0, -0.11});
         followCamera = false;

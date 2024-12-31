@@ -42,6 +42,7 @@ void TexturesData::load(const std::filesystem::path& path)
                 .filename = config.inputImage.stem(),
                 // TODO: set proper transparency mode based on the config
                 .tpage = getTPage(tp, 1, config.pixDX, config.pixDY),
+                .tpagePlusOne = getTPage(tp, 1, config.pixDX + 64, config.pixDY),
                 .clut = getClut(config.clutDX, config.clutDY),
             });
         } catch (const std::exception& e) {

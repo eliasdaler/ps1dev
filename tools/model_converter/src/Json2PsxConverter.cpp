@@ -141,6 +141,20 @@ PsxSubmesh processMesh(
             }
         }
 
+        bool allOnTheSecondTpage = true;
+        for (std::size_t i = 0; i < face.vertices.size(); ++i) {
+            if (psxFace[i].uv.x < 128) {
+                allOnTheSecondTpage = false;
+                break;
+            }
+        }
+        if (allOnTheSecondTpage) {
+            for (std::size_t i = 0; i < face.vertices.size(); ++i) {
+                psxFace[i].uv.x -= 128;
+                psxFace[i].tpage = td->tpagePlusOne;
+            }
+        }
+
         if (face.vertices.size() == 3) {
             auto face = PsxTriFace{psxFace[0], psxFace[2], psxFace[1]};
             if (hasTexture) {
