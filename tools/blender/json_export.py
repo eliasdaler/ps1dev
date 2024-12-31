@@ -170,7 +170,16 @@ def get_mesh_json(mesh, material_idx_map):
 
             vertices[vi] = vertex_data
 
-        faces.append({"vertices": face_vert_indices, "uvs": face_uvs})
+        face_json = {
+                "vertices": face_vert_indices,
+                "uvs": face_uvs,
+        }
+
+        if has_materials_with_textures:
+            material_idx = material_idx_map[mesh.materials[poly.material_index].name]
+            face_json["material"] = 1 - material_idx # FIXME: LOL
+
+        faces.append(face_json)
 
     return {
         "name": mesh.name,

@@ -78,13 +78,6 @@ PsxSubmesh processMesh(
     }
 
     // TODO: support multiple materials?
-    const auto& material = modelJson.materials[mesh.materials[0]];
-    bool hasTexture = !material.texture.empty();
-
-    const TextureData* td{nullptr};
-    if (hasTexture) {
-        td = &textures.get(material.texture);
-    }
 
     // Vertices are stored in joint space if model is affected by a joint
     glm::mat4 ib = mesh.jointId != -1 ? modelJson.armature.inverseBindMatrices[mesh.jointId] : I;
@@ -97,6 +90,15 @@ PsxSubmesh processMesh(
                 "bad face in submesh {}: has {} vertices", object.name, face.vertices.size()));
         }
         assert(face.vertices.size() <= 4);
+
+        const TextureData* td{nullptr};
+        const auto& material = modelJson.materials[mesh.materials[face.material]];
+        std::cout << material.name << std::endl;
+        bool hasTexture = !material.texture.empty();
+        if (hasTexture) {
+            td = &textures.get(material.texture);
+        }
+
         for (std::size_t i = 0; i < face.vertices.size(); ++i) {
             const auto& v = mesh.vertices[face.vertices[i]];
 

@@ -15,6 +15,13 @@
       "pix": [512, 0]
     },
     {
+      "input": "raw/cato_faces.png",
+      "output": "cato_faces.tim",
+      "bits": 4,
+      "clut": [0, 245],
+      "pix": [448, 0]
+    },
+    {
       "input": "raw/alpine1.png",
       "output": "car.tim",
       "bits": 8,

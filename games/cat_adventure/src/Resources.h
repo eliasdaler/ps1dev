@@ -5,6 +5,7 @@
 static constexpr StringHash HUMAN_MODEL_HASH = "HUMAN.BIN;1"_sh;
 
 static constexpr StringHash CATO_TEXTURE_HASH = "CATO.TIM;1"_sh;
+static constexpr StringHash CATO_FACES_TEXTURE_HASH = "CATOF.TIM;1"_sh;
 static constexpr StringHash CATO_MODEL_HASH = "CATO.BIN;1"_sh;
 
 static constexpr StringHash CAR_TEXTURE_HASH = "CAR.TIM;1"_sh;

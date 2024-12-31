@@ -31,6 +31,7 @@
                 <file name="STEP1.VAG" type="data" source="assets/step1.vag"/>
                 <file name="STEP2.VAG" type="data" source="assets/step2.vag"/>
                 <file name="CATO.TIM" type="data" source="assets/cato.tim"/>
+                <file name="CATOF.TIM" type="data" source="assets/cato_faces.tim"/>
                 <file name="CAR.BIN" type="data" source="assets/car.bin"/>
                 <file name="CAR.TIM" type="data" source="assets/car.tim"/>
                 <file name="FONT.TIM" type="data" source="assets/font.tim"/>

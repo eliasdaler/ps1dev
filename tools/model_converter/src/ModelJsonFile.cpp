@@ -116,6 +116,11 @@ ModelJson parseJsonFile(
                 face.uvs.push_back(glm::vec2{uvObj[0], uvObj[1]});
             }
 
+            const auto it = faceObj.find("material");
+            if (it != faceObj.end()) {
+                face.material = *it;
+            }
+
             mesh.faces.push_back(std::move(face));
         }
 

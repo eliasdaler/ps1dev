@@ -1,7 +1,8 @@
 {
   "used_textures": [
     "BRICKS.TIM;1",
-    "CATO.TIM;1"
+    "CATO.TIM;1",
+    "CATOF.TIM;1"
   ],
   "used_models": [
     "HUMAN.BIN;1",
