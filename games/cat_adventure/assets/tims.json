@@ -3,18 +3,21 @@
     {
       "input": "raw/atlas.png",
       "output": "bricks.tim",
+      "bits": 8,
       "clut": [0, 240],
       "pix": [320, 0]
     },
     {
       "input": "raw/cato.png",
       "output": "cato.tim",
+      "bits": 8,
       "clut": [0, 241],
       "pix": [512, 0]
     },
     {
       "input": "raw/alpine1.png",
       "output": "car.tim",
+      "bits": 8,
       "clut": [0, 244],
       "pix": [768, 0]
     }
@@ -22,9 +25,10 @@
   "fonts": [
     {
       "input": "raw/fonts/DejaVuSerif.ttf",
-      "size": 20,
       "output": "font.tim",
       "glyph_output": "font.fnt",
+      "bits": 4,
+      "size": 20,
       "clut": [0, 242],
       "pix": [576, 0]
     }

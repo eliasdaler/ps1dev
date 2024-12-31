@@ -8,6 +8,8 @@
 
 #include "ImageLoader.h"
 
+#include "TimFile.h"
+
 struct TimCreateConfig {
     std::filesystem::path inputImage;
     std::filesystem::path outputFile;
@@ -23,7 +25,7 @@ struct TimCreateConfig {
     std::uint16_t pixDX;
     std::uint16_t pixDY;
 
-    bool direct15Bit{false};
+    TimFile::PMode pmode{TimFile::PMode::Clut8Bit};
 
     // If true, sets STP on all non-black colors of the image
     bool setSTPOnNonBlack{false};
@@ -62,7 +64,7 @@ struct TimCreateConfig {
     std::filesystem::path glyphInfoOutputPath; // where to write glyph info
 };
 
-TimCreateConfig readConfig(
+TimCreateConfig readTimConfig(
     const std::filesystem::path& rootDir,
     const nlohmann::json& j,
     bool isFont);

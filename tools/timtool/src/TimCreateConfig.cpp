@@ -28,7 +28,7 @@ std::uint8_t getUInt8OrElse(
 }
 }
 
-TimCreateConfig readConfig(
+TimCreateConfig readTimConfig(
     const std::filesystem::path& rootDir,
     const nlohmann::json& j,
     bool isFont)
@@ -59,6 +59,18 @@ TimCreateConfig readConfig(
         config.pixDY = pixObj[1];
     }
 
+    config.pmode = [](int bits) {
+        switch (bits) {
+        case 4:
+            return TimFile::PMode::Clut4Bit;
+        case 8:
+            return TimFile::PMode::Clut8Bit;
+        case 16:
+            return TimFile::PMode::Direct15Bit;
+        }
+        throw std::runtime_error("invalid number of bits: " + std::to_string(bits));
+    }(j.at("bits"));
+
     // read transparenct color
     if (auto it = j.find("transparency_color"); it != j.end()) {
         const auto& pixObj = it.value();
@@ -68,8 +80,6 @@ TimCreateConfig readConfig(
         config.transparencyColor.g = pixObj[1];
         config.transparencyColor.b = pixObj[2];
     }
-
-    config.direct15Bit = getBoolOrElse(j, "direct", false);
 
     // read alpha stuff
     config.setSTPOnNonBlack = getBoolOrElse(j, "set_stp_on_non_black", false);

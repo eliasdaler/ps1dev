@@ -39,7 +39,7 @@ int main(int argc, char* argv[])
     const auto& imagesRoot = root.at("images");
     for (const auto& cObj : imagesRoot) {
         try {
-            const auto config = readConfig(rootDir, cObj, false);
+            const auto config = readTimConfig(rootDir, cObj, false);
             const auto tim = createTimFile(config);
             std::cout << config.inputImage << " -> " << config.outputFile << std::endl;
             writeTimFile(tim, config.outputFile);
@@ -53,7 +53,7 @@ int main(int argc, char* argv[])
         const auto& fontsRoot = *it;
         for (const auto& cObj : fontsRoot) {
             try {
-                auto config = readConfig(rootDir, cObj, true);
+                auto config = readTimConfig(rootDir, cObj, true);
                 std::cout << "FONT:" << config.inputFont << " -> atlas: " << config.outputFile
                           << ", info: " << config.glyphInfoOutputPath << std::endl;
 

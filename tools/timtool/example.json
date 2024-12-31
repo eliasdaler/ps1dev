@@ -2,13 +2,14 @@
   {
     "input": "test.png",
     "output": "test.tim",
+    "bits": 4,
     "clut": [0, 483],
-    "pix": [512, 0],
-    "direct": true
+    "pix": [512, 0]
   },
   {
     "input": "test2.png",
     "output": "test2.tim",
+    "bits": 8,
     "clut": [0, 480],
     "pix": [320, 0]
   }

@@ -157,18 +157,18 @@ TimFile createTimFile(const TimCreateConfig& config)
             data.height));
     }
 
-    TimFile tim;
+    TimFile tim{
+        .pmode = config.pmode,
+    };
 
-    if (!config.direct15Bit) {
+    if (tim.pmode == TimFile::PMode::Clut4Bit || tim.pmode == TimFile::PMode::Clut8Bit) {
+        int quantizeLimit = tim.pmode == TimFile::PMode::Clut4Bit ? 16 : 256;
+
         tim.cluts.resize(1);
+        tim.hasClut = true;
 
         auto colors = findUniqueColors(data, config);
-
-        if (colors.size() > 256 || (data.width > 128 && colors.size() > 16)) {
-            int quantizeLimit = 256;
-            if (data.width > 128) {
-                quantizeLimit = 16;
-            }
+        if (colors.size() > quantizeLimit) {
 #ifndef QUANT_SUPPORT
             throw std::runtime_error(std::format(
                 "Image {} has too many colors: {} and QUANT_SUPPORT is disabled",
@@ -192,16 +192,6 @@ TimFile createTimFile(const TimCreateConfig& config)
             clut.colors[colorNum] = c;
             ++colorNum;
         }
-
-        if (tim.cluts[0].colors.size() == 16) {
-            tim.pmode = TimFile::PMode::Clut4Bit;
-            tim.hasClut = true;
-        } else if (tim.cluts[0].colors.size() == 256) {
-            tim.pmode = TimFile::PMode::Clut8Bit;
-            tim.hasClut = true;
-        }
-    } else {
-        tim.pmode = TimFile::PMode::Direct15Bit;
     }
 
     if (tim.hasClut) {
