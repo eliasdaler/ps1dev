@@ -34,7 +34,7 @@ add_executable(model_converter
   model_converter/src/AnimationWriter.cpp
   model_converter/src/LevelJsonFile.cpp
   model_converter/src/LevelWriter.cpp
-  model_converter/src/MaterialsData.cpp
+  model_converter/src/TexturesData.cpp
   model_converter/src/main.cpp
 
   # TODO: make a lib?

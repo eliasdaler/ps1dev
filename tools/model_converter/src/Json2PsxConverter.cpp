@@ -2,6 +2,8 @@
 
 #include "ModelJsonFile.h"
 #include "PsxModel.h"
+#include "TexturesData.h"
+
 #include <FixedPoint.h>
 
 #include <format>
@@ -59,6 +61,7 @@ void offsetRectUV(std::array<PsxVert, 4>& quad)
 
 PsxSubmesh processMesh(
     const ModelJson& modelJson,
+    const TexturesData& textures,
     const ConversionParams& params,
     const Object& object,
     const Mesh& mesh)
@@ -77,6 +80,11 @@ PsxSubmesh processMesh(
     // TODO: support multiple materials?
     const auto& material = modelJson.materials[mesh.materials[0]];
     bool hasTexture = !material.imageData.pixels.empty();
+
+    const TextureData* td{nullptr};
+    if (hasTexture) {
+        td = &textures.get(material.texture);
+    }
 
     // Vertices are stored in joint space if model is affected by a joint
     glm::mat4 ib = mesh.jointId != -1 ? modelJson.armature.inverseBindMatrices[mesh.jointId] : I;
@@ -113,6 +121,8 @@ PsxSubmesh processMesh(
                     // Y coord is flipped in UV
                     .y = (std::uint8_t)std::clamp((1 - uv.y) * (texHeight - offset), 0.f, 255.f),
                 };
+                psxFace[i].clut = td->clut;
+                psxFace[i].tpage = td->tpage;
             } else {
                 // no need to store uvs actually
                 psxFace[i].uv = {};
@@ -155,7 +165,10 @@ PsxSubmesh processMesh(
 
 } // end of anonymous namespace
 
-PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& params)
+PsxModel jsonToPsxModel(
+    const ModelJson& modelJson,
+    const TexturesData& textures,
+    const ConversionParams& params)
 {
     PsxModel psxModel;
 
@@ -164,7 +177,7 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
             continue;
         }
         const auto& mesh = modelJson.meshes[object.mesh];
-        psxModel.submeshes.push_back(processMesh(modelJson, params, object, mesh));
+        psxModel.submeshes.push_back(processMesh(modelJson, textures, params, object, mesh));
     }
 
     if (!modelJson.armature.joints.empty()) {
@@ -174,7 +187,7 @@ PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& para
         assert(modelJson.objects.size() == 1);
         const auto& object = modelJson.objects[0];
         for (const auto& mesh : modelJson.meshes) {
-            psxModel.submeshes.push_back(processMesh(modelJson, params, object, mesh));
+            psxModel.submeshes.push_back(processMesh(modelJson, textures, params, object, mesh));
         }
 
         // convert joints

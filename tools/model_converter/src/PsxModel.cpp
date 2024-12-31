@@ -38,13 +38,6 @@ void writePsxModelVerts(std::ofstream& file, const std::vector<std::array<PsxVer
 
 void writeGT3Prims(std::ofstream& file, const std::vector<std::array<PsxVert, 3>>& faces)
 {
-    auto clut = getClut(0, 241); // TODO: don't hardcode
-    auto tpage = getTPage(1, 1, 512, 0);
-    if (faces.size() == 16) {
-        clut = getClut(0, 240);
-        tpage = getTPage(1, 1, 320, 0);
-    }
-
     for (const auto& face : faces) {
         fsutil::binaryWrite(file, static_cast<std::uint32_t>(0)); // head
 
@@ -56,14 +49,14 @@ void writeGT3Prims(std::ofstream& file, const std::vector<std::array<PsxVert, 3>
             .code = 0x34,
             .u0 = face[0].uv.x,
             .v0 = face[0].uv.y,
-            .clut = static_cast<uint16_t>(clut),
+            .clut = static_cast<uint16_t>(face[0].clut),
             // 1
             .r1 = face[1].color.x,
             .g1 = face[1].color.y,
             .b1 = face[1].color.z,
             .u1 = face[1].uv.x,
             .v1 = face[1].uv.y,
-            .tpage = static_cast<uint16_t>(tpage),
+            .tpage = static_cast<uint16_t>(face[0].tpage),
             // 2
             .r2 = face[2].color.x,
             .g2 = face[2].color.y,
@@ -77,13 +70,6 @@ void writeGT3Prims(std::ofstream& file, const std::vector<std::array<PsxVert, 3>
 
 void writeGT4Prims(std::ofstream& file, const std::vector<std::array<PsxVert, 4>>& faces)
 {
-    auto clut = getClut(0, 241); // TODO: don't hardcode
-    auto tpage = getTPage(1, 1, 512, 0);
-    if (faces.size() == 955) {
-        clut = getClut(0, 240);
-        tpage = getTPage(1, 1, 320, 0);
-    }
-
     for (const auto& face : faces) {
         fsutil::binaryWrite(file, static_cast<std::uint32_t>(0)); // head
 
@@ -95,14 +81,14 @@ void writeGT4Prims(std::ofstream& file, const std::vector<std::array<PsxVert, 4>
             .code = 0x3c,
             .u0 = face[0].uv.x,
             .v0 = face[0].uv.y,
-            .clut = static_cast<uint16_t>(clut),
+            .clut = static_cast<uint16_t>(face[0].clut),
             // 1
             .r1 = face[1].color.x,
             .g1 = face[1].color.y,
             .b1 = face[1].color.z,
             .u1 = face[1].uv.x,
             .v1 = face[1].uv.y,
-            .tpage = static_cast<uint16_t>(tpage),
+            .tpage = static_cast<uint16_t>(face[0].tpage),
             // 2
             .r2 = face[2].color.x,
             .g2 = face[2].color.y,

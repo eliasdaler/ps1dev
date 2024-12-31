@@ -4,5 +4,9 @@
 
 struct PsxModel;
 struct ModelJson;
+struct TexturesData;
 
-PsxModel jsonToPsxModel(const ModelJson& modelJson, const ConversionParams& params);
+PsxModel jsonToPsxModel(
+    const ModelJson& modelJson,
+    const TexturesData& textures,
+    const ConversionParams& params);

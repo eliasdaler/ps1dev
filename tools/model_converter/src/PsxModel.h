@@ -14,8 +14,13 @@ struct PsxVert {
     Vec3<FixedPoint4_12> pos;
     Vec2<std::uint8_t> uv;
     Vec3<std::uint8_t> color;
-    std::uint16_t originalIndex;
+
+    // TODO: can technically store per-face, but whatever
+    int tpage;
+    int clut;
+
     // not written into binary file, but useful for finding the vertex in the mesh
+    std::uint16_t originalIndex;
 };
 
 using PsxTriFace = std::array<PsxVert, 3>;

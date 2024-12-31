@@ -8,6 +8,7 @@
 #include "LevelWriter.h"
 #include "ModelJsonFile.h"
 #include "PsxModel.h"
+#include "TexturesData.h"
 
 #include <CLI/CLI.hpp>
 
@@ -48,39 +49,38 @@ int main(int argc, char* argv[])
         .scale = 1.f / 8.f,
     };
 
-    if (inputFilePath.extension() == ".json") {
-        const auto modelJson = parseJsonFile(inputFilePath, assetDirPath);
+    const auto modelJson = parseJsonFile(inputFilePath, assetDirPath);
 
-        const auto psxModel = jsonToPsxModel(modelJson, conversionParams);
-        if (!modelJson.animations.empty()) {
-            auto outAnimPath = outputFilePath;
-            outAnimPath.replace_extension(".anm");
-            std::cout << "Writing animations to " << outAnimPath << std::endl;
-            writeAnimationsToFile(outAnimPath, modelJson.animations, conversionParams);
-        }
+    TexturesData textures;
+    textures.load(assetDirPath / "../tims.json"); // TODO: don't hardcode path
 
-        bool isLevel = !modelJson.collision.empty(); // TODO: special flag?
+    const auto psxModel = jsonToPsxModel(modelJson, textures, conversionParams);
+    if (!modelJson.animations.empty()) {
+        auto outAnimPath = outputFilePath;
+        outAnimPath.replace_extension(".anm");
+        std::cout << "Writing animations to " << outAnimPath << std::endl;
+        writeAnimationsToFile(outAnimPath, modelJson.animations, conversionParams);
+    }
 
-        if (isLevel) {
-            auto outLevelPath = outputFilePath;
-            outLevelPath.replace_extension(".lvl");
+    bool isLevel = !modelJson.collision.empty(); // TODO: special flag?
 
-            auto levelMetaPath =
-                assetDirPath / "levels" / inputFilePath.stem().replace_extension(".json");
-            std::cout << "level metadata:" << levelMetaPath << std::endl;
-            LevelJson levelJson = parseLevelJsonFile(levelMetaPath, assetDirPath);
+    if (isLevel) {
+        auto outLevelPath = outputFilePath;
+        outLevelPath.replace_extension(".lvl");
 
-            std::cout << "Writing level data to " << outLevelPath << std::endl;
-            writeLevelToFile(outLevelPath, modelJson, levelJson, conversionParams);
-        }
+        auto levelMetaPath =
+            assetDirPath / "levels" / inputFilePath.stem().replace_extension(".json");
+        std::cout << "level metadata:" << levelMetaPath << std::endl;
+        LevelJson levelJson = parseLevelJsonFile(levelMetaPath, assetDirPath);
 
-        if (fastModel) {
-            writeFastPsxModel(psxModel, outputFilePath);
-        } else {
-            writePsxModel(psxModel, outputFilePath);
-        }
+        std::cout << "Writing level data to " << outLevelPath << std::endl;
+        writeLevelToFile(outLevelPath, modelJson, levelJson, conversionParams);
+    }
+
+    if (fastModel) {
+        writeFastPsxModel(psxModel, outputFilePath);
     } else {
-        assert(false && "unsupported format");
+        writePsxModel(psxModel, outputFilePath);
     }
 
     std::cout << "Done!" << std::endl;
