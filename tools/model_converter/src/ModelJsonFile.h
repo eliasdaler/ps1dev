@@ -7,8 +7,6 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/vec3.hpp>
 
-#include "ImageLoader.h"
-
 struct Transform {
     glm::vec3 position{};
     glm::quat rotation{glm::identity<glm::quat>()};
@@ -44,7 +42,6 @@ struct Mesh {
 struct Material {
     std::string name;
     std::string texture;
-    ImageData imageData;
 };
 
 struct Joint {

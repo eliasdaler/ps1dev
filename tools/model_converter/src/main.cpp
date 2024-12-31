@@ -52,7 +52,7 @@ int main(int argc, char* argv[])
     const auto modelJson = parseJsonFile(inputFilePath, assetDirPath);
 
     TexturesData textures;
-    textures.load(assetDirPath / "../tims.json"); // TODO: don't hardcode path
+    textures.load(assetDirPath, assetDirPath / "../tims.json"); // TODO: don't hardcode path
 
     const auto psxModel = jsonToPsxModel(modelJson, textures, conversionParams);
     if (!modelJson.animations.empty()) {

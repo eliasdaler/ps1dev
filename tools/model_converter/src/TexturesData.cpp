@@ -7,7 +7,9 @@
 
 #include "GTETypes.h"
 
-void TexturesData::load(const std::filesystem::path& path)
+void TexturesData::load(
+    const std::filesystem::path& assetDirPath,
+    const std::filesystem::path& path)
 {
     std::cout << "Reading texture data from " << path << std::endl;
 
@@ -37,6 +39,7 @@ void TexturesData::load(const std::filesystem::path& path)
                 }
             }(config.pmode);
 
+            auto imgPath = assetDirPath / config.inputImage;
             textures.push_back(TextureData{
                 .materialIdx = (int)textures.size(),
                 .filename = config.inputImage.stem(),
@@ -44,7 +47,14 @@ void TexturesData::load(const std::filesystem::path& path)
                 .tpage = getTPage(tp, 1, config.pixDX, config.pixDY),
                 .tpagePlusOne = getTPage(tp, 1, config.pixDX + 64, config.pixDY),
                 .clut = getClut(config.clutDX, config.clutDY),
+                .pmode = config.pmode,
+                .imageData = util::loadImage(imgPath),
             });
+            std::cout << imgPath << " " << textures.back().imageData.width << std::endl;
+            if (textures.back().imageData.pixels.empty()) {
+                throw std::runtime_error("Failed to open texture: " + imgPath.string());
+            }
+
         } catch (const std::exception& e) {
             std::cerr << e.what() << std::endl;
         }

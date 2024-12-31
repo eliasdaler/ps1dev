@@ -79,7 +79,7 @@ PsxSubmesh processMesh(
 
     // TODO: support multiple materials?
     const auto& material = modelJson.materials[mesh.materials[0]];
-    bool hasTexture = !material.imageData.pixels.empty();
+    bool hasTexture = !material.texture.empty();
 
     const TextureData* td{nullptr};
     if (hasTexture) {
@@ -113,13 +113,15 @@ PsxSubmesh processMesh(
             float offset = 0;
 
             if (hasTexture) {
-                const auto texWidth = material.imageData.width;
-                const auto texHeight = material.imageData.height;
+                const auto texWidth = td->imageData.width;
+                const auto texHeight = td->imageData.height;
                 const auto& uv = face.uvs.empty() ? zeroUV : face.uvs[i];
                 psxFace[i].uv = {
-                    .x = (std::uint8_t)std::clamp(uv.x * (texWidth - offset), 0.f, 255.f),
+                    .x = (std::uint8_t)std::round(
+                        std::clamp(uv.x * (texWidth - offset), 0.f, 255.f)),
                     // Y coord is flipped in UV
-                    .y = (std::uint8_t)std::clamp((1 - uv.y) * (texHeight - offset), 0.f, 255.f),
+                    .y = (std::uint8_t)std::round(
+                        std::clamp((1 - uv.y) * (texHeight - offset), 0.f, 255.f)),
                 };
                 psxFace[i].clut = td->clut;
                 psxFace[i].tpage = td->tpage;
@@ -141,17 +143,29 @@ PsxSubmesh processMesh(
             }
         }
 
-        bool allOnTheSecondTpage = true;
-        for (std::size_t i = 0; i < face.vertices.size(); ++i) {
-            if (psxFace[i].uv.x < 128) {
-                allOnTheSecondTpage = false;
-                break;
-            }
-        }
-        if (allOnTheSecondTpage) {
+        // if the texture is 8-bit/2-page and the UVs are on the right side,
+        // then we need to use a different tpage
+        if (hasTexture && td->pmode == TimFile::PMode::Clut8Bit && td->imageData.width == 256) {
+            bool allOnTheSecondTpage = true;
+            bool someOnTheSecondTpage = false;
             for (std::size_t i = 0; i < face.vertices.size(); ++i) {
-                psxFace[i].uv.x -= 128;
-                psxFace[i].tpage = td->tpagePlusOne;
+                if (psxFace[i].uv.x < 128) {
+                    allOnTheSecondTpage = false;
+                } else if (psxFace[i].uv.x > 128) {
+                    someOnTheSecondTpage = true;
+                }
+            }
+            if (!allOnTheSecondTpage && someOnTheSecondTpage) {
+                throw std::runtime_error(
+                    "bad UVs for a 'wide' textures! Some UVs are on the first tpage, "
+                    "while others are on the second one");
+            }
+
+            if (allOnTheSecondTpage) {
+                for (std::size_t i = 0; i < face.vertices.size(); ++i) {
+                    psxFace[i].uv.x -= 128;
+                    psxFace[i].tpage = td->tpagePlusOne;
+                }
             }
         }
 

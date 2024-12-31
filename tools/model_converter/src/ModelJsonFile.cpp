@@ -137,10 +137,6 @@ ModelJson parseJsonFile(
         };
         if (auto it = materialObj.find("texture"); it != materialObj.end()) {
             material.texture = assetDirPath / *it;
-            material.imageData = util::loadImage(material.texture);
-            if (material.imageData.pixels.empty()) {
-                std::cout << "Failed to open " << material.texture << std::endl;
-            }
         }
         model.materials.push_back(std::move(material));
     }
