@@ -92,11 +92,13 @@ PsxSubmesh processMesh(
         assert(face.vertices.size() <= 4);
 
         const TextureData* td{nullptr};
-        const auto& material = modelJson.materials[mesh.materials[face.material]];
-        std::cout << material.name << std::endl;
-        bool hasTexture = !material.texture.empty();
-        if (hasTexture) {
-            td = &textures.get(material.texture);
+        bool hasTexture = false;
+        if (face.material != -1) {
+            const auto& material = modelJson.materials[face.material];
+            hasTexture = !material.texture.empty();
+            if (hasTexture) {
+                td = &textures.get(material.texture);
+            }
         }
 
         for (std::size_t i = 0; i < face.vertices.size(); ++i) {

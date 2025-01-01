@@ -171,20 +171,19 @@ def get_mesh_json(mesh, material_idx_map):
             vertices[vi] = vertex_data
 
         face_json = {
-                "vertices": face_vert_indices,
-                "uvs": face_uvs,
+            "vertices": face_vert_indices,
+            "uvs": face_uvs,
         }
 
         if has_materials_with_textures:
             material_idx = material_idx_map[mesh.materials[poly.material_index].name]
-            face_json["material"] = 1 - material_idx # FIXME: LOL
+            face_json["material"] = material_idx
 
         faces.append(face_json)
 
     return {
         "name": mesh.name,
         "faces": faces,
-        "materials": [material_idx_map[mat.name] for mat in mesh.materials],
         "vertices": vertices,
     }
 
@@ -248,12 +247,18 @@ def get_mesh_json_armature(obj, meshes_list, material_idx_map, joints, joint_nam
                 vertices.append(vertex_data)
 
             if not skip_face:
-                faces.append({"vertices": face_vert_indices, "uvs": face_uvs})
+                face_json = {
+                    "vertices": face_vert_indices,
+                    "uvs": face_uvs,
+                }
+                if has_materials_with_textures:
+                    material_idx = material_idx_map[mesh.materials[poly.material_index].name]
+                    face_json["material"] = material_idx
+                faces.append(face_json)
 
         meshes_data.append({
             "joint_id": idx,
             "faces": faces,
-            "materials": [material_idx_map[mat.name] for mat in mesh.materials],
             "vertices": vertices,
         })
 

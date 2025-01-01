@@ -36,7 +36,6 @@ struct Mesh {
     std::string name;
     std::vector<Vertex> vertices;
     std::vector<Face> faces;
-    std::vector<std::size_t> materials;
     int jointId{-1};
 };
 

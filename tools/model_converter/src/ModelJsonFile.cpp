@@ -119,16 +119,11 @@ ModelJson parseJsonFile(
             const auto it = faceObj.find("material");
             if (it != faceObj.end()) {
                 face.material = *it;
+            } else {
+                face.material = -1;
             }
 
             mesh.faces.push_back(std::move(face));
-        }
-
-        // read material indices
-        const auto& materialsObj = meshObj.at("materials");
-        mesh.materials.reserve(materialsObj.size());
-        for (const auto& material : materialsObj) {
-            mesh.materials.push_back(material);
         }
 
         model.meshes.push_back(std::move(mesh));

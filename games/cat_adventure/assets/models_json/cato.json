@@ -49,7 +49,7 @@
               0.923345148563385
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -76,7 +76,7 @@
               0.923345148563385
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -103,7 +103,7 @@
               0.923345148563385
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -130,7 +130,7 @@
               0.9339461922645569
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -157,7 +157,7 @@
               0.9339461922645569
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -184,7 +184,7 @@
               0.9339461922645569
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -211,7 +211,7 @@
               0.9339461922645569
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -238,7 +238,7 @@
               0.923345148563385
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -265,7 +265,7 @@
               0.9656340479850769
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -292,7 +292,7 @@
               0.9656340479850769
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -319,7 +319,7 @@
               0.7743919491767883
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -346,7 +346,7 @@
               0.8323062658309937
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -373,7 +373,7 @@
               0.9497902393341064
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -400,7 +400,7 @@
               0.9497902393341064
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -427,7 +427,7 @@
               0.9497902393341064
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -454,7 +454,7 @@
               0.9497902393341064
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -481,7 +481,7 @@
               0.9656340479850769
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -508,7 +508,7 @@
               0.8921050429344177
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -535,7 +535,7 @@
               0.7454655170440674
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -562,7 +562,7 @@
               0.9656340479850769
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -589,7 +589,7 @@
               0.9656340479850769
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -616,7 +616,7 @@
               0.7036035656929016
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -643,7 +643,7 @@
               0.9497902393341064
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -670,7 +670,7 @@
               0.9497902393341064
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -697,7 +697,7 @@
               0.9656340479850769
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -724,7 +724,7 @@
               0.7391309142112732
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -746,7 +746,7 @@
               0.7537446618080139
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -773,7 +773,7 @@
               0.7247468829154968
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -800,7 +800,7 @@
               0.9656340479850769
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -827,7 +827,7 @@
               0.9413551688194275
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -854,7 +854,7 @@
               0.9497902393341064
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -881,7 +881,7 @@
               0.9497902393341064
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -908,7 +908,7 @@
               0.9258455038070679
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -930,7 +930,7 @@
               0.9258455038070679
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -957,7 +957,7 @@
               0.9235851168632507
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -984,7 +984,7 @@
               0.9656340479850769
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1011,7 +1011,7 @@
               0.9022583365440369
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1038,7 +1038,7 @@
               0.9022583365440369
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1065,7 +1065,7 @@
               0.9022583365440369
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1092,7 +1092,7 @@
               0.923345148563385
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1119,7 +1119,7 @@
               0.923345148563385
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1146,7 +1146,7 @@
               0.923345148563385
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1173,7 +1173,7 @@
               0.923345148563385
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1200,7 +1200,7 @@
               0.9022583365440369
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1227,7 +1227,7 @@
               0.9497902393341064
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1254,7 +1254,7 @@
               0.9497902393341064
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1281,7 +1281,7 @@
               0.8151950240135193
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1308,7 +1308,7 @@
               0.8591817021369934
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1335,7 +1335,7 @@
               0.9339461922645569
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1362,7 +1362,7 @@
               0.9339461922645569
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1389,7 +1389,7 @@
               0.9339461922645569
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1416,7 +1416,7 @@
               0.9339461922645569
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1443,7 +1443,7 @@
               0.9497902393341064
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1470,7 +1470,7 @@
               0.9743886590003967
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1497,7 +1497,7 @@
               0.7724063396453857
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1524,7 +1524,7 @@
               0.9497902393341064
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1551,7 +1551,7 @@
               0.9497902393341064
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1578,7 +1578,7 @@
               0.6946493983268738
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1605,7 +1605,7 @@
               0.9339461922645569
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1632,7 +1632,7 @@
               0.9339461922645569
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1659,7 +1659,7 @@
               0.9497902393341064
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1686,7 +1686,7 @@
               0.7191959023475647
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1708,7 +1708,7 @@
               0.7474186420440674
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1735,7 +1735,7 @@
               0.7391309142112732
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1762,7 +1762,7 @@
               0.9497902393341064
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1789,7 +1789,7 @@
               0.9885290265083313
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1816,7 +1816,7 @@
               0.9339461922645569
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1843,7 +1843,7 @@
               0.9339461922645569
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1870,7 +1870,7 @@
               0.9281184673309326
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1892,7 +1892,7 @@
               0.9413551688194275
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1919,7 +1919,7 @@
               0.9960354566574097
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1946,7 +1946,7 @@
               0.9497902393341064
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -1973,7 +1973,7 @@
               0.5533551573753357
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2000,7 +2000,7 @@
               0.5467239618301392
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2027,7 +2027,7 @@
               0.6124840974807739
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2054,7 +2054,7 @@
               0.6178920865058899
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2081,7 +2081,7 @@
               0.6159809231758118
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2108,7 +2108,7 @@
               0.616618275642395
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2135,7 +2135,7 @@
               0.665099024772644
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2162,7 +2162,7 @@
               0.5492011308670044
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2189,7 +2189,7 @@
               0.5560123324394226
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2216,7 +2216,7 @@
               0.6472925543785095
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2243,7 +2243,7 @@
               0.5958890914916992
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2270,7 +2270,7 @@
               0.5953319072723389
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2297,7 +2297,7 @@
               0.5895861983299255
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2324,7 +2324,7 @@
               0.590771496295929
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2351,7 +2351,7 @@
               0.5953319072723389
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2378,7 +2378,7 @@
               0.5958890914916992
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2405,7 +2405,7 @@
               0.6509141325950623
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2432,7 +2432,7 @@
               0.6395795941352844
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2459,7 +2459,7 @@
               0.656559407711029
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2486,7 +2486,7 @@
               0.6431330442428589
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2513,7 +2513,7 @@
               0.6418413519859314
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2540,7 +2540,7 @@
               0.5895861983299255
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2567,7 +2567,7 @@
               0.590771496295929
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2594,7 +2594,7 @@
               0.6652624011039734
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2621,7 +2621,7 @@
               0.6159809231758118
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2648,7 +2648,7 @@
               0.6201214790344238
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2675,7 +2675,7 @@
               0.6124840974807739
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2702,7 +2702,7 @@
               0.6213970184326172
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2729,7 +2729,7 @@
               0.5627725720405579
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2756,7 +2756,7 @@
               0.5625605583190918
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2783,7 +2783,7 @@
               0.562178909778595
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2810,7 +2810,7 @@
               0.56197190284729
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2837,7 +2837,7 @@
               0.6463410258293152
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2864,7 +2864,7 @@
               0.6565904021263123
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2891,7 +2891,7 @@
               0.5623834729194641
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2918,7 +2918,7 @@
               0.561795175075531
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2945,7 +2945,7 @@
               0.6401206851005554
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2972,7 +2972,7 @@
               0.6398467421531677
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -2999,7 +2999,7 @@
               0.6389127969741821
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3026,7 +3026,7 @@
               0.6386648416519165
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3053,7 +3053,7 @@
               0.6562584042549133
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3080,7 +3080,7 @@
               0.6662255525588989
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3107,7 +3107,7 @@
               0.6393969655036926
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3134,7 +3134,7 @@
               0.6381483674049377
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3161,7 +3161,7 @@
               0.6986230611801147
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3188,7 +3188,7 @@
               0.7270923852920532
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3215,7 +3215,7 @@
               0.6986230611801147
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3242,7 +3242,7 @@
               0.6986230611801147
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3269,7 +3269,7 @@
               0.7270923852920532
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3296,7 +3296,7 @@
               0.7270923852920532
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3323,7 +3323,7 @@
               0.7270923852920532
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3350,7 +3350,7 @@
               0.6986230611801147
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3377,7 +3377,7 @@
               0.6986230611801147
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3404,7 +3404,7 @@
               0.7270923852920532
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3431,7 +3431,7 @@
               0.6986230611801147
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3458,7 +3458,7 @@
               0.7270923852920532
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3485,7 +3485,7 @@
               0.712857723236084
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3512,7 +3512,7 @@
               0.712857723236084
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3539,7 +3539,7 @@
               0.712857723236084
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3566,7 +3566,7 @@
               0.712857723236084
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3593,7 +3593,7 @@
               0.7091567516326904
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3620,7 +3620,7 @@
               0.712857723236084
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3647,7 +3647,7 @@
               0.712857723236084
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3674,7 +3674,7 @@
               0.7023241519927979
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3701,7 +3701,7 @@
               0.7270923852920532
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3728,7 +3728,7 @@
               0.7270923852920532
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3755,7 +3755,7 @@
               0.7270923852920532
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3782,7 +3782,7 @@
               0.7270923852920532
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3809,7 +3809,7 @@
               0.7091567516326904
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3836,7 +3836,7 @@
               0.7270923852920532
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3863,7 +3863,7 @@
               0.7270923852920532
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3890,7 +3890,7 @@
               0.7023241519927979
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3917,7 +3917,7 @@
               0.712857723236084
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3944,7 +3944,7 @@
               0.712857723236084
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3971,7 +3971,7 @@
               0.712857723236084
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -3998,7 +3998,7 @@
               0.712857723236084
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4025,7 +4025,7 @@
               0.7091567516326904
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4052,7 +4052,7 @@
               0.712857723236084
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4079,7 +4079,7 @@
               0.712857723236084
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4106,7 +4106,7 @@
               0.7023241519927979
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4133,7 +4133,7 @@
               0.7270923852920532
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4160,7 +4160,7 @@
               0.7270923852920532
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4187,7 +4187,7 @@
               0.7270923852920532
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4214,7 +4214,7 @@
               0.7270923852920532
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4241,7 +4241,7 @@
               0.7091567516326904
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4268,7 +4268,7 @@
               0.7270923852920532
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4295,7 +4295,7 @@
               0.7270923852920532
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4322,7 +4322,7 @@
               0.7023241519927979
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4349,7 +4349,7 @@
               0.5879806876182556
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4376,7 +4376,7 @@
               0.6171517968177795
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4403,7 +4403,7 @@
               0.597087025642395
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4430,7 +4430,7 @@
               0.621516227722168
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4457,7 +4457,7 @@
               0.5519102811813354
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4484,7 +4484,7 @@
               0.5789644122123718
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4511,7 +4511,7 @@
               0.628329873085022
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4538,7 +4538,7 @@
               0.6265759468078613
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4565,7 +4565,7 @@
               0.6117085218429565
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4592,7 +4592,7 @@
               0.5541403889656067
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4619,7 +4619,7 @@
               0.6022596955299377
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4646,7 +4646,7 @@
               0.5960731506347656
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4673,7 +4673,7 @@
               0.609055757522583
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4700,7 +4700,7 @@
               0.5925723910331726
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4727,7 +4727,7 @@
               0.6124811768531799
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4754,7 +4754,7 @@
               0.6020878553390503
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4781,7 +4781,7 @@
               0.5564673542976379
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4808,7 +4808,7 @@
               0.6051461696624756
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4835,7 +4835,7 @@
               0.583014965057373
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4862,7 +4862,7 @@
               0.6354674100875854
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4889,7 +4889,7 @@
               0.5811513066291809
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4916,7 +4916,7 @@
               0.6265759468078613
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4943,7 +4943,7 @@
               0.6488690972328186
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4970,7 +4970,7 @@
               0.6429463028907776
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -4997,7 +4997,7 @@
               0.6265759468078613
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5024,7 +5024,7 @@
               0.583014965057373
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5051,7 +5051,7 @@
               0.5708824396133423
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5078,7 +5078,7 @@
               0.6022596955299377
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5105,7 +5105,7 @@
               0.621516227722168
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5132,7 +5132,7 @@
               0.5879806876182556
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5159,7 +5159,7 @@
               0.5811513066291809
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5186,7 +5186,7 @@
               0.6171517968177795
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5213,7 +5213,7 @@
               0.584331750869751
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5240,7 +5240,7 @@
               0.584331750869751
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5267,7 +5267,7 @@
               0.5925981402397156
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5294,7 +5294,7 @@
               0.5925981402397156
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5321,7 +5321,7 @@
               0.6008645296096802
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5348,7 +5348,7 @@
               0.6008645296096802
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5375,7 +5375,7 @@
               0.6091309189796448
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5402,7 +5402,7 @@
               0.6091309189796448
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5429,7 +5429,7 @@
               0.6173973083496094
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5456,7 +5456,7 @@
               0.6173973083496094
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5483,7 +5483,7 @@
               0.625663697719574
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5510,7 +5510,7 @@
               0.625663697719574
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5537,7 +5537,7 @@
               0.6339300870895386
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5564,7 +5564,7 @@
               0.6339300870895386
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5591,7 +5591,7 @@
               0.6421964168548584
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5618,7 +5618,7 @@
               0.6421964168548584
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5645,7 +5645,7 @@
               0.6173973083496094
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5672,7 +5672,7 @@
               0.6173973083496094
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5699,7 +5699,7 @@
               0.625663697719574
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5726,7 +5726,7 @@
               0.625663697719574
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5753,7 +5753,7 @@
               0.6173973083496094
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5780,7 +5780,7 @@
               0.6173973083496094
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5807,7 +5807,7 @@
               0.625663697719574
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5834,7 +5834,7 @@
               0.625663697719574
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5861,7 +5861,7 @@
               0.5760654211044312
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5888,7 +5888,7 @@
               0.5760654211044312
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5915,7 +5915,7 @@
               0.584331750869751
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5942,7 +5942,7 @@
               0.584331750869751
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5969,7 +5969,7 @@
               0.5925981402397156
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -5996,7 +5996,7 @@
               0.5925981402397156
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6023,7 +6023,7 @@
               0.6008645296096802
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6050,7 +6050,7 @@
               0.6008645296096802
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6077,7 +6077,7 @@
               0.6091309189796448
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6104,7 +6104,7 @@
               0.6091309189796448
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6131,7 +6131,7 @@
               0.6173973083496094
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6158,7 +6158,7 @@
               0.6173973083496094
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6185,7 +6185,7 @@
               0.625663697719574
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6212,7 +6212,7 @@
               0.625663697719574
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6239,7 +6239,7 @@
               0.6339300870895386
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6266,7 +6266,7 @@
               0.6339300870895386
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6293,7 +6293,7 @@
               0.6091309189796448
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6320,7 +6320,7 @@
               0.6091309189796448
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6347,7 +6347,7 @@
               0.6173973083496094
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6374,7 +6374,7 @@
               0.6173973083496094
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6401,7 +6401,7 @@
               0.6091309189796448
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6428,7 +6428,7 @@
               0.6091309189796448
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6455,7 +6455,7 @@
               0.6173973083496094
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6482,7 +6482,7 @@
               0.6173973083496094
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6509,7 +6509,7 @@
               0.558594822883606
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6536,7 +6536,7 @@
               0.5584096908569336
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6563,7 +6563,7 @@
               0.558224618434906
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6590,7 +6590,7 @@
               0.75
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6617,7 +6617,7 @@
               0.5737863183021545
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6644,7 +6644,7 @@
               0.6178027391433716
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6671,7 +6671,7 @@
               0.625
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6698,7 +6698,7 @@
               0.5580394864082336
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6725,7 +6725,7 @@
               0.5583171844482422
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6752,7 +6752,7 @@
               0.625
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6779,7 +6779,7 @@
               0.6177157759666443
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6806,7 +6806,7 @@
               0.5736993551254272
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6833,7 +6833,7 @@
               0.75
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6860,7 +6860,7 @@
               0.5586873292922974
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6887,7 +6887,7 @@
               0.5581320524215698
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6914,7 +6914,7 @@
               0.5585023164749146
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6941,7 +6941,7 @@
               0.5587461590766907
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6968,7 +6968,7 @@
               0.7044212818145752
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -6995,7 +6995,7 @@
               0.6164351105690002
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7022,7 +7022,7 @@
               0.6166101098060608
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7049,7 +7049,7 @@
               0.7044212818145752
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7076,7 +7076,7 @@
               0.5582583546638489
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7103,7 +7103,7 @@
               0.5721276998519897
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7130,7 +7130,7 @@
               0.5719425678253174
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7157,7 +7157,7 @@
               0.5717112421989441
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7184,7 +7184,7 @@
               0.7044212818145752
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7211,7 +7211,7 @@
               0.5997877717018127
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7238,7 +7238,7 @@
               0.6697186231613159
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7265,7 +7265,7 @@
               0.5
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7292,7 +7292,7 @@
               0.5715724229812622
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7319,7 +7319,7 @@
               0.571850061416626
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7346,7 +7346,7 @@
               0.5
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7373,7 +7373,7 @@
               0.6696316599845886
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7400,7 +7400,7 @@
               0.5997007489204407
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7427,7 +7427,7 @@
               0.7044212818145752
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7454,7 +7454,7 @@
               0.5721739530563354
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7481,7 +7481,7 @@
               0.5716649293899536
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7508,7 +7508,7 @@
               0.5720351338386536
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7535,7 +7535,7 @@
               0.5722202658653259
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7562,7 +7562,7 @@
               0.625
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7589,7 +7589,7 @@
               0.6687644124031067
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7616,7 +7616,7 @@
               0.6689394116401672
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7643,7 +7643,7 @@
               0.625
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7670,7 +7670,7 @@
               0.571757435798645
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7692,7 +7692,7 @@
               0.5657087564468384
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7714,7 +7714,7 @@
               0.7663289904594421
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7741,7 +7741,7 @@
               0.0
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7768,7 +7768,7 @@
               0.7663289904594421
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7795,7 +7795,7 @@
               0.7663289904594421
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7817,7 +7817,7 @@
               0.6636796593666077
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7839,7 +7839,7 @@
               0.7663289904594421
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7866,7 +7866,7 @@
               1.0
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7893,7 +7893,7 @@
               0.6864550709724426
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7920,7 +7920,7 @@
               0.7663289904594421
             ]
           ],
-          "material": 0
+          "material": 1
         },
         {
           "vertices": [
@@ -7947,7 +7947,7 @@
               0.935810923576355
             ]
           ],
-          "material": 1
+          "material": 0
         },
         {
           "vertices": [
@@ -7974,7 +7974,7 @@
               0.9060165286064148
             ]
           ],
-          "material": 1
+          "material": 0
         },
         {
           "vertices": [
@@ -8001,7 +8001,7 @@
               0.8860721588134766
             ]
           ],
-          "material": 1
+          "material": 0
         },
         {
           "vertices": [
@@ -8028,7 +8028,7 @@
               0.9054708480834961
             ]
           ],
-          "material": 1
+          "material": 0
         },
         {
           "vertices": [
@@ -8055,7 +8055,7 @@
               0.9368712902069092
             ]
           ],
-          "material": 1
+          "material": 0
         },
         {
           "vertices": [
@@ -8082,7 +8082,7 @@
               0.9682717323303223
             ]
           ],
-          "material": 1
+          "material": 0
         },
         {
           "vertices": [
@@ -8109,7 +8109,7 @@
               0.8794159889221191
             ]
           ],
-          "material": 1
+          "material": 0
         },
         {
           "vertices": [
@@ -8136,7 +8136,7 @@
               0.9703720808029175
             ]
           ],
-          "material": 1
+          "material": 0
         },
         {
           "vertices": [
@@ -8163,7 +8163,7 @@
               0.9660964012145996
             ]
           ],
-          "material": 1
+          "material": 0
         },
         {
           "vertices": [
@@ -8190,7 +8190,7 @@
               0.9332128763198853
             ]
           ],
-          "material": 1
+          "material": 0
         },
         {
           "vertices": [
@@ -8217,7 +8217,7 @@
               0.9020671844482422
             ]
           ],
-          "material": 1
+          "material": 0
         },
         {
           "vertices": [
@@ -8244,7 +8244,7 @@
               0.9332128763198853
             ]
           ],
-          "material": 1
+          "material": 0
         },
         {
           "vertices": [
@@ -8271,7 +8271,7 @@
               0.9660964012145996
             ]
           ],
-          "material": 1
+          "material": 0
         },
         {
           "vertices": [
@@ -8298,7 +8298,7 @@
               0.9961424469947815
             ]
           ],
-          "material": 1
+          "material": 0
         },
         {
           "vertices": [
@@ -8325,7 +8325,7 @@
               0.9020671844482422
             ]
           ],
-          "material": 1
+          "material": 0
         },
         {
           "vertices": [
@@ -8352,12 +8352,8 @@
               0.9961424469947815
             ]
           ],
-          "material": 1
+          "material": 0
         }
-      ],
-      "materials": [
-        1,
-        0
       ],
       "vertices": [
         {
