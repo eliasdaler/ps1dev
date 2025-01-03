@@ -48,13 +48,23 @@ void Object::calculateWorldMatrix()
 void AnimatedModelObject::updateCollision()
 {
     collisionCircle.center = getPosition();
-    collisionCircle.radius = 0.04;
+    collisionCircle.radius = 0.05;
 
     interactionCircle.center = getPosition() + getFront() * 0.05;
     interactionCircle.radius = 0.07;
 }
 
-#include <common/syscalls/syscalls.h>
+StringHash getBlinkAnimationName(StringHash faceName)
+{
+    // hardcoded for cat now, TODO: implement a generic func later
+    switch (faceName.value) {
+    case THINK_FACE_ANIMATION.value:
+    case ANGRY_FACE_ANIMATION.value:
+        return ANGRY_BLINK_FACE_ANIMATION;
+    }
+
+    return DEFAULT_BLINK_FACE_ANIMATION;
+}
 
 void AnimatedModelObject::update()
 {
@@ -63,6 +73,26 @@ void AnimatedModelObject::update()
 
     if (model) {
         animator.animate(const_cast<Armature&>(model->armature), jointGlobalTransforms);
+    } else {
+        animator.animate(const_cast<Armature&>(fastModel->armature), jointGlobalTransforms);
+    }
+
+    if (faceSubmeshIdx != 0xFF) {
+        blinkTimer.update();
+        if (!isInBlink) {
+            if (blinkTimer.tick()) {
+                isInBlink = true;
+
+                setFaceAnimation(getBlinkAnimationName(currentFaceAnimation), false);
+                blinkTimer.reset(closedEyesTime);
+            }
+        } else {
+            if (blinkTimer.tick()) {
+                isInBlink = false;
+                setFaceAnimation(currentFaceAnimation, false);
+                blinkTimer.reset(blinkPeriod);
+            }
+        }
     }
 }
 
@@ -70,4 +100,64 @@ psyqo::Angle AnimatedModelObject::findInteractionAngle(const Object& other)
 {
     const auto diff = other.getPosition() - getPosition();
     return math::atan2(diff.x, diff.z);
+}
+
+void AnimatedModelObject::setFaceAnimation(std::uint8_t faceU, std::uint8_t faceV)
+{
+    if (faceSubmeshIdx == 0xFF) {
+        return;
+    }
+
+    auto& faceMesh = fastModel->meshes[faceSubmeshIdx];
+    const auto offsetU = faceU - faceOffsetU;
+    const auto offsetV = faceV - faceOffsetV;
+    for (int i = 0; i < 2; ++i) {
+        for (auto& gt3 : faceMesh.gt3[i]) {
+            gt3.frag.primitive.uvA.u += offsetU;
+            gt3.frag.primitive.uvA.v += offsetV;
+            gt3.frag.primitive.uvB.u += offsetU;
+            gt3.frag.primitive.uvB.v += offsetV;
+            gt3.frag.primitive.uvC.u += offsetU;
+            gt3.frag.primitive.uvC.v += offsetV;
+        }
+        for (auto& gt4 : faceMesh.gt4[i]) {
+            gt4.frag.primitive.uvA.u += offsetU;
+            gt4.frag.primitive.uvA.v += offsetV;
+            gt4.frag.primitive.uvB.u += offsetU;
+            gt4.frag.primitive.uvB.v += offsetV;
+            gt4.frag.primitive.uvC.u += offsetU;
+            gt4.frag.primitive.uvC.v += offsetV;
+            gt4.frag.primitive.uvD.u += offsetU;
+            gt4.frag.primitive.uvD.v += offsetV;
+        }
+    }
+
+    faceOffsetU = faceU;
+    faceOffsetV = faceV;
+}
+
+void AnimatedModelObject::setFaceAnimation(StringHash faceName, bool updateCurrent)
+{
+    // hardcoded for cat now, TODO: implement a generic func later
+    switch (faceName.value) {
+    case DEFAULT_FACE_ANIMATION.value:
+        setFaceAnimation(0, 0);
+        break;
+    case DEFAULT_BLINK_FACE_ANIMATION.value:
+        setFaceAnimation(64, 0);
+        break;
+    case THINK_FACE_ANIMATION.value:
+        setFaceAnimation(0, 32);
+        break;
+    case ANGRY_BLINK_FACE_ANIMATION.value:
+        setFaceAnimation(64, 32);
+        break;
+    case ANGRY_FACE_ANIMATION.value:
+        setFaceAnimation(0, 64);
+        break;
+    }
+
+    if (updateCurrent) {
+        currentFaceAnimation = faceName;
+    }
 }

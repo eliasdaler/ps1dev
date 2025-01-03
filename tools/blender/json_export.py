@@ -30,11 +30,11 @@ identity_scale = Vector((1.0, 1.0, 1.0))
 #   Y' = -Z
 #   Z' =  Y 
 axis_basis_change = mathutils.Matrix(
-            ((1.0,  0.0, 0.0, 0.0), 
-             (0.0,  0.0, 1.0, 0.0), 
-             (0.0, -1.0, 0.0, 0.0), 
-             (0.0,  0.0, 0.0, 1.0))
-            )
+    ((1.0,  0.0, 0.0, 0.0), 
+     (0.0,  0.0, 1.0, 0.0), 
+     (0.0, -1.0, 0.0, 0.0), 
+     (0.0,  0.0, 0.0, 1.0))
+)
 
 def apply_modifiers(obj):
     ctx = bpy.context.copy()
@@ -191,76 +191,72 @@ def get_mesh_json_armature(obj, meshes_list, material_idx_map, joints, joint_nam
     num_joints = len(joint_name_to_id)
     meshes_data = []
 
-    # TODO: if obj has multiple meshes, convert verts into single model space
-    if len(meshes_list) != 1:
-        raise ValueError("TODO: get_mesh_json_armature: support multiple models")
-    mesh = meshes_list[0]
+    for mesh in meshes_list:
+        uv_layer = mesh.uv_layers[0].data
+        vertex_colors = None
+        if mesh.color_attributes:
+            vertex_colors = mesh.color_attributes[0].data
 
-    uv_layer = mesh.uv_layers[0].data
-    vertex_colors = None
-    if mesh.color_attributes:
-        vertex_colors = mesh.color_attributes[0].data
+        # This is similar to what we do in get_mesh_json,
+        # but we separate the mesh into submeshes which are
+        # influenced by a particular joint
+        for idx, joint in enumerate(joints):
+            gid = obj.vertex_groups[joint.name].index
 
-    # This is similar to what we do in get_mesh_json,
-    # but we separate the mesh into submeshes which are
-    # influenced by a particular joint
-    for idx, joint in enumerate(joints):
-        gid = obj.vertex_groups[joint.name].index
+            vertices = [] 
+            faces = []
 
-        vertices = [] 
-        faces = []
+            has_materials_with_textures = mesh_has_materials_with_textures(mesh)
 
-        has_materials_with_textures = mesh_has_materials_with_textures(mesh)
+            for poly in mesh.polygons:
+                face_vert_indices = []
+                face_uvs = []
 
-        for poly in mesh.polygons:
-            face_vert_indices = []
-            face_uvs = []
+                skip_face = False
+                for loop_index in poly.loop_indices:
+                    vi = mesh.loops[loop_index].vertex_index
+                    vertex = mesh.vertices[vi]
 
-            skip_face = False
-            for loop_index in poly.loop_indices:
-                vi = mesh.loops[loop_index].vertex_index
-                vertex = mesh.vertices[vi]
+                    if skip_face or (gid not in (g.group for g in vertex.groups)):
+                        skip_face = True
+                        break
 
-                if skip_face or (gid not in (g.group for g in vertex.groups)):
-                    skip_face = True
-                    break
+                    new_index = len(vertices)
+                    face_vert_indices.append(new_index)
 
-                new_index = len(vertices)
-                face_vert_indices.append(new_index)
+                    vertex_data = {
+                        "pos": [vertex.co.x, vertex.co.z, -vertex.co.y]
+                    }
 
-                vertex_data = {
-                    "pos": [vertex.co.x, vertex.co.z, -vertex.co.y]
-                }
+                    if has_materials_with_textures:
+                        uv = uv_layer[loop_index].uv
+                        face_uvs.append([uv.x, uv.y])
 
-                if has_materials_with_textures:
-                    uv = uv_layer[loop_index].uv
-                    face_uvs.append([uv.x, uv.y])
+                    if vertex_colors:
+                        color = vertex_colors[vi].color_srgb
+                        vertex_data["color"] = [
+                            int(color[0] * 255),
+                            int(color[1] * 255),
+                            int(color[2] * 255)
+                        ]
 
-                if vertex_colors:
-                    color = vertex_colors[vi].color_srgb
-                    vertex_data["color"] = [
-                        int(color[0] * 255),
-                        int(color[1] * 255),
-                        int(color[2] * 255)
-                    ]
+                    vertices.append(vertex_data)
 
-                vertices.append(vertex_data)
+                if not skip_face:
+                    face_json = {
+                        "vertices": face_vert_indices,
+                        "uvs": face_uvs,
+                    }
+                    if has_materials_with_textures:
+                        material_idx = material_idx_map[mesh.materials[poly.material_index].name]
+                        face_json["material"] = material_idx
+                    faces.append(face_json)
 
-            if not skip_face:
-                face_json = {
-                    "vertices": face_vert_indices,
-                    "uvs": face_uvs,
-                }
-                if has_materials_with_textures:
-                    material_idx = material_idx_map[mesh.materials[poly.material_index].name]
-                    face_json["material"] = material_idx
-                faces.append(face_json)
-
-        meshes_data.append({
-            "joint_id": idx,
-            "faces": faces,
-            "vertices": vertices,
-        })
+            meshes_data.append({
+                "joint_id": idx,
+                "faces": faces,
+                "vertices": vertices,
+            })
 
     return meshes_data
 
@@ -325,7 +321,9 @@ class JointFCurves():
 def skip_bone(bone):
     return (bone.name == "Root") or \
            ("FK" in bone.name) or ("IK" in bone.name) or \
-           ("Pole" in bone.name)
+           ("Pole" in bone.name) or ("Control" in bone.name) or \
+           ("Pivot" in bone.name)
+
 
 def get_joint_data_json(joint, joint_name_to_id):
     joint_data = {
@@ -431,11 +429,18 @@ def get_action_json(joints, joint_name_to_id, action, armature_scale):
         final_tracks.append(Track(TrackType.TRANSLATION, joint_id, translation_track))
         final_tracks.append(Track(TrackType.ROTATION, joint_id, rotation_track))
 
+    # TODO: use_frame_range + frame_start/frame_end?
     if (action.frame_range[0] != 0):
         raise ValueError('Animation does not start from 0 frame')
     action_length = action.frame_range[1]
+
+    looped = True
+    if action.use_frame_range: # most animations are looped by default
+        looped = action.use_cyclic
+
     return {
         "name": action.name,
+        "looped": looped,
         "length": action_length,
         "tracks": [t.toJSON() for t in final_tracks]
     }
@@ -549,6 +554,10 @@ def write_psxtools_json(context, filepath):
         for action in bpy.data.actions:
             start_frame = int(action.frame_range[0])
             end_frame = int(action.frame_range[1])
+            if action.use_frame_range:
+                start_frame = int(action.frame_start)
+                end_frame = int(action.frame_end)
+
             armature.animation_data.action = action
             bpy.ops.nla.bake(
                     frame_start=start_frame, 

@@ -48,10 +48,25 @@ void GameplayScene::start(StartReason reason)
         interactionDialogueBox.size.y = 32;
         interactionDialogueBox.displayMoreTextArrow = false;
 
-        player.model = &game.resourceCache.getResource<Model>(HUMAN_MODEL_HASH);
+        // player.model = &game.resourceCache.getResource<Model>(HUMAN_MODEL_HASH);
+        player.model = nullptr;
+        player.fastModel = &game.catoModelFast;
+
+        player.faceSubmeshIdx = 0;
+        for (int i = 0; i < player.fastModel->meshes.size(); ++i) {
+            const auto& submesh = player.fastModel->meshes[i];
+            if (submesh.numQuads == 16) {
+                player.faceSubmeshIdx = i;
+            }
+        }
+        player.setFaceAnimation(DEFAULT_FACE_ANIMATION);
+        player.blinkPeriod = 140;
+        player.closedEyesTime = 4;
+        player.blinkTimer.reset(npc.blinkPeriod);
+
         player.texture = game.resourceCache.getResource<TextureInfo>(CATO_TEXTURE_HASH);
-        player.jointGlobalTransforms.resize(player.model->armature.joints.size());
-        player.animator.animations = &game.animations;
+        player.jointGlobalTransforms.resize(player.fastModel->armature.joints.size());
+        player.animator.animations = &game.catAnimations;
 
         game.songPlayer.init(game.midi, game.vab);
 
@@ -99,19 +114,21 @@ void GameplayScene::start(StartReason reason)
         player.setPosition({0.0, 0.0, 0.25});
         player.rotation = {0.0, -1.0};
 
-        // npc.model = &game.resourceCache.getResource<Model>(CATO_MODEL_HASH);
-        npc.model = nullptr;
-        npc.fastModel = &game.catoModelFast;
+        npc.model = &game.resourceCache.getResource<Model>(HUMAN_MODEL_HASH);
+        // npc.model = nullptr;
+        // npc.fastModel = &game.catoModelFast;
 
         npc.texture = game.resourceCache.getResource<TextureInfo>(CATO_TEXTURE_HASH);
         if (npc.model) {
             npc.jointGlobalTransforms.resize(npc.model->armature.joints.size());
+        } else {
+            npc.jointGlobalTransforms.resize(npc.fastModel->armature.joints.size());
         }
-        npc.animator.animations = &game.animations;
+        npc.animator.animations = &game.humanAnimations;
+        npc.animator.setAnimation("Idle"_sh);
 
         npc.setPosition({0.0, 0.0, -0.11});
         npc.rotation = {0.0, 0.1};
-        npc.animator.setAnimation("Idle"_sh);
 
         camera.position = {0.12, ToWorldCoords(1.5f), 0.81};
         camera.rotation = {0.0, 1.0};
@@ -150,6 +167,8 @@ void GameplayScene::start(StartReason reason)
 
 void GameplayScene::frame()
 {
+    game.handleDeltas();
+
     fpsCounter.update(game.gpu());
     game.pad.update();
     processInput(game.pad);
@@ -162,6 +181,8 @@ void GameplayScene::frame()
     gpu().pumpCallbacks();
 
     draw(game.renderer);
+
+    game.onFrameEnd();
 }
 
 void GameplayScene::processInput(const PadManager& pad)
@@ -217,18 +238,19 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
 {
     const auto& trig = game.trig;
 
-    constexpr auto walkSpeed = 0.0065;
-    constexpr auto sprintSpeed = 0.02;
-    constexpr auto rotateSpeed = 0.03;
+    constexpr auto walkSpeed = psyqo::FixedPoint<>(0.25);
+    constexpr auto sprintSpeed = psyqo::FixedPoint<>(0.6);
+    constexpr auto rotateSpeed = psyqo::FixedPoint<>(1.0);
+    const auto dt = game.frameDt;
 
     // yaw
     bool isRotating = false;
     if (pad.isButtonPressed(psyqo::SimplePad::Left)) {
-        player.rotation.y += rotateSpeed;
+        player.rotation.y += psyqo::FixedPoint<10, std::int32_t>(rotateSpeed * dt);
         isRotating = true;
     }
     if (pad.isButtonPressed(psyqo::SimplePad::Right)) {
-        player.rotation.y -= rotateSpeed;
+        player.rotation.y -= psyqo::FixedPoint<10, std::int32_t>(rotateSpeed * dt);
         isRotating = true;
     }
 
@@ -257,35 +279,42 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
         if (moveForward) {
             if (isSprinting) {
                 speed = sprintSpeed;
-                player.animator.setAnimation("Run"_sh, 0.05, 0.125);
+                player.animator.setAnimation("Run"_sh, 1.0, 0.125);
             } else {
                 speed = walkSpeed;
-                player.animator.setAnimation("Walk"_sh, 0.035, 0.3);
+                player.animator.setAnimation("Walk"_sh, 1.0, 0.3);
             }
         } else {
             speed = -walkSpeed * 0.4;
-            player.animator.setAnimation("Walk"_sh, -0.025, 0.3);
+            player.animator.setAnimation("Walk"_sh, -0.6, 0.3);
         }
         player.velocity = player.getFront() * speed;
     } else if (isRotating) {
-        player.animator.setAnimation("Walk"_sh, 0.025, 0.3);
+        player.animator.setAnimation("Walk"_sh, 0.7, 0.3);
     } else {
-        player.animator.setAnimation("Idle"_sh);
+        if (!cutscene) {
+            player.animator.setAnimation("Idle"_sh);
+        }
     }
 
-    if (isMoving) {
+    if (cutscene && player.animator.getCurrentAnimationName() == "ThinkStart"_sh &&
+        player.animator.animationJustEnded()) {
+        player.animator.setAnimation("Think"_sh);
+    }
+
+    if (isMoving || isRotating) {
         if (player.animator.frameJustChanged()) {
             const auto animFrame = player.animator.getAnimationFrame();
-            if (player.animator.currentAnimation->name == "Walk"_sh) {
-                if (animFrame == 4) {
-                    game.soundPlayer.playSound(20, game.step1Sound);
-                } else if (animFrame == 20) {
-                    game.soundPlayer.playSound(21, game.step2Sound);
-                }
-            } else if (player.animator.currentAnimation->name == "Run"_sh) {
+            if (player.animator.getCurrentAnimationName() == "Walk"_sh) {
                 if (animFrame == 3) {
                     game.soundPlayer.playSound(20, game.step1Sound);
                 } else if (animFrame == 15) {
+                    game.soundPlayer.playSound(21, game.step2Sound);
+                }
+            } else if (player.animator.getCurrentAnimationName() == "Run"_sh) {
+                if (animFrame == 2) {
+                    game.soundPlayer.playSound(20, game.step1Sound);
+                } else if (animFrame == 10) {
                     game.soundPlayer.playSound(21, game.step2Sound);
                 }
             }
@@ -317,41 +346,42 @@ void GameplayScene::processFreeCameraInput(const PadManager& pad)
 {
     const auto& trig = game.trig;
 
-    constexpr auto walkSpeed = 0.02;
-    constexpr auto rotateSpeed = 0.01;
+    constexpr auto walkSpeed = psyqo::FixedPoint<>(2.0);
+    constexpr auto rotateSpeed = psyqo::FixedPoint<>(0.8);
+    const auto dt = game.frameDt;
 
     // yaw
     if (pad.isButtonPressed(psyqo::SimplePad::Left)) {
-        camera.rotation.y += rotateSpeed;
+        camera.rotation.y += psyqo::FixedPoint<10, std::int32_t>(rotateSpeed * dt);
     }
     if (pad.isButtonPressed(psyqo::SimplePad::Right)) {
-        camera.rotation.y -= rotateSpeed;
+        camera.rotation.y -= psyqo::FixedPoint<10, std::int32_t>(rotateSpeed * dt);
     }
 
     // pitch
     if (pad.isButtonPressed(psyqo::SimplePad::L2)) {
-        camera.rotation.x += rotateSpeed;
+        camera.rotation.x += psyqo::FixedPoint<10, std::int32_t>(rotateSpeed * dt * 0.6);
     }
     if (pad.isButtonPressed(psyqo::SimplePad::R2)) {
-        camera.rotation.x -= rotateSpeed;
+        camera.rotation.x -= psyqo::FixedPoint<10, std::int32_t>(rotateSpeed * dt * 0.6);
     }
 
     // go up/down
     if (pad.isButtonPressed(psyqo::SimplePad::L1)) {
-        camera.position.y -= walkSpeed;
+        camera.position.y -= walkSpeed * dt * 0.5;
     }
     if (pad.isButtonPressed(psyqo::SimplePad::R1)) {
-        camera.position.y += walkSpeed;
+        camera.position.y += walkSpeed * dt * 0.5;
     }
 
     // go forward/backward
     if (pad.isButtonPressed(psyqo::SimplePad::Up)) {
-        camera.position.x += trig.sin(camera.rotation.y) * walkSpeed;
-        camera.position.z += trig.cos(camera.rotation.y) * walkSpeed;
+        camera.position.x += trig.sin(camera.rotation.y) * walkSpeed * dt;
+        camera.position.z += trig.cos(camera.rotation.y) * walkSpeed * dt;
     }
     if (pad.isButtonPressed(psyqo::SimplePad::Down)) {
-        camera.position.x -= trig.sin(camera.rotation.y) * walkSpeed;
-        camera.position.z -= trig.cos(camera.rotation.y) * walkSpeed;
+        camera.position.x -= trig.sin(camera.rotation.y) * walkSpeed * dt;
+        camera.position.z -= trig.cos(camera.rotation.y) * walkSpeed * dt;
     }
 }
 
@@ -368,6 +398,12 @@ void GameplayScene::processDebugInput(const PadManager& pad)
     if (pad.wasButtonJustPressed(psyqo::SimplePad::Cross)) {
         fadeFinished = false;
         fadeLevel = 0;
+    }
+
+    if (pad.wasButtonJustPressed(psyqo::SimplePad::Triangle)) {
+        player.setFaceAnimation(ANGRY_FACE_ANIMATION);
+        player.animator.setAnimation("ThinkStart"_sh);
+        cutscene = true;
     }
 }
 
@@ -429,7 +465,7 @@ void GameplayScene::update()
         }
 
         auto pos = player.getPosition();
-        pos += player.velocity;
+        pos += player.velocity * game.frameDt;
         player.setPosition(pos);
         player.updateCollision();
 
@@ -548,9 +584,9 @@ void GameplayScene::handleCollision(psyqo::SoftMath::Axis axis)
     bool anyCollision = false;
     auto newPos = oldPos;
     if (axis == psyqo::SoftMath::Axis::X) {
-        newPos.x += player.velocity.x;
+        newPos.x += player.velocity.x * game.frameDt;
     } else if (axis == psyqo::SoftMath::Axis::Z) {
-        newPos.z += player.velocity.z;
+        newPos.z += player.velocity.z * game.frameDt;
     }
     player.setPosition(newPos);
     player.updateCollision();
@@ -616,6 +652,7 @@ void GameplayScene::draw(Renderer& renderer)
 
     // draw static objects
     if (game.level.id == 0) {
+        renderer.bias = 50;
         renderer.drawModelObject(levelObj, camera, false);
     } else if (game.level.id == 1) {
         drawTestLevel(renderer);
@@ -628,7 +665,7 @@ void GameplayScene::draw(Renderer& renderer)
     {
         // TODO: first draw objects without rotation
         // (won't have to upload camera.viewRot and change PseudoRegister::Rotation then)
-        renderer.drawAnimatedModelObject(player, camera);
+        renderer.drawAnimatedModelObject2(player, camera);
         if (game.level.id == 0) {
             renderer.drawAnimatedModelObject(npc, camera);
         }
@@ -854,6 +891,13 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
                 game.levelModelFast.meshes[0].numTris,
                 game.levelModelFast.meshes[0].numQuads);
         } */
+
+        /* game.romFont.chainprintf(
+            game.gpu(),
+            {{.x = 16, .y = 64}},
+            textCol,
+            "%.2f",
+            psyqo::FixedPoint<>(player.animator.normalizedAnimTime)); */
 
         game.romFont.chainprintf(
             game.gpu(), {{.x = 16, .y = 48}}, textCol, "FPS: %.2f", fpsCounter.getMovingAverage());

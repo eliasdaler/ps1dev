@@ -32,6 +32,9 @@ public:
 
     void loadLevel(int levelId);
 
+    void handleDeltas();
+    void onFrameEnd();
+
     CDLoader cd;
     psyqo::Coroutine<> gameLoadCoroutine;
     ResourceCache resourceCache;
@@ -52,7 +55,9 @@ public:
     // data resources
     TextureInfo fontTexture;
     Font font;
-    eastl::vector<SkeletalAnimation> animations;
+
+    eastl::vector<SkeletalAnimation> humanAnimations;
+    eastl::vector<SkeletalAnimation> catAnimations;
 
     // audio
     MidiFile midi;
@@ -69,4 +74,16 @@ public:
 
     FastModel catoModelFast;
     FastModel levelModelFast;
+
+    uint32_t frameDtMcs{0}; // dt in microseconds
+    psyqo::FixedPoint<> frameDt{0}; // dt in seconds
+    uint32_t vSyncDiff{0}; // number of vsync between Application::frame invocations
+
+    uint32_t prevNow{0};
+    uint32_t currNow{0};
+
+    uint32_t prevVSyncs{0};
+    uint32_t currVSyncs{0};
 };
+
+extern Game g_game;

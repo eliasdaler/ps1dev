@@ -7,6 +7,7 @@
 #include <EASTL/vector.h>
 
 #include <Collision.h>
+#include <Core/Timer.h>
 #include <Graphics/SkeletonAnimator.h>
 #include <Graphics/TextureInfo.h>
 #include <Math/Transform.h>
@@ -71,6 +72,12 @@ struct MeshObject : Object {
     bool hasTexture{false};
 };
 
+inline constexpr StringHash DEFAULT_FACE_ANIMATION = "Default"_sh;
+inline constexpr StringHash DEFAULT_BLINK_FACE_ANIMATION = "Blink"_sh;
+inline constexpr StringHash THINK_FACE_ANIMATION = "Think"_sh;
+inline constexpr StringHash ANGRY_BLINK_FACE_ANIMATION = "AngryBlink"_sh;
+inline constexpr StringHash ANGRY_FACE_ANIMATION = "Angry"_sh;
+
 struct AnimatedModelObject : ModelObject {
     void updateCollision();
     void update();
@@ -81,6 +88,21 @@ struct AnimatedModelObject : ModelObject {
 
     eastl::vector<TransformMatrix> jointGlobalTransforms;
     SkeletonAnimator animator;
+
+    std::uint8_t faceSubmeshIdx{0xFF};
+    std::uint8_t faceOffsetU{0};
+    std::uint8_t faceOffsetV{0};
+
+    Timer blinkTimer;
+    bool isInBlink{false};
+
+    uint32_t blinkPeriod;
+    uint32_t closedEyesTime;
+
+    StringHash currentFaceAnimation;
+
+    void setFaceAnimation(std::uint8_t faceOffsetU, std::uint8_t faceOffsetV);
+    void setFaceAnimation(StringHash faceName, bool updateCurrent = true);
 
     Circle collisionCircle;
     Circle interactionCircle;

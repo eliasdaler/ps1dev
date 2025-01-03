@@ -15,7 +15,4 @@ struct Quaternion {
 Quaternion operator*(const Quaternion& q1, const Quaternion& q2);
 
 /* Works for small rotations only for now - okay for animation interpolation */
-Quaternion slerp(
-    const Quaternion& q1,
-    const Quaternion& q2,
-    const psyqo::FixedPoint<12, std::int16_t>& factor);
+Quaternion slerp(const Quaternion& q1, const Quaternion& q2, psyqo::FixedPoint<> factor);

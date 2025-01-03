@@ -36,9 +36,12 @@ struct AnimationTrack {
 
 struct SkeletalAnimation {
     StringHash name;
+    std::uint32_t flags;
     std::uint8_t numTracks;
     std::uint16_t length;
     eastl::vector<AnimationTrack> tracks;
+
+    bool isLooped() const { return (flags & 1) != 0; }
 };
 
 void loadAnimations(
@@ -48,4 +51,4 @@ void loadAnimations(
 void animateArmature(
     Armature& armature,
     const SkeletalAnimation& animation,
-    const psyqo::FixedPoint<>& normalizedAnimTime);
+    psyqo::FixedPoint<> normalizedAnimTime);

@@ -52,7 +52,14 @@ struct Track {
     Key<type> keys[numKeys];
 };
 
+bitfield AnimationFlags {
+    bool looped: 1;
+    unsigned unused: 31;
+};
+    
 struct Animation {
+    u32 name;
+    AnimationFlags flags;
     u16 length;
     u16 numTracks;
     Track tracks[numTracks];

@@ -4,6 +4,8 @@
 
 #include <common/syscalls/syscalls.h>
 
+#include <Game.h>
+
 void SkeletonAnimator::setAnimation(
     StringHash animationName,
     psyqo::FixedPoint<> playbackSpeed,
@@ -33,6 +35,12 @@ void SkeletonAnimator::setAnimation(
         normalizedAnimTime = startAnimationPoint;
     }
     prevNormalizedAnimTime = normalizedAnimTime;
+
+    currentTimeMcs = 0;
+    animationEnded = false;
+    prevAnimationEnded = false;
+    animLengthMcs = currentAnimation->length * (1'000'000 / 30); // anim is at 30 FPS
+    animLengthMs = psyqo::FixedPoint<>((animLengthMcs / 1000), 0);
 }
 
 const SkeletalAnimation* SkeletonAnimator::findAnimation(StringHash animationName) const
@@ -50,13 +58,39 @@ const SkeletalAnimation* SkeletonAnimator::findAnimation(StringHash animationNam
 
 void SkeletonAnimator::update()
 {
-    prevNormalizedAnimTime = normalizedAnimTime;
-    normalizedAnimTime += playbackSpeed;
-    if (normalizedAnimTime > 1.0) { // loop
-        normalizedAnimTime -= 1.0;
+    if (!currentAnimation || animationEnded) {
+        return;
     }
-    if (normalizedAnimTime < 0.0) {
-        normalizedAnimTime = 1.0;
+
+    if (playbackSpeed == 1.0) {
+        currentTimeMcs += g_game.frameDtMcs;
+    } else {
+        currentTimeMcs +=
+            (psyqo::FixedPoint<>(g_game.frameDtMcs, 0) * playbackSpeed.abs()).integer();
+    }
+
+    prevNormalizedAnimTime = normalizedAnimTime;
+    prevAnimationEnded = animationEnded;
+
+    if (!currentAnimation->isLooped() && currentTimeMcs > animLengthMcs) {
+        if (playbackSpeed < 0.0) {
+            normalizedAnimTime = 0.0;
+            animationEnded = true;
+            return;
+        } else {
+            normalizedAnimTime = 1.0;
+            animationEnded = true;
+            return;
+        }
+    }
+
+    if (currentTimeMcs > animLengthMcs) {
+        currentTimeMcs -= animLengthMcs;
+    }
+
+    normalizedAnimTime = psyqo::FixedPoint<>(currentTimeMcs / 1000, 0) / animLengthMs;
+    if (playbackSpeed < 0.0) {
+        normalizedAnimTime = psyqo::FixedPoint<>(1.0) - normalizedAnimTime;
     }
 }
 

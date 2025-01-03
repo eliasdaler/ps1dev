@@ -1,11 +1,8 @@
 #include "Game.h"
 
-namespace
-{
-Game game;
-}
+Game g_game;
 
 int main()
 {
-    return game.run();
+    return g_game.run();
 }

@@ -34,6 +34,10 @@ public:
         const AnimatedModelObject& object,
         const Camera& camera,
         bool setViewRot = true);
+    void drawAnimatedModelObject2(
+        const AnimatedModelObject& object,
+        const Camera& camera,
+        bool setViewRot = true);
 
     void drawMeshObject(const MeshObject& object, const Camera& camera);
 
@@ -42,6 +46,7 @@ public:
 
     void drawMesh(const Mesh& mesh, const TextureInfo& texture);
     void drawMesh(const Mesh& mesh);
+    void drawMesh(FastMesh& mesh);
 
     static constexpr auto OT_SIZE = 4096 * 2;
     using OrderingTableType = psyqo::OrderingTable<OT_SIZE>;

@@ -41,11 +41,12 @@ Quaternion operator*(const Quaternion& q1, const Quaternion& q2)
 }
 
 psyqo::FixedPoint<12, std::int16_t> lerp(
-    const psyqo::FixedPoint<12, std::int16_t>& a,
-    const psyqo::FixedPoint<12, std::int16_t>& b,
-    const psyqo::FixedPoint<12, std::int16_t>& factor)
+    psyqo::FixedPoint<> a,
+    psyqo::FixedPoint<> b,
+    psyqo::FixedPoint<> factor)
 {
-    return a + factor * (b - a);
+    return psyqo::FixedPoint<12, std::int16_t>(
+        a * factor + (psyqo::FixedPoint<>(1.0) - factor) * b);
 }
 
 /* static eastl::fixed_string<char, 512> str;
@@ -98,16 +99,14 @@ void Quaternion::normalize()
     this->w = psyqo::FixedPoint<12, std::int16_t>(w);
 }
 
-Quaternion slerp(
-    const Quaternion& q1,
-    const Quaternion& q2,
-    const psyqo::FixedPoint<12, std::int16_t>& factor)
+Quaternion slerp(const Quaternion& q1, const Quaternion& q2, psyqo::FixedPoint<> factor)
 {
     Quaternion res;
-    res.x = lerp(q1.x, q2.x, factor);
-    res.y = lerp(q1.y, q2.y, factor);
-    res.z = lerp(q1.z, q2.z, factor);
-    res.w = lerp(q1.w, q2.w, factor);
+
+    res.x = lerp(psyqo::FixedPoint<>(q1.x), psyqo::FixedPoint<>(q2.x), factor);
+    res.y = lerp(psyqo::FixedPoint<>(q1.y), psyqo::FixedPoint<>(q2.y), factor);
+    res.z = lerp(psyqo::FixedPoint<>(q1.z), psyqo::FixedPoint<>(q2.z), factor);
+    res.w = lerp(psyqo::FixedPoint<>(q1.w), psyqo::FixedPoint<>(q2.w), factor);
 
     res.normalize();
 

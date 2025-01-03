@@ -90,4 +90,6 @@ private:
     int destinationLevelId = 0;
 
     bool collisionEnabled{true};
+
+    bool cutscene{false};
 };

@@ -9,12 +9,8 @@
 
 namespace
 {
-psyqo::FixedPoint<> lerp(
-    const psyqo::FixedPoint<>& a,
-    const psyqo::FixedPoint<>& b,
-    const psyqo::FixedPoint<>& factor)
+psyqo::FixedPoint<> lerp(psyqo::FixedPoint<> a, psyqo::FixedPoint<> b, psyqo::FixedPoint<> factor)
 {
-    // return a + factor * (b - a);
     return a * factor + (psyqo::FixedPoint<>(1.0) - factor) * b;
 }
 
@@ -23,10 +19,9 @@ psyqo::FixedPoint<> lerp(
 void animateArmature(
     Armature& armature,
     const SkeletalAnimation& animation,
-    const psyqo::FixedPoint<>& normalizedAnimTime)
+    psyqo::FixedPoint<> normalizedAnimTime)
 {
     const auto currentFrame = normalizedAnimTime * psyqo::FixedPoint<>(animation.length, 0);
-
     for (const auto& track : animation.tracks) {
         auto& joint = armature.joints[track.joint];
 
@@ -57,22 +52,28 @@ void animateArmature(
         const auto& prevKey = track.keys[nextKeyIdx - 1];
         const auto& nextKey = track.keys[nextKeyIdx];
 
-        // FIXME: interpolation suffers greatly from loss of precision?
-        // Looks BAD, so we don't do it for now...
+#define DO_LERP
+
+#ifdef DO_LERP
         // TODO: precompute 1 / (nextKey.frame - prevKey.frame) ?
-        // auto lerpFactor = (nextKey.frame - currentFrame) / (nextKey.frame - prevKey.frame);
+        auto lerpFactor = (nextKey.frame - currentFrame) / (nextKey.frame - prevKey.frame);
+#endif
 
         if (track.info == TRACK_TYPE_ROTATION) {
+#ifndef DO_LERP
             joint.localTransform.rotation = prevKey.data.rotation;
-            // joint.localTransform.rotation = slerp(prevKey.data.rotation, nextKey.data.rotation,
-            // lerpFactor);
+#else
+            joint.localTransform.rotation =
+                slerp(prevKey.data.rotation, nextKey.data.rotation, lerpFactor);
+#endif
         } else if (track.info == TRACK_TYPE_TRANSLATION) {
+#ifndef DO_LERP
             const auto& tr = prevKey.data.translation;
             joint.localTransform.translation.x = psyqo::FixedPoint<>(tr.x);
             joint.localTransform.translation.y = psyqo::FixedPoint<>(tr.y);
             joint.localTransform.translation.z = psyqo::FixedPoint<>(tr.z);
-
-            /* joint.localTransform.translation.x = lerp(
+#else
+            joint.localTransform.translation.x = lerp(
                 psyqo::FixedPoint<>(prevKey.data.translation.x),
                 psyqo::FixedPoint<>(nextKey.data.translation.x),
                 lerpFactor);
@@ -84,7 +85,7 @@ void animateArmature(
                 psyqo::FixedPoint<>(prevKey.data.translation.z),
                 psyqo::FixedPoint<>(nextKey.data.translation.z),
                 lerpFactor);
-                */
+#endif
         }
     }
 }
@@ -102,6 +103,7 @@ void loadAnimations(
     for (int j = 0; j < numAnimations; ++j) {
         SkeletalAnimation animation;
         animation.name.value = fr.GetUInt32();
+        animation.flags = fr.GetUInt32();
         animation.length = fr.GetUInt16();
         animation.numTracks = fr.GetUInt16();
         animation.tracks.reserve(animation.numTracks);

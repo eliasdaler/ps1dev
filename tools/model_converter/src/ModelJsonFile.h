@@ -75,6 +75,7 @@ struct AnimationTrack {
 
 struct Animation {
     std::string name;
+    bool looped;
     std::uint16_t length; // in frames
     std::vector<AnimationTrack> tracks;
 };

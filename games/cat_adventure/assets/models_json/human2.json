@@ -24838,6 +24838,7 @@
   "animations": [
     {
       "name": "Idle",
+      "looped": true,
       "length": 25.0,
       "tracks": [
         {
@@ -25337,6 +25338,7 @@
     },
     {
       "name": "Run",
+      "looped": true,
       "length": 24.0,
       "tracks": [
         {
@@ -30468,6 +30470,7 @@
     },
     {
       "name": "Walk",
+      "looped": true,
       "length": 32.0,
       "tracks": [
         {

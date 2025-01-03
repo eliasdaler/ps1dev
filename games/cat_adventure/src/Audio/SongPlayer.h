@@ -58,8 +58,5 @@ struct SongPlayer {
     VabFile* vab{nullptr};
 
     // for debug
-    bool musicMuted{false};
-
-    // TODO: move somewhere else?
-    // This is where uploaded PCM samples start on SPU
+    bool musicMuted{true};
 };

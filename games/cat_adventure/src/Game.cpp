@@ -168,7 +168,10 @@ psyqo::Coroutine<> loadCoroutine(Game& game)
     }
 
     if (game.firstLoad) {
-        game.cd.loadAnimations("HUMAN.ANM;1", game.animations);
+        game.cd.loadAnimations("HUMAN.ANM;1", game.humanAnimations);
+        co_await awaiter;
+
+        game.cd.loadAnimations("CATO.ANM;1", game.catAnimations);
         co_await awaiter;
     }
 
@@ -202,4 +205,35 @@ void Game::loadLevel(int levelId)
     // load resources
     gameLoadCoroutine = loadCoroutine(*this);
     gameLoadCoroutine.resume();
+}
+void Game::handleDeltas()
+{
+    auto currVSyncs = gpu().getFrameCount();
+    currNow = gpu().now();
+    currVSyncs = gpu().getFrameCount();
+
+    if (currNow > prevNow) {
+        frameDtMcs = currNow - prevNow;
+        frameDt = psyqo::FixedPoint<>(frameDtMcs / 1000, 0) / psyqo::FixedPoint<>(1000.0);
+    } else {
+        // overflow
+        frameDtMcs = 0;
+        frameDt = 0.0;
+    }
+    if (currVSyncs > prevVSyncs) {
+        vSyncDiff = currVSyncs - prevVSyncs;
+    } else {
+        // overflow
+        vSyncDiff = 0;
+    }
+
+    if (vSyncDiff == 0 || frameDtMcs == 0) { // skip "overflow" frame
+        return;
+    }
+}
+
+void Game::onFrameEnd()
+{
+    prevVSyncs = currVSyncs;
+    prevNow = currNow;
 }

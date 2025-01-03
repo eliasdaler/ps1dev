@@ -10,6 +10,9 @@ inline void initStringHashes()
     HASH_PUT("Walk");
     HASH_PUT("Run");
     HASH_PUT("Idle");
+    HASH_PUT("Think");
+    HASH_PUT("ThinkEnd");
+    HASH_PUT("ThinkStart");
 
     // textures
     HASH_PUT2(CATO_TEXTURE_HASH);

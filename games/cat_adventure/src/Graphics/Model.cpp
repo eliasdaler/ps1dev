@@ -114,8 +114,6 @@ void FastModel::load(const eastl::vector<uint8_t>& data)
         meshes.push_back(std::move(mesh));
     }
 
-    return;
-
     if (fr.cursor == data.size()) {
         return;
     }
