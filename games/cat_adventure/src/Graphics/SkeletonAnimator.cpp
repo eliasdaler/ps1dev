@@ -34,9 +34,12 @@ void SkeletonAnimator::setAnimation(
     } else {
         normalizedAnimTime = startAnimationPoint;
     }
+
     currentTimeMcs = 0;
     animationEnded = false;
+    prevNormalizedAnimTime = normalizedAnimTime;
     prevAnimationEnded = false;
+
     animLengthMcs = currentAnimation->length * (1'000'000 / 30); // anim is at 30 FPS
     animLengthMs = psyqo::FixedPoint<>((animLengthMcs / 1000), 0);
 }
