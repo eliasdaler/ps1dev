@@ -12,6 +12,10 @@
 
 #include <cstdint>
 
+using ssize_t = std::int32_t;
+
+#include <EASTL/variant.h>
+
 #include "Armature.h"
 
 struct Vec3Pad {
@@ -23,10 +27,10 @@ template<typename PrimType>
 using FragData = eastl::vector<psyqo::Fragments::SimpleFragment<PrimType>>;
 
 template<typename PrimType>
-using FragDataDoubleBuffer =
-    eastl::array<eastl::vector<psyqo::Fragments::SimpleFragment<PrimType>>, 2>;
+using FragDataDoubleBuffer = eastl::array<FragData<PrimType>, 2>;
 
 struct Mesh;
+struct MeshUnique;
 
 struct MeshData {
     int numUntexturedTris{0};
@@ -43,9 +47,19 @@ struct MeshData {
     FragData<psyqo::Prim::GouraudTexturedQuad> gt4;
 
     Mesh makeInstance() const;
+    MeshUnique makeInstanceUnique();
 };
 
 struct Mesh {
+    std::uint16_t getJointId() const { return jointId; }
+    const eastl::vector<Vec3Pad>& getVertices() const { return *vertices; }
+
+    FragData<psyqo::Prim::GouraudTriangle>& getG3s(int parity) { return g3[parity]; }
+    FragData<psyqo::Prim::GouraudQuad>& getG4s(int parity) { return g4[parity]; }
+    FragData<psyqo::Prim::GouraudTexturedTriangle>& getGT3s(int parity) { return gt3[parity]; }
+    FragData<psyqo::Prim::GouraudTexturedQuad>& getGT4s(int parity) { return gt4[parity]; }
+
+    // data
     std::uint16_t jointId;
 
     const eastl::vector<Vec3Pad>* vertices{nullptr}; // reference to Mesh.vertices
@@ -56,6 +70,51 @@ struct Mesh {
     FragDataDoubleBuffer<psyqo::Prim::GouraudTexturedQuad> gt4;
 };
 
+struct MeshUnique {
+    std::uint16_t getJointId() const { return meshData->jointId; }
+    const eastl::vector<Vec3Pad>& getVertices() const { return meshData->vertices; }
+
+    FragData<psyqo::Prim::GouraudTriangle>& getG3s(int parity)
+    {
+        if (parity == 0) {
+            return meshData->g3;
+        }
+        return g3;
+    }
+
+    FragData<psyqo::Prim::GouraudQuad>& getG4s(int parity)
+    {
+        if (parity == 0) {
+            return meshData->g4;
+        }
+        return g4;
+    }
+
+    FragData<psyqo::Prim::GouraudTexturedTriangle>& getGT3s(int parity)
+    {
+        if (parity == 0) {
+            return meshData->gt3;
+        }
+        return gt3;
+    }
+
+    FragData<psyqo::Prim::GouraudTexturedQuad>& getGT4s(int parity)
+    {
+        if (parity == 0) {
+            return meshData->gt4;
+        }
+        return gt4;
+    }
+
+    // data
+    MeshData* meshData{nullptr};
+
+    FragData<psyqo::Prim::GouraudTriangle> g3;
+    FragData<psyqo::Prim::GouraudQuad> g4;
+    FragData<psyqo::Prim::GouraudTexturedTriangle> gt3;
+    FragData<psyqo::Prim::GouraudTexturedQuad> gt4;
+};
+
 struct Model;
 
 struct ModelData {
@@ -64,10 +123,11 @@ struct ModelData {
 
     void load(const eastl::vector<uint8_t>& data);
     Model makeInstance() const;
+    Model makeInstanceUnique();
 };
 
 struct Model {
-    eastl::vector<Mesh> meshes;
+    eastl::vector<eastl::variant<Mesh, MeshUnique>> meshes;
     Armature armature;
 
     void load(const eastl::vector<uint8_t>& data);

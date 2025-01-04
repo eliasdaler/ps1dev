@@ -64,7 +64,7 @@ private:
     FPSCounter fpsCounter;
 
     bool debugInfoDrawn{true};
-    bool collisionDrawn{true};
+    bool collisionDrawn{false};
     bool freeCamera{false};
     bool followCamera{false};
 
@@ -90,6 +90,7 @@ private:
     eastl::vector<MeshObject> staticObjects;
 
     int fadeLevel = 0;
+
     bool fadeFinished{false};
     bool fadeOut{false}; // if false - fade in
     int destinationLevelId = 0;

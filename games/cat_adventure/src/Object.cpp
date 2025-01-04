@@ -104,7 +104,7 @@ void AnimatedModelObject::setFaceAnimation(std::uint8_t faceU, std::uint8_t face
         return;
     }
 
-    auto& faceMesh = model.meshes[faceSubmeshIdx];
+    auto& faceMesh = eastl::get<Mesh>(model.meshes[faceSubmeshIdx]);
     const auto offsetU = faceU - faceOffsetU;
     const auto offsetV = faceV - faceOffsetV;
     for (int i = 0; i < 2; ++i) {

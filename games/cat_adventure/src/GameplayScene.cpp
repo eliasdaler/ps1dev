@@ -52,7 +52,7 @@ void GameplayScene::start(StartReason reason)
 
         player.faceSubmeshIdx = 0;
         for (int i = 0; i < player.model.meshes.size(); ++i) {
-            const auto& submesh = player.model.meshes[i];
+            const auto& submesh = eastl::get<Mesh>(player.model.meshes[i]);
             if (submesh.gt4.size() == 16) { // FIXME: mark submesh as "face" somehow
                 player.faceSubmeshIdx = i;
             }
@@ -103,8 +103,8 @@ void GameplayScene::start(StartReason reason)
     if (game.level.id == 0) {
         game.renderer.setFogEnabled(false);
 
-        levelObj.model =
-            game.resourceCache.getResource<ModelData>(LEVEL1_MODEL_HASH).makeInstance();
+        levelObj.model = game.resourceCache.getResourceNonConst<ModelData>(LEVEL1_MODEL_HASH)
+                             .makeInstanceUnique();
 
         player.setPosition({0.0, 0.0, 0.25});
         player.rotation = {0.0, -1.0};
@@ -394,6 +394,11 @@ void GameplayScene::processDebugInput(const PadManager& pad)
         player.animator.setAnimation("ThinkStart"_sh);
         cutscene = true;
     }
+
+    if (pad.wasButtonJustPressed(psyqo::SimplePad::Circle)) {
+        // switchLevel(1);
+        fadeLevel++;
+    }
 }
 
 void GameplayScene::updateCamera()
@@ -674,6 +679,31 @@ void GameplayScene::draw(Renderer& renderer)
         tpage.primitive.attr.set(psyqo::Prim::TPageAttr::SemiTrans::FullBackSubFullFront);
         gpu.chain(tpage);
 
+#if 0
+        for (int i = 0; i < 4; ++i) {
+            auto& rectFrag = primBuffer.allocateFragment<psyqo::Prim::Rectangle>();
+            auto& rect = rectFrag.primitive;
+            rect.position = {};
+            switch (i) {
+            case 1:
+                rect.position = {.x = SCREEN_WIDTH / 2, .y = 0};
+                break;
+            case 2:
+                rect.position = {.x = 0, .y = SCREEN_HEIGHT / 2};
+                break;
+            case 3:
+                rect.position = {.x = SCREEN_WIDTH / 2, .y = SCREEN_HEIGHT / 2};
+                break;
+            }
+            rect.size.x = SCREEN_WIDTH / 2;
+            rect.size.y = SCREEN_HEIGHT / 2;
+
+            const auto black =
+                psyqo::Color{{uint8_t(fadeLevel), uint8_t(fadeLevel), uint8_t(fadeLevel)}};
+            rect.setColor(black);
+            rect.setSemiTrans();
+            gpu.chain(rectFrag);
+#else
         auto& rectFrag = primBuffer.allocateFragment<psyqo::Prim::Rectangle>();
         auto& rect = rectFrag.primitive;
         rect.position = {};
@@ -685,6 +715,7 @@ void GameplayScene::draw(Renderer& renderer)
         rect.setColor(black);
         rect.setSemiTrans();
         gpu.chain(rectFrag);
+#endif
     }
 
     if (gameState == GameState::Normal) {
@@ -712,8 +743,8 @@ void GameplayScene::makeTestLevel()
 {
     MeshObject object;
     auto& levelModel = levelObj.model;
-    auto& meshA = levelModel.meshes[0];
-    auto& meshB = levelModel.meshes[1];
+    auto& meshA = eastl::get<Mesh>(levelModel.meshes[0]);
+    auto& meshB = eastl::get<Mesh>(levelModel.meshes[1]);
 
     for (int x = 0; x < 10; ++x) {
         for (int z = -3; z < 3; ++z) {
@@ -728,7 +759,7 @@ void GameplayScene::makeTestLevel()
         }
     }
 
-    auto& tree = levelModel.meshes[4];
+    auto& tree = eastl::get<Mesh>(levelModel.meshes[4]);
     object.mesh = tree;
     for (int i = 0; i < 10; ++i) {
         object.setPosition(psyqo::FixedPoint(i, 0), 0.0, ToWorldCoords(8.0));
@@ -736,7 +767,7 @@ void GameplayScene::makeTestLevel()
         staticObjects.push_back(object);
     }
 
-    auto& lamp = levelModel.meshes[2];
+    auto& lamp = eastl::get<Mesh>(levelModel.meshes[2]);
     for (int i = 0; i < 10; ++i) {
         object.mesh = lamp;
         object.setPosition(psyqo::FixedPoint(i, 0), 0.0, ToWorldCoords(-8.0));
@@ -744,7 +775,7 @@ void GameplayScene::makeTestLevel()
         staticObjects.push_back(object);
     }
 
-    object.mesh = levelModel.meshes[5];
+    object.mesh = eastl::get<Mesh>(levelModel.meshes[5]);
     object.setPosition(ToWorldCoords(8.0), 0.0, 0.0);
     object.calculateWorldMatrix();
     staticObjects.push_back(object);
@@ -888,7 +919,12 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
             psyqo::FixedPoint<>(player.animator.normalizedAnimTime)); */
 
         game.romFont.chainprintf(
-            game.gpu(), {{.x = 16, .y = 48}}, textCol, "FPS: %.2f", fpsCounter.getMovingAverage());
+            game.gpu(),
+            {{.x = 16, .y = 48}},
+            textCol,
+            "FPS: %.2f, fd: %d",
+            fpsCounter.getMovingAverage(),
+            fadeLevel);
     }
 }
 

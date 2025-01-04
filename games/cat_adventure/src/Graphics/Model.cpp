@@ -94,6 +94,20 @@ Mesh MeshData::makeInstance() const
     return instance;
 }
 
+MeshUnique MeshData::makeInstanceUnique()
+{
+    MeshUnique instance{
+        .meshData = this,
+    };
+
+    instance.g3 = g3;
+    instance.g4 = g4;
+    instance.gt3 = gt3;
+    instance.gt4 = gt4;
+
+    return instance;
+}
+
 Model ModelData::makeInstance() const
 {
     Model instance{};
@@ -101,6 +115,18 @@ Model ModelData::makeInstance() const
     instance.meshes.reserve(meshes.size());
     for (const auto& mesh : meshes) {
         instance.meshes.push_back(mesh.makeInstance());
+    }
+
+    return instance;
+}
+
+Model ModelData::makeInstanceUnique()
+{
+    Model instance{};
+    instance.armature = armature;
+    instance.meshes.reserve(meshes.size());
+    for (auto& mesh : meshes) {
+        instance.meshes.push_back(mesh.makeInstanceUnique());
     }
 
     return instance;

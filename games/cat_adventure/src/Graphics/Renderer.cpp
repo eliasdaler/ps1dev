@@ -140,7 +140,8 @@ void Renderer::drawAnimatedModelObject(
     }
 
     const auto& globalJointTransforms = object.jointGlobalTransforms;
-    for (auto& mesh : model.meshes) {
+    for (auto& mv : model.meshes) {
+        auto& mesh = eastl::get<Mesh>(mv);
         const auto& jointTransform = globalJointTransforms[mesh.jointId];
 
         const auto t1 = combineTransforms(object.transform, jointTransform);
@@ -185,25 +186,30 @@ void Renderer::drawMeshObject(MeshObject& object, const Camera& camera)
 void Renderer::drawModel(Model& model)
 {
     for (auto& mesh : model.meshes) {
-        drawMesh(mesh);
+        if (eastl::holds_alternative<MeshUnique>(mesh)) {
+            drawMesh(eastl::get<MeshUnique>(mesh));
+        } else {
+            drawMesh(eastl::get<Mesh>(mesh));
+        }
     }
 }
 
-void Renderer::drawMesh(Mesh& mesh)
+template<typename T>
+void Renderer::drawMesh(T& mesh)
 {
     auto& ot = getOrderingTable();
 
     auto parity = gpu.getParity();
-    auto& g3s = mesh.g3[parity];
-    auto& g4s = mesh.g4[parity];
-    auto& gt3s = mesh.gt3[parity];
-    auto& gt4s = mesh.gt4[parity];
+    auto& g3s = mesh.getG3s(parity);
+    auto& g4s = mesh.getG4s(parity);
+    auto& gt3s = mesh.getGT3s(parity);
+    auto& gt4s = mesh.getGT4s(parity);
 
     const auto g4Offset = g3s.size() * 3;
     const auto gt3Offset = g4Offset + g4s.size() * 4;
     const auto gt4Offset = gt3Offset + gt3s.size() * 3;
 
-    const auto& verts = *mesh.vertices;
+    const auto& verts = mesh.getVertices();
 
     for (std::size_t i = 0; i < g3s.size(); ++i) {
         const auto& v0 = verts[i * 3 + 0];

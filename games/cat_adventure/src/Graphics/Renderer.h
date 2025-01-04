@@ -36,7 +36,9 @@ public:
     void drawMeshObject(MeshObject& object, const Camera& camera);
     void drawModelObject(ModelObject& object, const Camera& camera, bool setViewRot = true);
     void drawModel(Model& model);
-    void drawMesh(Mesh& mesh);
+
+    template<typename T>
+    void drawMesh(T& mesh);
 
     static constexpr auto OT_SIZE = 4096 * 2;
     using OrderingTableType = psyqo::OrderingTable<OT_SIZE>;
