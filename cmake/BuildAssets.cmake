@@ -38,11 +38,10 @@ set(MODEL_BLENDER_SCRIPT "${PS1DEV_REPO_ROOT}/tools/blender/json_export.py")
 set(MODELS_BUILD_DIR_JSON "${ASSETS_DIR}/models_json")
 file(MAKE_DIRECTORY "${MODELS_BUILD_DIR_JSON}")
 
-function (add_build_model_command MODEL_PATH FAST_MODEL)
+function (add_build_model_command MODEL_PATH)
   get_filename_component(MODEL_FILENAME "${MODEL_PATH}" NAME_WLE)
   set(CONVERTED_MODEL_PATH "${MODELS_BUILD_DIR_JSON}/${MODEL_FILENAME}.json")
-  set(FINAL_MODEL_EXT "$<IF:$<BOOL:${FAST_MODEL}>,fm,bin>")
-  set(FINAL_MODEL_PATH "${ASSETS_DIR}/${MODEL_FILENAME}.${FINAL_MODEL_EXT}")
+  set(FINAL_MODEL_PATH "${ASSETS_DIR}/${MODEL_FILENAME}.bin")
 
   # Convert from .blend to .json
   add_custom_command(
@@ -57,18 +56,13 @@ function (add_build_model_command MODEL_PATH FAST_MODEL)
     COMMENT "Converting ${CONVERTED_MODEL_PATH} to ${FINAL_MODEL_PATH}"
     DEPENDS "${CONVERTED_MODEL_PATH}"
     OUTPUT "${FINAL_MODEL_PATH}"
-    COMMAND "${MODEL_CONVERTER_EXECUTABLE}" $<$<BOOL:${FAST_MODEL}>:--fast-model> "${CONVERTED_MODEL_PATH}" "${FINAL_MODEL_PATH}" "${ASSETS_DIR_RAW}"
+    COMMAND "${MODEL_CONVERTER_EXECUTABLE}" "${CONVERTED_MODEL_PATH}" "${FINAL_MODEL_PATH}" "${ASSETS_DIR_RAW}"
   )
   return (PROPAGATE FINAL_MODEL_PATH)
 endfunction()
 
 foreach (MODEL_PATH ${models})
-  add_build_model_command(${MODEL_PATH} FALSE)
-  list(APPEND CONVERTED_MODELS "${FINAL_MODEL_PATH}")
-endforeach()
-
-foreach (MODEL_PATH ${fast_models})
-  add_build_model_command(${MODEL_PATH} TRUE)
+  add_build_model_command(${MODEL_PATH})
   list(APPEND CONVERTED_MODELS "${FINAL_MODEL_PATH}")
 endforeach()
 

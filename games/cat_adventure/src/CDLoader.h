@@ -8,7 +8,6 @@
 struct TextureInfo;
 struct Font;
 struct Model;
-struct FastModel;
 struct MidiFile;
 struct VabFile;
 struct SkeletalAnimation;
@@ -22,8 +21,7 @@ struct CDLoader {
 
     void loadTIM(eastl::string_view filename, TextureInfo& textureInfo);
     void loadFont(eastl::string_view filename, Font& font);
-    void loadModel(eastl::string_view filename, Model& model);
-    void loadFastModel(eastl::string_view filename, FastModel& model);
+    void loadFastModel(eastl::string_view filename, Model& model);
     void loadSound(eastl::string_view filename, uint32_t spuUploadAddr);
     void loadMIDI(eastl::string_view filename, MidiFile& midi);
     void loadInstruments(eastl::string_view filename, VabFile& vab);

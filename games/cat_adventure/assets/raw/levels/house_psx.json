@@ -5,8 +5,8 @@
     "CATOF.TIM;1"
   ],
   "used_models": [
-    "HUMAN.BIN;1",
-    "LEVEL.BIN;1",
-    "CATO.BIN;1"
+    "HUMAN.FM;1",
+    "LEVEL.FM;1",
+    "CATO.FM;1"
   ]
 }

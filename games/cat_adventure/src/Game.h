@@ -72,11 +72,6 @@ public:
     // set by loadLevel
     int levelToLoad;
 
-    FastModel catoModelFast;
-    FastModel humanModelFast;
-    FastModel levelModelFast;
-    FastModel level2ModelFast;
-
     uint32_t frameDtMcs{0}; // dt in microseconds
     psyqo::FixedPoint<> frameDt{0}; // dt in seconds
     uint32_t vSyncDiff{0}; // number of vsync between Application::frame invocations

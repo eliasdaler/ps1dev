@@ -5,8 +5,6 @@
 #include <Core/StringHash.h>
 #include <Graphics/SkeletalAnimation.h>
 
-struct Model;
-
 struct SkeletonAnimator {
     static constexpr psyqo::FixedPoint<> DEFAULT_PLAYBACK_SPEED{1.0};
 

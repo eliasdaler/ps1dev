@@ -105,14 +105,6 @@ add_custom_target(build_iso
 )
 
 set(models
-  "${ASSETS_DIR_RAW}/house_psx.blend"
-  "${ASSETS_DIR_RAW}/level_new.blend"
-  "${ASSETS_DIR_RAW}/cato.blend"
-  "${ASSETS_DIR_RAW}/human2.blend"
-  "${ASSETS_DIR_RAW}/car.blend"
-)
-
-set(fast_models
   "${ASSETS_DIR_RAW}/cato.blend"
   "${ASSETS_DIR_RAW}/house_psx.blend"
   "${ASSETS_DIR_RAW}/human2.blend"

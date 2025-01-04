@@ -6,8 +6,6 @@
 
 void Level::load(const eastl::vector<uint8_t>& data)
 {
-    ramsyscall_printf("Load level: %d bytes\n", (int)data.size());
-
     usedTextures.clear();
     usedModels.clear();
     collisionBoxes.clear();

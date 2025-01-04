@@ -119,65 +119,10 @@ void Renderer::drawModelObject(const ModelObject& object, const Camera& camera, 
     }
     calculateViewModelMatrix(object, camera, setViewRot);
 
-    if (object.model) {
-        drawModel(*object.model, object.texture);
-    } else if (object.fastModel) {
-        drawModel(*object.fastModel);
-    }
+    drawModel(*object.fastModel);
 }
 
 void Renderer::drawAnimatedModelObject(
-    const AnimatedModelObject& object,
-    const Camera& camera,
-    bool setViewRot)
-{
-    if (shouldCullObject(object, camera)) {
-        return;
-    }
-
-    const auto& model = *object.model;
-    const auto& armature = model.armature;
-
-    if (model.armature.joints.empty()) {
-        drawModelObject(object, camera);
-        return;
-    }
-
-    const auto& globalJointTransforms = object.jointGlobalTransforms;
-    for (const auto& mesh : model.meshes) {
-        const auto& jointTransform = globalJointTransforms[mesh.jointId];
-
-        const auto t1 = combineTransforms(object.transform, jointTransform);
-
-        // This is basically combineTransforms(camera.view, t1),
-        // but we do a trick which allows us to prevent 4.12 range overflow
-        {
-            using namespace psyqo::GTE;
-            using namespace psyqo::GTE::Math;
-
-            TransformMatrix t2;
-
-            // V * M * J
-            multiplyMatrix33<
-                PseudoRegister::Rotation,
-                PseudoRegister::V0>(camera.view.rotation, t1.rotation, &t2.rotation);
-
-            // Instead of using camera.view.translation (which is V * (-camPos)),
-            // we're going into the camera/view space and do calculations there
-            t2.translation = t1.translation - camera.position;
-            matrixVecMul3<
-                PseudoRegister::Rotation, // camera.view.rotation
-                PseudoRegister::V0>(t2.translation, &t2.translation);
-
-            writeSafe<PseudoRegister::Rotation>(t2.rotation);
-            writeSafe<PseudoRegister::Translation>(t2.translation);
-        }
-
-        drawMesh(mesh, object.texture);
-    }
-}
-
-void Renderer::drawAnimatedModelObject2(
     const AnimatedModelObject& object,
     const Camera& camera,
     bool setViewRot)
@@ -228,20 +173,7 @@ void Renderer::drawAnimatedModelObject2(
     }
 }
 
-void Renderer::drawMeshObject(const MeshObject& object, const Camera& camera)
-{
-    if (shouldCullObject(object, camera)) {
-        return;
-    }
-    calculateViewModelMatrix(object, camera, false);
-    if (object.hasTexture) {
-        drawMesh(*object.mesh, object.texture);
-    } else {
-        drawMesh(*object.mesh);
-    }
-}
-
-void Renderer::drawFastMeshObject(FastMeshObject& object, const Camera& camera)
+void Renderer::drawFastMeshObject(MeshObject& object, const Camera& camera)
 {
     if (shouldCullObject(object, camera)) {
         return;
@@ -250,21 +182,14 @@ void Renderer::drawFastMeshObject(FastMeshObject& object, const Camera& camera)
     drawMesh(*object.mesh);
 }
 
-void Renderer::drawModel(const Model& model, const TextureInfo& texture)
-{
-    for (const auto& mesh : model.meshes) {
-        drawMesh(mesh, texture);
-    }
-}
-
-void Renderer::drawModel(FastModel& model)
+void Renderer::drawModel(Model& model)
 {
     for (auto& mesh : model.meshes) {
         drawMesh(mesh);
     }
 }
 
-void Renderer::drawMesh(FastMesh& mesh)
+void Renderer::drawMesh(Mesh& mesh)
 {
     auto& ot = getOrderingTable();
 
@@ -553,227 +478,6 @@ void Renderer::drawMesh(FastMesh& mesh)
     }
 }
 
-void Renderer::drawMesh(const Mesh& mesh, const TextureInfo& texture)
-{
-    using namespace psyqo::Prim;
-
-    std::size_t vertexIdx = 0;
-    if (fogEnabled) {
-        drawTris<GouraudTriangle, true>(mesh, texture, mesh.numUntexturedTris, vertexIdx);
-        drawQuads<GouraudQuad, true>(mesh, texture, mesh.numUntexturedQuads, vertexIdx);
-        drawTris<GouraudTexturedTriangle, true>(mesh, texture, mesh.numTris, vertexIdx);
-        drawQuads<GouraudTexturedQuad, true>(mesh, texture, mesh.numQuads, vertexIdx);
-    } else {
-        drawTris<GouraudTriangle, false>(mesh, texture, mesh.numUntexturedTris, vertexIdx);
-        drawQuads<GouraudQuad, false>(mesh, texture, mesh.numUntexturedQuads, vertexIdx);
-        drawTris<GouraudTexturedTriangle, false>(mesh, texture, mesh.numTris, vertexIdx);
-        drawQuads<GouraudTexturedQuad, false>(mesh, texture, mesh.numQuads, vertexIdx);
-    }
-
-    gpu.pumpCallbacks();
-}
-
-void Renderer::drawMesh(const Mesh& mesh)
-{
-    using namespace psyqo::Prim;
-
-    static TextureInfo dummyTextureInfo{};
-
-    std::size_t vertexIdx = 0;
-    if (fogEnabled) {
-        drawTris<GouraudTriangle, true>(mesh, dummyTextureInfo, mesh.numUntexturedTris, vertexIdx);
-        drawQuads<GouraudQuad, true>(mesh, dummyTextureInfo, mesh.numUntexturedQuads, vertexIdx);
-    } else {
-        drawTris<GouraudTriangle, false>(mesh, dummyTextureInfo, mesh.numUntexturedTris, vertexIdx);
-        drawQuads<GouraudQuad, false>(mesh, dummyTextureInfo, mesh.numUntexturedQuads, vertexIdx);
-    }
-
-    gpu.pumpCallbacks();
-}
-
-template<typename PrimType, bool fogEnabledT>
-void Renderer::drawTris(
-    const Mesh& mesh,
-    const TextureInfo& texture,
-    int numFaces,
-    std::size_t& outVertIdx)
-{
-    auto& ot = getOrderingTable();
-    auto& primBuffer = getPrimBuffer();
-    auto vertexIdx = outVertIdx;
-
-    for (int i = 0; i < numFaces; ++i, vertexIdx += 3) {
-        const auto& v0 = mesh.vertices[vertexIdx + 0];
-        const auto& v1 = mesh.vertices[vertexIdx + 1];
-        const auto& v2 = mesh.vertices[vertexIdx + 2];
-
-        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
-        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
-        psyqo::GTE::Kernels::rtpt();
-
-        psyqo::GTE::Kernels::nclip();
-        const auto dot =
-            (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
-        if (dot < 0) {
-            continue;
-        }
-
-        psyqo::GTE::Kernels::avsz3();
-
-        auto avgZ = (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
-        if (avgZ == 0) { // cull
-            continue;
-        }
-
-        avgZ += bias; // add bias
-        if (avgZ >= Renderer::OT_SIZE) {
-            continue;
-        }
-
-        auto& triFrag = primBuffer.allocateFragment<PrimType>();
-        auto& tri2d = triFrag.primitive;
-
-        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&tri2d.pointA.packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&tri2d.pointB.packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&tri2d.pointC.packed);
-
-        if constexpr (fogEnabledT) {
-            const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
-            const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
-            const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
-
-            // per vertex interpolation
-            const auto p0 = calcInterpFactor(sz0);
-            const auto p1 = calcInterpFactor(sz1);
-            const auto p2 = calcInterpFactor(sz2);
-
-            psyqo::Color col;
-            interpColor(v0.col, p0, &col);
-            tri2d.setColorA(col);
-            interpColor(v1.col, p1, &tri2d.colorB);
-            interpColor(v2.col, p2, &tri2d.colorC);
-        } else {
-            tri2d.setColorA(v0.col);
-            tri2d.setColorB(v1.col);
-            tri2d.setColorC(v2.col);
-        }
-
-        if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedTriangle>) {
-            tri2d.uvA.u = v0.uv.vx;
-            tri2d.uvA.v = v0.uv.vy;
-            tri2d.uvB.u = v1.uv.vx;
-            tri2d.uvB.v = v1.uv.vy;
-            tri2d.uvC.u = v2.uv.vx;
-            tri2d.uvC.v = v2.uv.vy;
-
-            tri2d.tpage = texture.tpage;
-            tri2d.clutIndex = texture.clut;
-        }
-
-        ot.insert(triFrag, avgZ);
-    }
-
-    outVertIdx = vertexIdx;
-}
-
-template<typename PrimType, bool fogEnabledT>
-void Renderer::drawQuads(
-    const Mesh& mesh,
-    const TextureInfo& texture,
-    int numFaces,
-    std::size_t& outVertIdx)
-{
-    auto& ot = getOrderingTable();
-    auto& primBuffer = getPrimBuffer();
-    auto vertexIdx = outVertIdx;
-
-    for (int i = 0; i < numFaces; ++i, vertexIdx += 4) {
-        const auto& v0 = mesh.vertices[vertexIdx + 0];
-        const auto& v1 = mesh.vertices[vertexIdx + 1];
-        const auto& v2 = mesh.vertices[vertexIdx + 2];
-        const auto& v3 = mesh.vertices[vertexIdx + 3];
-
-        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
-        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
-        psyqo::GTE::Kernels::rtpt();
-
-        psyqo::GTE::Kernels::nclip();
-        const auto dot =
-            (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
-        if (dot < 0) {
-            continue;
-        }
-
-        auto& quadFrag = primBuffer.allocateFragment<PrimType>();
-        auto& quad2d = quadFrag.primitive;
-
-        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointA.packed);
-
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v3.pos);
-        psyqo::GTE::Kernels::rtps();
-
-        psyqo::GTE::Kernels::avsz4();
-
-        auto avgZ = (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
-        if (avgZ == 0) { // cull
-            continue;
-        }
-
-        avgZ += bias; // add bias
-        if (avgZ >= Renderer::OT_SIZE) {
-            continue;
-        }
-
-        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointB.packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointC.packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
-
-        if constexpr (fogEnabledT) { // per vertex interpolation
-            const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
-            const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
-            const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
-            const auto sz3 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
-
-            const auto p0 = calcInterpFactor(sz0);
-            const auto p1 = calcInterpFactor(sz1);
-            const auto p2 = calcInterpFactor(sz2);
-            const auto p3 = calcInterpFactor(sz3);
-
-            psyqo::Color col;
-            interpColor(v0.col, p0, &col);
-            quad2d.setColorA(col);
-            interpColor(v1.col, p1, &quad2d.colorB);
-            interpColor(v2.col, p2, &quad2d.colorC);
-            interpColor(v3.col, p3, &quad2d.colorD);
-        } else {
-            quad2d.setColorA(v0.col);
-            quad2d.setColorB(v1.col);
-            quad2d.setColorC(v2.col);
-            quad2d.setColorD(v3.col);
-        }
-
-        if constexpr (eastl::is_same_v<PrimType, psyqo::Prim::GouraudTexturedQuad>) {
-            quad2d.uvA.u = v0.uv.vx;
-            quad2d.uvA.v = v0.uv.vy;
-            quad2d.uvB.u = v1.uv.vx;
-            quad2d.uvB.v = v1.uv.vy;
-            quad2d.uvC.u = v2.uv.vx;
-            quad2d.uvC.v = v2.uv.vy;
-            quad2d.uvD.u = v3.uv.vx;
-            quad2d.uvD.v = v3.uv.vy;
-
-            quad2d.tpage = texture.tpage;
-            quad2d.clutIndex = texture.clut;
-        }
-
-        ot.insert(quadFrag, avgZ);
-    }
-
-    outVertIdx = vertexIdx;
-}
-
 void Renderer::drawObjectAxes(const Object& object, const Camera& camera)
 {
     calculateViewModelMatrix(object, camera, true);
@@ -935,7 +639,7 @@ void Renderer::drawArmature(const AnimatedModelObject& object, const Camera& cam
 {
     calculateViewModelMatrix(object, camera, true);
 
-    const auto& armature = object.model->armature;
+    const auto& armature = object.fastModel->armature;
     if (armature.joints.empty()) {
         return;
     }

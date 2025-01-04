@@ -71,11 +71,7 @@ void AnimatedModelObject::update()
     calculateWorldMatrix();
     animator.update();
 
-    if (model) {
-        animator.animate(const_cast<Armature&>(model->armature), jointGlobalTransforms);
-    } else {
-        animator.animate(const_cast<Armature&>(fastModel->armature), jointGlobalTransforms);
-    }
+    animator.animate(const_cast<Armature&>(fastModel->armature), jointGlobalTransforms);
 
     if (faceSubmeshIdx != 0xFF) {
         blinkTimer.update();

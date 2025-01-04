@@ -12,9 +12,8 @@
 #include <Graphics/Model.h>
 #include <Graphics/TextureInfo.h>
 
-struct ModelObject;
 struct MeshObject;
-struct FastMeshObject;
+struct ModelObject;
 struct AnimatedModelObject;
 struct Camera;
 struct Circle;
@@ -29,26 +28,15 @@ public:
 
     [[nodiscard]] TextureInfo uploadTIM(const TimFile& tim);
 
-    void drawModelObject(const ModelObject& object, const Camera& camera, bool setViewRot = true);
-
     void drawAnimatedModelObject(
         const AnimatedModelObject& object,
         const Camera& camera,
         bool setViewRot = true);
-    void drawAnimatedModelObject2(
-        const AnimatedModelObject& object,
-        const Camera& camera,
-        bool setViewRot = true);
 
-    void drawMeshObject(const MeshObject& object, const Camera& camera);
-    void drawFastMeshObject(FastMeshObject& object, const Camera& camera);
-
-    void drawModel(const Model& model, const TextureInfo& texture);
-    void drawModel(FastModel& model);
-
-    void drawMesh(const Mesh& mesh, const TextureInfo& texture);
-    void drawMesh(const Mesh& mesh);
-    void drawMesh(FastMesh& mesh);
+    void drawFastMeshObject(MeshObject& object, const Camera& camera);
+    void drawModelObject(const ModelObject& object, const Camera& camera, bool setViewRot = true);
+    void drawModel(Model& model);
+    void drawMesh(Mesh& mesh);
 
     static constexpr auto OT_SIZE = 4096 * 2;
     using OrderingTableType = psyqo::OrderingTable<OT_SIZE>;
@@ -108,20 +96,6 @@ private:
 
     psyqo::GPU& gpu;
     psyqo::Trig<> trig;
-
-    template<typename PrimType, bool fogEnabledT>
-    void drawTris(
-        const Mesh& mesh,
-        const TextureInfo& texture,
-        int numFaces,
-        std::size_t& outVertIdx);
-
-    template<typename PrimType, bool fogEnabledT>
-    void drawQuads(
-        const Mesh& mesh,
-        const TextureInfo& texture,
-        int numFaces,
-        std::size_t& outVertIdx);
 
     void drawArmature(
         const Armature& armature,

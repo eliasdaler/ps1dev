@@ -26,12 +26,7 @@ void CDLoader::loadFont(eastl::string_view filename, Font& font)
     loadFromCD(filename, [&font](eastl::vector<uint8_t>&& buffer) { font.loadFromFile(buffer); });
 }
 
-void CDLoader::loadModel(eastl::string_view filename, Model& model)
-{
-    loadFromCD(filename, [&model](eastl::vector<uint8_t>&& buffer) { model.load(buffer); });
-}
-
-void CDLoader::loadFastModel(eastl::string_view filename, FastModel& model)
+void CDLoader::loadFastModel(eastl::string_view filename, Model& model)
 {
     loadFromCD(filename, [&model](eastl::vector<uint8_t>&& buffer) { model.load(buffer); });
 }

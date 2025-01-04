@@ -16,9 +16,6 @@ int main(int argc, char* argv[])
 {
     CLI::App cliApp{};
 
-    bool fastModel{false};
-    cliApp.add_flag("--fast-model", fastModel, "Make fast model");
-
     std::filesystem::path inputFilePath;
     cliApp.add_option("INPUTFILE", inputFilePath, "Input file")
         ->required()
@@ -77,11 +74,7 @@ int main(int argc, char* argv[])
         writeLevelToFile(outLevelPath, modelJson, levelJson, conversionParams);
     }
 
-    if (fastModel) {
-        writeFastPsxModel(psxModel, outputFilePath);
-    } else {
-        writePsxModel(psxModel, outputFilePath);
-    }
+    writeFastPsxModel(psxModel, outputFilePath);
 
     std::cout << "Done!" << std::endl;
 }

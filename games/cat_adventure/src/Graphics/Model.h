@@ -14,36 +14,6 @@
 
 #include "Armature.h"
 
-struct Object;
-
-struct CVECTOR {
-    std::uint8_t vx, vy, vz, pad;
-};
-
-struct Vertex {
-    psyqo::GTE::PackedVec3 pos;
-    std::uint16_t pad;
-
-    CVECTOR uv;
-    psyqo::Color col;
-};
-
-struct Mesh {
-    eastl::vector<Vertex> vertices;
-    int numUntexturedTris{0};
-    int numUntexturedQuads{0};
-    int numTris{0};
-    int numQuads{0};
-    std::uint16_t jointId;
-};
-
-struct Model {
-    eastl::vector<Mesh> meshes;
-    Armature armature;
-
-    void load(const eastl::vector<uint8_t>& data);
-};
-
 struct Vec3Pad {
     psyqo::GTE::PackedVec3 pos;
     std::uint16_t pad;
@@ -52,7 +22,7 @@ struct Vec3Pad {
 template<typename PrimType>
 using FragData = eastl::array<eastl::vector<psyqo::Fragments::SimpleFragment<PrimType>>, 2>;
 
-struct FastMesh {
+struct Mesh {
     int numUntexturedTris{0};
     int numUntexturedQuads{0};
     int numTris{0};
@@ -67,8 +37,8 @@ struct FastMesh {
     FragData<psyqo::Prim::GouraudTexturedQuad> gt4;
 };
 
-struct FastModel {
-    eastl::vector<FastMesh> meshes;
+struct Model {
+    eastl::vector<Mesh> meshes;
     Armature armature;
 
     void load(const eastl::vector<uint8_t>& data);

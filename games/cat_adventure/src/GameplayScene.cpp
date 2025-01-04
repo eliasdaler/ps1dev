@@ -48,14 +48,12 @@ void GameplayScene::start(StartReason reason)
         interactionDialogueBox.size.y = 32;
         interactionDialogueBox.displayMoreTextArrow = false;
 
-        // player.model = &game.resourceCache.getResource<Model>(HUMAN_MODEL_HASH);
-        player.model = nullptr;
-        player.fastModel = &game.catoModelFast;
+        player.fastModel = &game.resourceCache.getResource<Model>(CATO_MODEL_HASH);
 
         player.faceSubmeshIdx = 0;
         for (int i = 0; i < player.fastModel->meshes.size(); ++i) {
             const auto& submesh = player.fastModel->meshes[i];
-            if (submesh.numQuads == 16) {
+            if (submesh.numQuads == 16) { // FIXME: mark submesh as "face" somehow
                 player.faceSubmeshIdx = i;
             }
         }
@@ -107,23 +105,15 @@ void GameplayScene::start(StartReason reason)
 
         game.renderer.setFogEnabled(false);
 
-        // levelObj.model = &game.resourceCache.getResource<Model>(LEVEL1_MODEL_HASH);
-        levelObj.model = nullptr;
-        levelObj.fastModel = &game.levelModelFast;
+        levelObj.fastModel = &game.resourceCache.getResource<Model>(LEVEL1_MODEL_HASH);
 
         player.setPosition({0.0, 0.0, 0.25});
         player.rotation = {0.0, -1.0};
 
-        // npc.model = &game.resourceCache.getResource<Model>(HUMAN_MODEL_HASH);
-        npc.model = nullptr;
-        npc.fastModel = &game.humanModelFast;
+        npc.fastModel = &game.resourceCache.getResource<Model>(HUMAN_MODEL_HASH);
 
         npc.texture = game.resourceCache.getResource<TextureInfo>(CATO_TEXTURE_HASH);
-        if (npc.model) {
-            npc.jointGlobalTransforms.resize(npc.model->armature.joints.size());
-        } else {
-            npc.jointGlobalTransforms.resize(npc.fastModel->armature.joints.size());
-        }
+        npc.jointGlobalTransforms.resize(npc.fastModel->armature.joints.size());
         npc.animator.animations = &game.humanAnimations;
         npc.animator.setAnimation("Walk"_sh);
 
@@ -148,8 +138,7 @@ void GameplayScene::start(StartReason reason)
     } else if (game.level.id == 1) {
         game.renderer.setFogEnabled(true);
 
-        levelObj.model = &game.resourceCache.getResource<Model>(LEVEL2_MODEL_HASH);
-        levelObj.fastModel = nullptr;
+        levelObj.fastModel = &game.resourceCache.getResource<Model>(LEVEL2_MODEL_HASH);
 
         player.setPosition({0.5, 0.0, 0.5});
         player.rotation = {0.0, 0.5};
@@ -665,9 +654,9 @@ void GameplayScene::draw(Renderer& renderer)
     {
         // TODO: first draw objects without rotation
         // (won't have to upload camera.viewRot and change PseudoRegister::Rotation then)
-        renderer.drawAnimatedModelObject2(player, camera);
+        renderer.drawAnimatedModelObject(player, camera);
         if (game.level.id == 0) {
-            renderer.drawAnimatedModelObject2(npc, camera);
+            renderer.drawAnimatedModelObject(npc, camera);
         }
     }
 
@@ -719,8 +708,8 @@ void GameplayScene::draw(Renderer& renderer)
 
 void GameplayScene::drawTestLevel(Renderer& renderer)
 {
-    FastMeshObject object;
-    auto& levelModel = game.level2ModelFast;
+    MeshObject object;
+    auto& levelModel = *levelObj.fastModel;
     auto meshA = &levelModel.meshes[0];
     auto meshB = &levelModel.meshes[1];
 

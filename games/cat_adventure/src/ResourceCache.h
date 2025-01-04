@@ -136,6 +136,21 @@ struct ResourceCache {
         return it->second.value;
     }
 
+    template<typename T>
+    T& getResource(StringHash hash)
+    {
+        auto& container = getResourceContainter<T>();
+        const auto it = container.find(hash);
+
+#ifdef DEBUG_RESOURCE_LOAD
+        if (it == container.end()) {
+            ramsyscall_printf("Resource '%s' was not loaded", hash.getStr());
+        }
+#endif
+
+        return it->second.value;
+    }
+
     ResourceContainer<TextureInfo> textures;
     ResourceContainer<Model> models;
 };

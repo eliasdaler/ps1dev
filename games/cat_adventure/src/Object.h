@@ -14,8 +14,6 @@
 
 struct Model;
 struct Mesh;
-struct FastModel;
-struct FastMesh;
 
 struct Object {
     void calculateWorldMatrix(); // trashes R
@@ -62,19 +60,12 @@ struct Object {
 struct ModelObject : Object {
     void update();
 
-    const Model* model{nullptr};
-    FastModel* fastModel{nullptr};
+    Model* fastModel{nullptr};
     TextureInfo texture;
 };
 
 struct MeshObject : Object {
-    const Mesh* mesh{nullptr};
-    TextureInfo texture;
-    bool hasTexture{false};
-};
-
-struct FastMeshObject : Object {
-    FastMesh* mesh{nullptr};
+    Mesh* mesh{nullptr};
     TextureInfo texture;
     bool hasTexture{false};
 };
