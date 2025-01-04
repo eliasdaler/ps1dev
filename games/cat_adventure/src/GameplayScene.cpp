@@ -76,6 +76,7 @@ void GameplayScene::start(StartReason reason)
     }
 
     triggers.clear();
+    staticObjects.clear();
 
     if (game.level.id == 0) { // TODO: load from level
         Trigger trigger;
@@ -147,6 +148,8 @@ void GameplayScene::start(StartReason reason)
         camera.rotation = {0.0, 0.0};
 
         followCamera = true;
+
+        makeTestLevel();
     }
 
     canTalk = false;
@@ -644,7 +647,9 @@ void GameplayScene::draw(Renderer& renderer)
         renderer.bias = 50;
         renderer.drawModelObject(levelObj, camera, false);
     } else if (game.level.id == 1) {
-        drawTestLevel(renderer);
+        for (auto& staticObject : staticObjects) {
+            renderer.drawMeshObject(staticObject, camera);
+        }
     }
 
     gp.pumpCallbacks();
@@ -706,14 +711,13 @@ void GameplayScene::draw(Renderer& renderer)
     game.debugMenu.draw(renderer);
 }
 
-void GameplayScene::drawTestLevel(Renderer& renderer)
+void GameplayScene::makeTestLevel()
 {
     MeshObject object;
     auto& levelModel = *levelObj.fastModel;
     auto meshA = &levelModel.meshes[0];
     auto meshB = &levelModel.meshes[1];
 
-    renderer.bias = 1000;
     /* for (int x = 0; x < 10; ++x) {
         for (int z = -3; z < 3; ++z) {
             if (z == 0) {
@@ -723,7 +727,7 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
             }
             object.setPosition(psyqo::FixedPoint(x, 0), 0.0, psyqo::FixedPoint(z, 0));
             object.calculateWorldMatrix();
-            renderer.drawFastMeshObject(object, camera);
+            staticObjects.push_back(object);
         }
     }
 
@@ -732,7 +736,7 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
     for (int i = 0; i < 10; ++i) {
         object.setPosition(psyqo::FixedPoint(i, 0), 0.0, ToWorldCoords(8.0));
         object.calculateWorldMatrix();
-        renderer.drawFastMeshObject(object, camera);
+        staticObjects.push_back(object);
     } */
 
     auto lamp = &levelModel.meshes[2];
@@ -740,15 +744,14 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
     for (int i = 0; i < 1; ++i) {
         object.setPosition(psyqo::FixedPoint(i, 0), 0.0, ToWorldCoords(-8.0));
         object.calculateWorldMatrix();
-        renderer.drawFastMeshObject(object, camera);
+        staticObjects.push_back(object);
     }
 
     auto car = &levelModel.meshes[5];
-    renderer.bias = -100;
     object.mesh = car;
     object.setPosition(ToWorldCoords(8.0), 0.0, 0.0);
     object.calculateWorldMatrix();
-    renderer.drawFastMeshObject(object, camera);
+    staticObjects.push_back(object);
 }
 
 void GameplayScene::drawDebugInfo(Renderer& renderer)

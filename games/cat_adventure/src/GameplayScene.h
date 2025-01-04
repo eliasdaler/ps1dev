@@ -34,7 +34,10 @@ private:
     void handleCollision(psyqo::SoftMath::Axis axis);
     void updateCamera();
 
+    void makeTestLevel();
+
     void draw(Renderer& renderer);
+
     void drawTestLevel(Renderer& renderer);
     void drawDebugInfo(Renderer& renderer);
     void dumpDebugInfoToTTY();
@@ -61,7 +64,7 @@ private:
     FPSCounter fpsCounter;
 
     bool debugInfoDrawn{true};
-    bool collisionDrawn{false};
+    bool collisionDrawn{true};
     bool freeCamera{false};
     bool followCamera{false};
 
@@ -83,6 +86,8 @@ private:
 
     eastl::vector<Circle> collisionCircles;
     eastl::vector<Trigger> triggers;
+
+    eastl::vector<MeshObject> staticObjects;
 
     int fadeLevel = 0;
     bool fadeFinished{false};

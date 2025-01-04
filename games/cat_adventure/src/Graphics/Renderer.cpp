@@ -173,7 +173,7 @@ void Renderer::drawAnimatedModelObject(
     }
 }
 
-void Renderer::drawFastMeshObject(MeshObject& object, const Camera& camera)
+void Renderer::drawMeshObject(MeshObject& object, const Camera& camera)
 {
     if (shouldCullObject(object, camera)) {
         return;

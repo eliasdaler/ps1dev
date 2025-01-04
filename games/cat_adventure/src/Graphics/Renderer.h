@@ -33,7 +33,7 @@ public:
         const Camera& camera,
         bool setViewRot = true);
 
-    void drawFastMeshObject(MeshObject& object, const Camera& camera);
+    void drawMeshObject(MeshObject& object, const Camera& camera);
     void drawModelObject(const ModelObject& object, const Camera& camera, bool setViewRot = true);
     void drawModel(Model& model);
     void drawMesh(Mesh& mesh);

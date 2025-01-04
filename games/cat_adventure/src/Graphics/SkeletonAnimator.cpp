@@ -93,6 +93,13 @@ void SkeletonAnimator::update()
     if (playbackSpeed < 0.0) {
         normalizedAnimTime = psyqo::FixedPoint<>(1.0) - normalizedAnimTime;
     }
+
+    // clamp to [0.0; 1.0]
+    if (normalizedAnimTime > 1.0) {
+        normalizedAnimTime = 1.0;
+    } else if (normalizedAnimTime < 0.0) {
+        normalizedAnimTime = 0.0;
+    }
 }
 
 int SkeletonAnimator::getAnimationFrame() const
