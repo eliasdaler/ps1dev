@@ -73,7 +73,9 @@ public:
     int levelToLoad;
 
     FastModel catoModelFast;
+    FastModel humanModelFast;
     FastModel levelModelFast;
+    FastModel level2ModelFast;
 
     uint32_t frameDtMcs{0}; // dt in microseconds
     psyqo::FixedPoint<> frameDt{0}; // dt in seconds

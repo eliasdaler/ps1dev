@@ -13,8 +13,9 @@
 #include <Math/Transform.h>
 
 struct Model;
-struct FastModel;
 struct Mesh;
+struct FastModel;
+struct FastMesh;
 
 struct Object {
     void calculateWorldMatrix(); // trashes R
@@ -68,6 +69,12 @@ struct ModelObject : Object {
 
 struct MeshObject : Object {
     const Mesh* mesh{nullptr};
+    TextureInfo texture;
+    bool hasTexture{false};
+};
+
+struct FastMeshObject : Object {
+    FastMesh* mesh{nullptr};
     TextureInfo texture;
     bool hasTexture{false};
 };

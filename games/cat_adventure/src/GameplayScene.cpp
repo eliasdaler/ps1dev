@@ -114,9 +114,9 @@ void GameplayScene::start(StartReason reason)
         player.setPosition({0.0, 0.0, 0.25});
         player.rotation = {0.0, -1.0};
 
-        npc.model = &game.resourceCache.getResource<Model>(HUMAN_MODEL_HASH);
-        // npc.model = nullptr;
-        // npc.fastModel = &game.catoModelFast;
+        // npc.model = &game.resourceCache.getResource<Model>(HUMAN_MODEL_HASH);
+        npc.model = nullptr;
+        npc.fastModel = &game.humanModelFast;
 
         npc.texture = game.resourceCache.getResource<TextureInfo>(CATO_TEXTURE_HASH);
         if (npc.model) {
@@ -125,7 +125,7 @@ void GameplayScene::start(StartReason reason)
             npc.jointGlobalTransforms.resize(npc.fastModel->armature.joints.size());
         }
         npc.animator.animations = &game.humanAnimations;
-        npc.animator.setAnimation("Idle"_sh);
+        npc.animator.setAnimation("Walk"_sh);
 
         npc.setPosition({0.0, 0.0, -0.11});
         npc.rotation = {0.0, 0.1};
@@ -667,7 +667,7 @@ void GameplayScene::draw(Renderer& renderer)
         // (won't have to upload camera.viewRot and change PseudoRegister::Rotation then)
         renderer.drawAnimatedModelObject2(player, camera);
         if (game.level.id == 0) {
-            renderer.drawAnimatedModelObject(npc, camera);
+            renderer.drawAnimatedModelObject2(npc, camera);
         }
     }
 
@@ -675,25 +675,7 @@ void GameplayScene::draw(Renderer& renderer)
 
     gp.chain(ot);
 
-    if (gameState == GameState::Normal) {
-        if (canTalk) {
-            interactionDialogueBox.setText("\5(X)\1 Talk", true);
-            interactionDialogueBox.draw(renderer, game.font, game.fontTexture, uiTexture);
-        } else if (canInteract) {
-            interactionDialogueBox.setText("\5(X)\1 Interact", true);
-            interactionDialogueBox.draw(renderer, game.font, game.fontTexture, uiTexture);
-        }
-    }
-
-    if (gameState == GameState::Dialogue && dialogueBox.isOpen) {
-        dialogueBox.draw(renderer, game.font, game.fontTexture, uiTexture);
-    }
-
-    if (debugInfoDrawn) {
-        drawDebugInfo(renderer);
-    }
-
-    if (gameState == GameState::SwitchLevel) {
+    if (fadeLevel != 0) {
         auto& primBuffer = renderer.getPrimBuffer();
         auto& gpu = renderer.getGPU();
 
@@ -714,18 +696,36 @@ void GameplayScene::draw(Renderer& renderer)
         gpu.chain(rectFrag);
     }
 
+    if (gameState == GameState::Normal) {
+        if (canTalk) {
+            interactionDialogueBox.setText("\5(X)\1 Talk", true);
+            interactionDialogueBox.draw(renderer, game.font, game.fontTexture, uiTexture);
+        } else if (canInteract) {
+            interactionDialogueBox.setText("\5(X)\1 Interact", true);
+            interactionDialogueBox.draw(renderer, game.font, game.fontTexture, uiTexture);
+        }
+    }
+
+    if (gameState == GameState::Dialogue && dialogueBox.isOpen) {
+        dialogueBox.draw(renderer, game.font, game.fontTexture, uiTexture);
+    }
+
+    if (debugInfoDrawn) {
+        drawDebugInfo(renderer);
+    }
+
     game.debugMenu.draw(renderer);
 }
 
 void GameplayScene::drawTestLevel(Renderer& renderer)
 {
-    MeshObject object;
-    const auto& levelModel = *levelObj.model;
+    FastMeshObject object;
+    auto& levelModel = game.level2ModelFast;
     auto meshA = &levelModel.meshes[0];
     auto meshB = &levelModel.meshes[1];
 
     renderer.bias = 1000;
-    for (int x = 0; x < 10; ++x) {
+    /* for (int x = 0; x < 10; ++x) {
         for (int z = -3; z < 3; ++z) {
             if (z == 0) {
                 object.mesh = meshA;
@@ -734,7 +734,7 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
             }
             object.setPosition(psyqo::FixedPoint(x, 0), 0.0, psyqo::FixedPoint(z, 0));
             object.calculateWorldMatrix();
-            renderer.drawMeshObject(object, camera);
+            renderer.drawFastMeshObject(object, camera);
         }
     }
 
@@ -743,15 +743,15 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
     for (int i = 0; i < 10; ++i) {
         object.setPosition(psyqo::FixedPoint(i, 0), 0.0, ToWorldCoords(8.0));
         object.calculateWorldMatrix();
-        renderer.drawMeshObject(object, camera);
-    }
+        renderer.drawFastMeshObject(object, camera);
+    } */
 
     auto lamp = &levelModel.meshes[2];
     object.mesh = lamp;
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < 1; ++i) {
         object.setPosition(psyqo::FixedPoint(i, 0), 0.0, ToWorldCoords(-8.0));
         object.calculateWorldMatrix();
-        renderer.drawMeshObject(object, camera);
+        renderer.drawFastMeshObject(object, camera);
     }
 
     auto car = &levelModel.meshes[5];
@@ -759,7 +759,7 @@ void GameplayScene::drawTestLevel(Renderer& renderer)
     object.mesh = car;
     object.setPosition(ToWorldCoords(8.0), 0.0, 0.0);
     object.calculateWorldMatrix();
-    renderer.drawMeshObject(object, camera);
+    renderer.drawFastMeshObject(object, camera);
 }
 
 void GameplayScene::drawDebugInfo(Renderer& renderer)

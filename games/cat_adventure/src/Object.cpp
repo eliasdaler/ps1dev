@@ -113,22 +113,22 @@ void AnimatedModelObject::setFaceAnimation(std::uint8_t faceU, std::uint8_t face
     const auto offsetV = faceV - faceOffsetV;
     for (int i = 0; i < 2; ++i) {
         for (auto& gt3 : faceMesh.gt3[i]) {
-            gt3.frag.primitive.uvA.u += offsetU;
-            gt3.frag.primitive.uvA.v += offsetV;
-            gt3.frag.primitive.uvB.u += offsetU;
-            gt3.frag.primitive.uvB.v += offsetV;
-            gt3.frag.primitive.uvC.u += offsetU;
-            gt3.frag.primitive.uvC.v += offsetV;
+            gt3.primitive.uvA.u += offsetU;
+            gt3.primitive.uvA.v += offsetV;
+            gt3.primitive.uvB.u += offsetU;
+            gt3.primitive.uvB.v += offsetV;
+            gt3.primitive.uvC.u += offsetU;
+            gt3.primitive.uvC.v += offsetV;
         }
         for (auto& gt4 : faceMesh.gt4[i]) {
-            gt4.frag.primitive.uvA.u += offsetU;
-            gt4.frag.primitive.uvA.v += offsetV;
-            gt4.frag.primitive.uvB.u += offsetU;
-            gt4.frag.primitive.uvB.v += offsetV;
-            gt4.frag.primitive.uvC.u += offsetU;
-            gt4.frag.primitive.uvC.v += offsetV;
-            gt4.frag.primitive.uvD.u += offsetU;
-            gt4.frag.primitive.uvD.v += offsetV;
+            gt4.primitive.uvA.u += offsetU;
+            gt4.primitive.uvA.v += offsetV;
+            gt4.primitive.uvB.u += offsetU;
+            gt4.primitive.uvB.v += offsetV;
+            gt4.primitive.uvC.u += offsetU;
+            gt4.primitive.uvC.v += offsetV;
+            gt4.primitive.uvD.u += offsetU;
+            gt4.primitive.uvD.v += offsetV;
         }
     }
 

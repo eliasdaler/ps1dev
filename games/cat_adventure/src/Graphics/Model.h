@@ -49,13 +49,8 @@ struct Vec3Pad {
     std::uint16_t pad;
 };
 
-struct GT3Data {
-    psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedTriangle> frag;
-};
-
-struct GT4Data {
-    psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedQuad> frag;
-};
+template<typename PrimType>
+using FragData = eastl::array<eastl::vector<psyqo::Fragments::SimpleFragment<PrimType>>, 2>;
 
 struct FastMesh {
     int numUntexturedTris{0};
@@ -66,8 +61,10 @@ struct FastMesh {
 
     eastl::vector<Vec3Pad> vertices;
 
-    eastl::array<eastl::vector<GT3Data>, 2> gt3;
-    eastl::array<eastl::vector<GT4Data>, 2> gt4;
+    FragData<psyqo::Prim::GouraudTriangle> g3;
+    FragData<psyqo::Prim::GouraudQuad> g4;
+    FragData<psyqo::Prim::GouraudTexturedTriangle> gt3;
+    FragData<psyqo::Prim::GouraudTexturedQuad> gt4;
 };
 
 struct FastModel {

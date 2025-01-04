@@ -14,6 +14,7 @@
 
 struct ModelObject;
 struct MeshObject;
+struct FastMeshObject;
 struct AnimatedModelObject;
 struct Camera;
 struct Circle;
@@ -40,6 +41,7 @@ public:
         bool setViewRot = true);
 
     void drawMeshObject(const MeshObject& object, const Camera& camera);
+    void drawFastMeshObject(FastMeshObject& object, const Camera& camera);
 
     void drawModel(const Model& model, const TextureInfo& texture);
     void drawModel(FastModel& model);

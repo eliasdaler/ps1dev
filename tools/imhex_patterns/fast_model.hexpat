@@ -56,6 +56,35 @@ struct RGB8 {
   u8 r, g, b;
 } [[sealed, static, format("format_color"), color(std::format("{:02X}{:02X}{:02X}", r*2, g*2, b*2))]];
 
+struct GouraudTriangle {
+    u32 tag;
+
+    u8 r0, g0, b0, code;
+    s16 x0, y0;
+
+    u8 r1, g1, b1, p1;
+    s16 x1, y1;
+
+    u8 r2, g2, b2, p2;
+    s16 x2, y2;
+};
+
+struct GouraudQuad {
+    u32 tag;
+
+    u8 r0, g0, b0, code;
+    s16 x0, y0;
+
+    u8 r1, g1, b1, p1;
+    s16 x1, y1;
+
+    u8 r2, g2, b2, p2;
+    s16 x2, y2;
+
+    u8 r3, g3, b3, p3;
+    s16 x3, y3;
+};
+
 struct GouraudTexturedTriangle {
     u32 tag;
 
@@ -101,6 +130,14 @@ struct GouraudTexturedQuad {
     u16 pad3;
 };
 
+struct G3Data {
+    GouraudTriangle tri;
+};
+
+struct G4Data {
+    GouraudQuad quad;
+};
+
 struct GT3Data {
     GouraudTexturedTriangle tri;
 };
@@ -116,8 +153,10 @@ struct Submesh {
     u16 tri_num;
     u16 quad_num;
     
-    Vec3WithPadding vs[3*tri_num+4*quad_num];
+    Vec3WithPadding vs[3 * untextured_tri_num + 4 * untextured_quad_num + 3 * tri_num + 4 * quad_num];
     
+    G3Data untextured_tris[untextured_tri_num];
+    G4Data untextured_quads[untextured_quad_num];
     GT3Data tris[tri_num];
     GT4Data quads[quad_num];
 };

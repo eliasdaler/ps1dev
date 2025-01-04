@@ -115,6 +115,8 @@ set(models
 set(fast_models
   "${ASSETS_DIR_RAW}/cato.blend"
   "${ASSETS_DIR_RAW}/house_psx.blend"
+  "${ASSETS_DIR_RAW}/human2.blend"
+  "${ASSETS_DIR_RAW}/level_new.blend"
 )
 
 if (BUILD_ASSETS) 

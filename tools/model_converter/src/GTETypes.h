@@ -21,10 +21,35 @@
     ((((tp) & 0x3) << 7) | (((abr) & 0x3) << 5) | (((y) & 0x100) >> 4) | (((x) & 0x3ff) >> 6) | \
      (((y) & 0x200) << 2))
 
+inline constexpr std::uint8_t G3_CODE = 0x30;
+inline constexpr std::uint8_t G4_CODE = 0x38;
+inline constexpr std::uint8_t GT3_CODE = 0x34;
+inline constexpr std::uint8_t GT4_CODE = 0x3c;
+
 struct P_TAG {
     unsigned addr : 24;
     unsigned len : 8;
     std::uint8_t r0, g0, b0, code;
+};
+
+struct GouraudTriangle {
+    std::uint8_t r0, g0, b0, code;
+    std::int16_t x0, y0;
+    std::uint8_t r1, g1, b1, pad1;
+    std::int16_t x1, y1;
+    std::uint8_t r2, g2, b2, pad2;
+    std::int16_t x2, y2;
+};
+
+struct GouraudQuad {
+    std::uint8_t r0, g0, b0, code;
+    std::int16_t x0, y0;
+    std::uint8_t r1, g1, b1, pad1;
+    std::int16_t x1, y1;
+    std::uint8_t r2, g2, b2, pad2;
+    std::int16_t x2, y2;
+    std::uint8_t r3, g3, b3, pad3;
+    std::int16_t x3, y3;
 };
 
 struct GouraudTexturedTriangle {

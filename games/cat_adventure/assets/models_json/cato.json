@@ -1724,11 +1724,6 @@
       ]
     },
     {
-      "joint_id": 1,
-      "faces": [],
-      "vertices": []
-    },
-    {
       "joint_id": 2,
       "faces": [
         {
@@ -16861,11 +16856,6 @@
       ]
     },
     {
-      "joint_id": 14,
-      "faces": [],
-      "vertices": []
-    },
-    {
       "joint_id": 15,
       "faces": [
         {
@@ -19931,31 +19921,6 @@
       ]
     },
     {
-      "joint_id": 18,
-      "faces": [],
-      "vertices": []
-    },
-    {
-      "joint_id": 0,
-      "faces": [],
-      "vertices": []
-    },
-    {
-      "joint_id": 1,
-      "faces": [],
-      "vertices": []
-    },
-    {
-      "joint_id": 2,
-      "faces": [],
-      "vertices": []
-    },
-    {
-      "joint_id": 3,
-      "faces": [],
-      "vertices": []
-    },
-    {
       "joint_id": 4,
       "faces": [
         {
@@ -20841,76 +20806,6 @@
           ]
         }
       ]
-    },
-    {
-      "joint_id": 5,
-      "faces": [],
-      "vertices": []
-    },
-    {
-      "joint_id": 6,
-      "faces": [],
-      "vertices": []
-    },
-    {
-      "joint_id": 7,
-      "faces": [],
-      "vertices": []
-    },
-    {
-      "joint_id": 8,
-      "faces": [],
-      "vertices": []
-    },
-    {
-      "joint_id": 9,
-      "faces": [],
-      "vertices": []
-    },
-    {
-      "joint_id": 10,
-      "faces": [],
-      "vertices": []
-    },
-    {
-      "joint_id": 11,
-      "faces": [],
-      "vertices": []
-    },
-    {
-      "joint_id": 12,
-      "faces": [],
-      "vertices": []
-    },
-    {
-      "joint_id": 13,
-      "faces": [],
-      "vertices": []
-    },
-    {
-      "joint_id": 14,
-      "faces": [],
-      "vertices": []
-    },
-    {
-      "joint_id": 15,
-      "faces": [],
-      "vertices": []
-    },
-    {
-      "joint_id": 16,
-      "faces": [],
-      "vertices": []
-    },
-    {
-      "joint_id": 17,
-      "faces": [],
-      "vertices": []
-    },
-    {
-      "joint_id": 18,
-      "faces": [],
-      "vertices": []
     }
   ],
   "armature": {

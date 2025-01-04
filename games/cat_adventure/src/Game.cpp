@@ -6,7 +6,7 @@
 
 namespace
 {
-const int startLevel = 0;
+const int startLevel = 1;
 
 const char* getLevelModelPath(int levelId)
 {
@@ -58,8 +58,16 @@ psyqo::Coroutine<> loadCoroutine(Game& game)
         game.cd.loadFastModel("CATO.FM;1", game.catoModelFast);
         co_await awaiter;
 
+        ramsyscall_printf("[!] Loading fast model 'HUMAN.FM'\n");
+        game.cd.loadFastModel("HUMAN.FM;1", game.humanModelFast);
+        co_await awaiter;
+
         ramsyscall_printf("[!] Loading fast model 'LEVEL.FM'\n");
         game.cd.loadFastModel("LEVEL.FM;1", game.levelModelFast);
+        co_await awaiter;
+
+        ramsyscall_printf("[!] Loading fast model 'LEVEL2.FM'\n");
+        game.cd.loadFastModel("LEVEL2.FM;1", game.level2ModelFast);
         co_await awaiter;
     }
 

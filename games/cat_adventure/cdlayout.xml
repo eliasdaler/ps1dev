@@ -24,10 +24,12 @@
                 <file name="LEVEL.FM" type="data" source="assets/house_psx.fm"/>
                 <file name="LEVEL.LVL" type="data" source="assets/house_psx.lvl"/>
                 <file name="LEVEL2.BIN" type="data" source="assets/level_new.bin"/>
+                <file name="LEVEL2.FM" type="data" source="assets/level_new.fm"/>
                 <file name="CATO.BIN" type="data" source="assets/cato.bin"/>
                 <file name="CATO.FM" type="data" source="assets/cato.fm"/>
                 <file name="CATO.ANM" type="data" source="assets/cato.anm"/>
                 <file name="HUMAN.BIN" type="data" source="assets/human2.bin"/>
+                <file name="HUMAN.FM" type="data" source="assets/human2.fm"/>
                 <file name="HUMAN.ANM" type="data" source="assets/human2.anm"/>
                 <file name="STEP1.VAG" type="data" source="assets/step1.vag"/>
                 <file name="STEP2.VAG" type="data" source="assets/step2.vag"/>

@@ -252,11 +252,12 @@ def get_mesh_json_armature(obj, meshes_list, material_idx_map, joints, joint_nam
                         face_json["material"] = material_idx
                     faces.append(face_json)
 
-            meshes_data.append({
-                "joint_id": idx,
-                "faces": faces,
-                "vertices": vertices,
-            })
+            if faces and vertices:
+                meshes_data.append({
+                    "joint_id": idx,
+                    "faces": faces,
+                    "vertices": vertices,
+                })
 
     return meshes_data
 
