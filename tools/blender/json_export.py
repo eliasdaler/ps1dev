@@ -543,7 +543,6 @@ def write_psxtools_json(context, filepath):
 
         # meshes
         data["meshes"] = get_mesh_json_armature(armature.children[0], meshes_list, material_idx_map, joints, joint_name_to_id)
-        
         data["armature"] = armature_data
 
         # Go into pose mode, otherwise animation bake won't work

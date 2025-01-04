@@ -34,8 +34,6 @@ void SkeletonAnimator::setAnimation(
     } else {
         normalizedAnimTime = startAnimationPoint;
     }
-    prevNormalizedAnimTime = normalizedAnimTime;
-
     currentTimeMcs = 0;
     animationEnded = false;
     prevAnimationEnded = false;

@@ -72,7 +72,7 @@ void Quaternion::normalize()
     const auto s = sq.x + sq.y + sq.z + w * w;
 
     // r = 1 / sqrt(s)
-    psyqo::GTE::write<psyqo::GTE::Register::LZCS, psyqo::GTE::Unsafe>(s.raw());
+    psyqo::GTE::write<psyqo::GTE::Register::LZCS, psyqo::GTE::Safe>(s.raw());
     const auto approx = 1 << (psyqo::GTE::readRaw<psyqo::GTE::Register::LZCR>() - 9);
     const auto approxFP = psyqo::FixedPoint<>(approx, psyqo::FixedPoint<>::RAW);
     const auto r = psyqo::SoftMath::inverseSquareRoot(s, approxFP);
