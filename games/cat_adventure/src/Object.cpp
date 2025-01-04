@@ -71,7 +71,7 @@ void AnimatedModelObject::update()
     calculateWorldMatrix();
     animator.update();
 
-    animator.animate(const_cast<Armature&>(fastModel->armature), jointGlobalTransforms);
+    animator.animate(model.armature, jointGlobalTransforms);
 
     if (faceSubmeshIdx != 0xFF) {
         blinkTimer.update();
@@ -104,7 +104,7 @@ void AnimatedModelObject::setFaceAnimation(std::uint8_t faceU, std::uint8_t face
         return;
     }
 
-    auto& faceMesh = fastModel->meshes[faceSubmeshIdx];
+    auto& faceMesh = model.meshes[faceSubmeshIdx];
     const auto offsetU = faceU - faceOffsetU;
     const auto offsetV = faceV - faceOffsetV;
     for (int i = 0; i < 2; ++i) {

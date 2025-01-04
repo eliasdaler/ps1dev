@@ -48,12 +48,12 @@ void GameplayScene::start(StartReason reason)
         interactionDialogueBox.size.y = 32;
         interactionDialogueBox.displayMoreTextArrow = false;
 
-        player.fastModel = &game.resourceCache.getResource<Model>(CATO_MODEL_HASH);
+        player.model = game.resourceCache.getResource<ModelData>(CATO_MODEL_HASH).makeInstance();
 
         player.faceSubmeshIdx = 0;
-        for (int i = 0; i < player.fastModel->meshes.size(); ++i) {
-            const auto& submesh = player.fastModel->meshes[i];
-            if (submesh.numQuads == 16) { // FIXME: mark submesh as "face" somehow
+        for (int i = 0; i < player.model.meshes.size(); ++i) {
+            const auto& submesh = player.model.meshes[i];
+            if (submesh.gt4.size() == 16) { // FIXME: mark submesh as "face" somehow
                 player.faceSubmeshIdx = i;
             }
         }
@@ -62,8 +62,7 @@ void GameplayScene::start(StartReason reason)
         player.closedEyesTime = 4;
         player.blinkTimer.reset(npc.blinkPeriod);
 
-        player.texture = game.resourceCache.getResource<TextureInfo>(CATO_TEXTURE_HASH);
-        player.jointGlobalTransforms.resize(player.fastModel->armature.joints.size());
+        player.jointGlobalTransforms.resize(player.model.armature.joints.size());
         player.animator.animations = &game.catAnimations;
 
         game.songPlayer.init(game.midi, game.vab);
@@ -102,19 +101,16 @@ void GameplayScene::start(StartReason reason)
     levelObj.rotation = {};
 
     if (game.level.id == 0) {
-        levelObj.texture = game.resourceCache.getResource<TextureInfo>(BRICKS_TEXTURE_HASH);
-
         game.renderer.setFogEnabled(false);
 
-        levelObj.fastModel = &game.resourceCache.getResource<Model>(LEVEL1_MODEL_HASH);
+        levelObj.model =
+            game.resourceCache.getResource<ModelData>(LEVEL1_MODEL_HASH).makeInstance();
 
         player.setPosition({0.0, 0.0, 0.25});
         player.rotation = {0.0, -1.0};
 
-        npc.fastModel = &game.resourceCache.getResource<Model>(HUMAN_MODEL_HASH);
-
-        npc.texture = game.resourceCache.getResource<TextureInfo>(CATO_TEXTURE_HASH);
-        npc.jointGlobalTransforms.resize(npc.fastModel->armature.joints.size());
+        npc.model = game.resourceCache.getResource<ModelData>(HUMAN_MODEL_HASH).makeInstance();
+        npc.jointGlobalTransforms.resize(npc.model.armature.joints.size());
         npc.animator.animations = &game.humanAnimations;
         npc.animator.setAnimation("Walk"_sh);
 
@@ -139,7 +135,8 @@ void GameplayScene::start(StartReason reason)
     } else if (game.level.id == 1) {
         game.renderer.setFogEnabled(true);
 
-        levelObj.fastModel = &game.resourceCache.getResource<Model>(LEVEL2_MODEL_HASH);
+        levelObj.model =
+            game.resourceCache.getResource<ModelData>(LEVEL2_MODEL_HASH).makeInstance();
 
         player.setPosition({0.5, 0.0, 0.5});
         player.rotation = {0.0, 0.5};
@@ -714,11 +711,11 @@ void GameplayScene::draw(Renderer& renderer)
 void GameplayScene::makeTestLevel()
 {
     MeshObject object;
-    auto& levelModel = *levelObj.fastModel;
-    auto meshA = &levelModel.meshes[0];
-    auto meshB = &levelModel.meshes[1];
+    auto& levelModel = levelObj.model;
+    auto& meshA = levelModel.meshes[0];
+    auto& meshB = levelModel.meshes[1];
 
-    /* for (int x = 0; x < 10; ++x) {
+    for (int x = 0; x < 10; ++x) {
         for (int z = -3; z < 3; ++z) {
             if (z == 0) {
                 object.mesh = meshA;
@@ -731,24 +728,23 @@ void GameplayScene::makeTestLevel()
         }
     }
 
-    auto tree = &levelModel.meshes[4];
+    auto& tree = levelModel.meshes[4];
     object.mesh = tree;
     for (int i = 0; i < 10; ++i) {
         object.setPosition(psyqo::FixedPoint(i, 0), 0.0, ToWorldCoords(8.0));
         object.calculateWorldMatrix();
         staticObjects.push_back(object);
-    } */
+    }
 
-    auto lamp = &levelModel.meshes[2];
-    object.mesh = lamp;
-    for (int i = 0; i < 1; ++i) {
+    auto& lamp = levelModel.meshes[2];
+    for (int i = 0; i < 10; ++i) {
+        object.mesh = lamp;
         object.setPosition(psyqo::FixedPoint(i, 0), 0.0, ToWorldCoords(-8.0));
         object.calculateWorldMatrix();
         staticObjects.push_back(object);
     }
 
-    auto car = &levelModel.meshes[5];
-    object.mesh = car;
+    object.mesh = levelModel.meshes[5];
     object.setPosition(ToWorldCoords(8.0), 0.0, 0.0);
     object.calculateWorldMatrix();
     staticObjects.push_back(object);
@@ -857,12 +853,12 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
             player.animator.normalizedAnimTime,
             player.animator.getAnimationFrame()); */
 
-        /* game.romFont.chainprintf(
+        game.romFont.chainprintf(
             game.gpu(),
             {{.x = 16, .y = 64}},
             textCol,
             "heap used: %d",
-            (int)((uint8_t*)psyqo_heap_end() - (uint8_t*)psyqo_heap_start())); */
+            (int)((uint8_t*)psyqo_heap_end() - (uint8_t*)psyqo_heap_start()));
 
         if (!freeCamera) {
             /* game.romFont.chainprintf(

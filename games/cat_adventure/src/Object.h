@@ -8,12 +8,10 @@
 
 #include <Collision.h>
 #include <Core/Timer.h>
+#include <Graphics/Model.h>
 #include <Graphics/SkeletonAnimator.h>
 #include <Graphics/TextureInfo.h>
 #include <Math/Transform.h>
-
-struct Model;
-struct Mesh;
 
 struct Object {
     void calculateWorldMatrix(); // trashes R
@@ -60,13 +58,11 @@ struct Object {
 struct ModelObject : Object {
     void update();
 
-    Model* fastModel{nullptr};
-    TextureInfo texture;
+    Model model;
 };
 
 struct MeshObject : Object {
-    Mesh* mesh{nullptr};
-    TextureInfo texture;
+    Mesh mesh;
     bool hasTexture{false};
 };
 

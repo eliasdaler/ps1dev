@@ -5,7 +5,7 @@
 
 #include <Core/FileReader.h>
 
-void Model::load(const eastl::vector<uint8_t>& data)
+void ModelData::load(const eastl::vector<uint8_t>& data)
 {
     util::FileReader fr{
         .bytes = data.data(),
@@ -15,7 +15,7 @@ void Model::load(const eastl::vector<uint8_t>& data)
     meshes.reserve(numSubmeshes);
 
     for (int i = 0; i < numSubmeshes; ++i) {
-        Mesh mesh;
+        MeshData mesh;
 
         mesh.jointId = fr.GetUInt16();
         mesh.numUntexturedTris = fr.GetUInt16();
@@ -35,23 +35,17 @@ void Model::load(const eastl::vector<uint8_t>& data)
             mesh.numTris,
             mesh.numQuads); */
 
-        mesh.g3[0].resize(mesh.numUntexturedTris);
-        fr.ReadArr(mesh.g3[0].data(), mesh.numUntexturedTris);
+        mesh.g3.resize(mesh.numUntexturedTris);
+        fr.ReadArr(mesh.g3.data(), mesh.numUntexturedTris);
 
-        mesh.g4[0].resize(mesh.numUntexturedQuads);
-        fr.ReadArr(mesh.g4[0].data(), mesh.numUntexturedQuads);
+        mesh.g4.resize(mesh.numUntexturedQuads);
+        fr.ReadArr(mesh.g4.data(), mesh.numUntexturedQuads);
 
-        mesh.gt3[0].resize(mesh.numTris);
-        fr.ReadArr(mesh.gt3[0].data(), mesh.numTris);
+        mesh.gt3.resize(mesh.numTris);
+        fr.ReadArr(mesh.gt3.data(), mesh.numTris);
 
-        mesh.gt4[0].resize(mesh.numQuads);
-        fr.ReadArr(mesh.gt4[0].data(), mesh.numQuads);
-
-        // TODO: memcpy?
-        mesh.g3[1] = mesh.g3[0];
-        mesh.g4[1] = mesh.g4[0];
-        mesh.gt3[1] = mesh.gt3[0];
-        mesh.gt4[1] = mesh.gt4[0];
+        mesh.gt4.resize(mesh.numQuads);
+        fr.ReadArr(mesh.gt4.data(), mesh.numQuads);
 
         meshes.push_back(std::move(mesh));
     }
@@ -81,4 +75,33 @@ void Model::load(const eastl::vector<uint8_t>& data)
         joint.firstChild = fr.GetUInt8();
         joint.nextSibling = fr.GetUInt8();
     }
+}
+
+Mesh MeshData::makeInstance() const
+{
+    Mesh instance{
+        .jointId = jointId,
+        .vertices = &vertices,
+    };
+
+    for (int i = 0; i < 2; ++i) {
+        instance.g3[i] = g3;
+        instance.g4[i] = g4;
+        instance.gt3[i] = gt3;
+        instance.gt4[i] = gt4;
+    }
+
+    return instance;
+}
+
+Model ModelData::makeInstance() const
+{
+    Model instance{};
+    instance.armature = armature;
+    instance.meshes.reserve(meshes.size());
+    for (const auto& mesh : meshes) {
+        instance.meshes.push_back(mesh.makeInstance());
+    }
+
+    return instance;
 }

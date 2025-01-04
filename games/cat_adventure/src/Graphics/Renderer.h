@@ -29,12 +29,12 @@ public:
     [[nodiscard]] TextureInfo uploadTIM(const TimFile& tim);
 
     void drawAnimatedModelObject(
-        const AnimatedModelObject& object,
+        AnimatedModelObject& object,
         const Camera& camera,
         bool setViewRot = true);
 
     void drawMeshObject(MeshObject& object, const Camera& camera);
-    void drawModelObject(const ModelObject& object, const Camera& camera, bool setViewRot = true);
+    void drawModelObject(ModelObject& object, const Camera& camera, bool setViewRot = true);
     void drawModel(Model& model);
     void drawMesh(Mesh& mesh);
 

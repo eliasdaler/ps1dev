@@ -20,9 +20,15 @@ struct Vec3Pad {
 };
 
 template<typename PrimType>
-using FragData = eastl::array<eastl::vector<psyqo::Fragments::SimpleFragment<PrimType>>, 2>;
+using FragData = eastl::vector<psyqo::Fragments::SimpleFragment<PrimType>>;
 
-struct Mesh {
+template<typename PrimType>
+using FragDataDoubleBuffer =
+    eastl::array<eastl::vector<psyqo::Fragments::SimpleFragment<PrimType>>, 2>;
+
+struct Mesh;
+
+struct MeshData {
     int numUntexturedTris{0};
     int numUntexturedQuads{0};
     int numTris{0};
@@ -35,6 +41,29 @@ struct Mesh {
     FragData<psyqo::Prim::GouraudQuad> g4;
     FragData<psyqo::Prim::GouraudTexturedTriangle> gt3;
     FragData<psyqo::Prim::GouraudTexturedQuad> gt4;
+
+    Mesh makeInstance() const;
+};
+
+struct Mesh {
+    std::uint16_t jointId;
+
+    const eastl::vector<Vec3Pad>* vertices{nullptr}; // reference to Mesh.vertices
+
+    FragDataDoubleBuffer<psyqo::Prim::GouraudTriangle> g3;
+    FragDataDoubleBuffer<psyqo::Prim::GouraudQuad> g4;
+    FragDataDoubleBuffer<psyqo::Prim::GouraudTexturedTriangle> gt3;
+    FragDataDoubleBuffer<psyqo::Prim::GouraudTexturedQuad> gt4;
+};
+
+struct Model;
+
+struct ModelData {
+    eastl::vector<MeshData> meshes;
+    Armature armature;
+
+    void load(const eastl::vector<uint8_t>& data);
+    Model makeInstance() const;
 };
 
 struct Model {

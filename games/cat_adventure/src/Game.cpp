@@ -88,7 +88,7 @@ psyqo::Coroutine<> loadCoroutine(Game& game)
         }
 
         for (const auto& filename : game.level.usedModels) {
-            resourceCache.derefResource<Model>(filename);
+            resourceCache.derefResource<ModelData>(filename);
         }
     }
 
@@ -116,13 +116,13 @@ psyqo::Coroutine<> loadCoroutine(Game& game)
         }
 
         for (const auto& filename : game.level.usedModels) {
-            if (resourceCache.resourceLoaded<Model>(filename)) {
-                resourceCache.refResource<Model>(filename);
+            if (resourceCache.resourceLoaded<ModelData>(filename)) {
+                resourceCache.refResource<ModelData>(filename);
             }
         }
 
         resourceCache.removeUnusedResources<TextureInfo>();
-        resourceCache.removeUnusedResources<Model>();
+        resourceCache.removeUnusedResources<ModelData>();
     }
 
     { // load new textures
@@ -142,15 +142,15 @@ psyqo::Coroutine<> loadCoroutine(Game& game)
 
     { // load new models
         for (const auto& filename : game.level.usedModels) {
-            if (!resourceCache.resourceLoaded<Model>(filename)) {
+            if (!resourceCache.resourceLoaded<ModelData>(filename)) {
                 const auto& filenameStr = filename.getStr();
                 ramsyscall_printf("[!] Loading model '%s'\n", filenameStr);
 
-                Model model;
-                game.cd.loadFastModel(filenameStr, model);
+                ModelData model;
+                game.cd.loadModel(filenameStr, model);
                 co_await awaiter;
 
-                resourceCache.putResource<Model>(filename, eastl::move(model));
+                resourceCache.putResource<ModelData>(filename, eastl::move(model));
             }
         }
     }

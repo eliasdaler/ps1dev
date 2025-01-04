@@ -112,18 +112,18 @@ bool Renderer::shouldCullObject(const Object& object, const Camera& camera) cons
     return false;
 }
 
-void Renderer::drawModelObject(const ModelObject& object, const Camera& camera, bool setViewRot)
+void Renderer::drawModelObject(ModelObject& object, const Camera& camera, bool setViewRot)
 {
     if (shouldCullObject(object, camera)) {
         return;
     }
     calculateViewModelMatrix(object, camera, setViewRot);
 
-    drawModel(*object.fastModel);
+    drawModel(object.model);
 }
 
 void Renderer::drawAnimatedModelObject(
-    const AnimatedModelObject& object,
+    AnimatedModelObject& object,
     const Camera& camera,
     bool setViewRot)
 {
@@ -131,7 +131,7 @@ void Renderer::drawAnimatedModelObject(
         return;
     }
 
-    auto& model = *object.fastModel;
+    auto& model = object.model;
     const auto& armature = model.armature;
 
     if (armature.joints.empty()) {
@@ -179,7 +179,7 @@ void Renderer::drawMeshObject(MeshObject& object, const Camera& camera)
         return;
     }
     calculateViewModelMatrix(object, camera, false);
-    drawMesh(*object.mesh);
+    drawMesh(object.mesh);
 }
 
 void Renderer::drawModel(Model& model)
@@ -193,28 +193,22 @@ void Renderer::drawMesh(Mesh& mesh)
 {
     auto& ot = getOrderingTable();
 
-    const auto g4Offset = mesh.numUntexturedTris * 3;
-    const auto gt3Offset = g4Offset + mesh.numUntexturedQuads * 4;
-    const auto gt4Offset = gt3Offset + mesh.numTris * 3;
+    auto parity = gpu.getParity();
+    auto& g3s = mesh.g3[parity];
+    auto& g4s = mesh.g4[parity];
+    auto& gt3s = mesh.gt3[parity];
+    auto& gt4s = mesh.gt4[parity];
 
-    if (gt4Offset != 9) {
-        // return;
-    }
+    const auto g4Offset = g3s.size() * 3;
+    const auto gt3Offset = g4Offset + g4s.size() * 4;
+    const auto gt4Offset = gt3Offset + gt3s.size() * 3;
 
-    /* ramsyscall_printf("A: %d, %d, %d\n", g4Offset, gt3Offset, gt4Offset);
-    ramsyscall_printf(
-        "B: %d, %d, %d, %d, total: %d\n",
-        mesh.numUntexturedTris,
-        mesh.numUntexturedQuads,
-        mesh.numTris,
-        mesh.numQuads,
-        (int)mesh.vertices.size()); */
+    const auto& verts = *mesh.vertices;
 
-    auto& g3s = mesh.g3[gpu.getParity()];
     for (std::size_t i = 0; i < g3s.size(); ++i) {
-        const auto& v0 = mesh.vertices[i * 3 + 0];
-        const auto& v1 = mesh.vertices[i * 3 + 1];
-        const auto& v2 = mesh.vertices[i * 3 + 2];
+        const auto& v0 = verts[i * 3 + 0];
+        const auto& v1 = verts[i * 3 + 1];
+        const auto& v2 = verts[i * 3 + 2];
 
         psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
         psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
@@ -272,12 +266,11 @@ void Renderer::drawMesh(Mesh& mesh)
         ot.insert(triFrag, avgZ);
     }
 
-    auto& g4s = mesh.g4[gpu.getParity()];
     for (std::size_t i = 0; i < g4s.size(); ++i) {
-        const auto& v0 = mesh.vertices[g4Offset + i * 4 + 0];
-        const auto& v1 = mesh.vertices[g4Offset + i * 4 + 1];
-        const auto& v2 = mesh.vertices[g4Offset + i * 4 + 2];
-        const auto& v3 = mesh.vertices[g4Offset + i * 4 + 3];
+        const auto& v0 = verts[g4Offset + i * 4 + 0];
+        const auto& v1 = verts[g4Offset + i * 4 + 1];
+        const auto& v2 = verts[g4Offset + i * 4 + 2];
+        const auto& v3 = verts[g4Offset + i * 4 + 3];
 
         psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
         psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
@@ -343,11 +336,10 @@ void Renderer::drawMesh(Mesh& mesh)
         ot.insert(quadFrag, avgZ);
     }
 
-    auto& gt3s = mesh.gt3[gpu.getParity()];
     for (std::size_t i = 0; i < gt3s.size(); ++i) {
-        const auto& v0 = mesh.vertices[gt3Offset + i * 3 + 0];
-        const auto& v1 = mesh.vertices[gt3Offset + i * 3 + 1];
-        const auto& v2 = mesh.vertices[gt3Offset + i * 3 + 2];
+        const auto& v0 = verts[gt3Offset + i * 3 + 0];
+        const auto& v1 = verts[gt3Offset + i * 3 + 1];
+        const auto& v2 = verts[gt3Offset + i * 3 + 2];
 
         psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
         psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
@@ -405,12 +397,11 @@ void Renderer::drawMesh(Mesh& mesh)
         ot.insert(triFrag, avgZ);
     }
 
-    auto& gt4s = mesh.gt4[gpu.getParity()];
     for (std::size_t i = 0; i < gt4s.size(); ++i) {
-        const auto& v0 = mesh.vertices[gt4Offset + i * 4 + 0];
-        const auto& v1 = mesh.vertices[gt4Offset + i * 4 + 1];
-        const auto& v2 = mesh.vertices[gt4Offset + i * 4 + 2];
-        const auto& v3 = mesh.vertices[gt4Offset + i * 4 + 3];
+        const auto& v0 = verts[gt4Offset + i * 4 + 0];
+        const auto& v1 = verts[gt4Offset + i * 4 + 1];
+        const auto& v2 = verts[gt4Offset + i * 4 + 2];
+        const auto& v3 = verts[gt4Offset + i * 4 + 3];
         // ramsyscall_printf("HM: %d\n", gt4Offset + i * 4 + 3);
 
         psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
@@ -639,7 +630,7 @@ void Renderer::drawArmature(const AnimatedModelObject& object, const Camera& cam
 {
     calculateViewModelMatrix(object, camera, true);
 
-    const auto& armature = object.fastModel->armature;
+    const auto& armature = object.model.armature;
     if (armature.joints.empty()) {
         return;
     }

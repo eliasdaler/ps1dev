@@ -28,7 +28,7 @@ struct ResourceCache {
     {
         if constexpr (eastl::is_same<T, TextureInfo>()) {
             return textures;
-        } else if constexpr (eastl::is_same<T, Model>()) {
+        } else if constexpr (eastl::is_same<T, ModelData>()) {
             return models;
         } else {
             static_assert(false, "No resource container for the type");
@@ -40,7 +40,7 @@ struct ResourceCache {
     {
         if constexpr (eastl::is_same<T, TextureInfo>()) {
             return textures;
-        } else if constexpr (eastl::is_same<T, Model>()) {
+        } else if constexpr (eastl::is_same<T, ModelData>()) {
             return models;
         } else {
             static_assert(false, "No resource container for the type");
@@ -136,21 +136,6 @@ struct ResourceCache {
         return it->second.value;
     }
 
-    template<typename T>
-    T& getResource(StringHash hash)
-    {
-        auto& container = getResourceContainter<T>();
-        const auto it = container.find(hash);
-
-#ifdef DEBUG_RESOURCE_LOAD
-        if (it == container.end()) {
-            ramsyscall_printf("Resource '%s' was not loaded", hash.getStr());
-        }
-#endif
-
-        return it->second.value;
-    }
-
     ResourceContainer<TextureInfo> textures;
-    ResourceContainer<Model> models;
+    ResourceContainer<ModelData> models;
 };
