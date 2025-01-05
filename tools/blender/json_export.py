@@ -364,6 +364,8 @@ class Track():
         }
 
 def vectors_close(a, b):
+    if a is None or b is None:
+        return False
     eps = 0.0001
     for idx in range(len(a)):
         if abs(a[idx] - b[idx]) > eps:
@@ -377,7 +379,25 @@ def is_const_track(track):
             return False
     return True
 
-def get_action_json(joints, joint_name_to_id, action, armature_scale):
+# Removes keys with the similar values
+# Note, we need to repeat keys twice for interpolation to work correctly, e.g.
+# [t1, v1], [t2, v1], [t3, v2] and NOT [t1, v1], [t3, v2]
+def remove_repeated_values(track):
+    result = []
+    value = None
+    num_repeats = 0
+    for idx, key in enumerate(track):
+        if not vectors_close(key[1], value):
+            if num_repeats > 1:
+                result.append(track[idx - 1])
+            result.append(key)
+            value = key[1]
+            num_repeats = 0
+        else:
+            num_repeats += 1
+    return result
+
+def get_action_json(joints, joint_name_to_id, action, armature_scale, unused_joints):
     num_joints = len(joints)
     curves = { }
     for idx, fcurve in enumerate(action.fcurves):
@@ -402,6 +422,8 @@ def get_action_json(joints, joint_name_to_id, action, armature_scale):
 
     final_tracks = []
     for joint_id, cv in curves.items():
+        if joint_id in unused_joints:
+            continue
         joint = joints[joint_id]
         translation_track_times = find_unique_times(cv.translation)
         translation_track = []
@@ -426,6 +448,8 @@ def get_action_json(joints, joint_name_to_id, action, armature_scale):
 
         if is_const_track(rotation_track):
             rotation_track = [rotation_track[0]]
+        else:
+            rotation_track = remove_repeated_values(rotation_track)
 
         final_tracks.append(Track(TrackType.TRANSLATION, joint_id, translation_track))
         final_tracks.append(Track(TrackType.ROTATION, joint_id, rotation_track))
@@ -516,10 +540,21 @@ def write_psxtools_json(context, filepath):
                 continue
             joints[joint_name_to_id[bone.name]] = get_joint_data(bone, joint_name_to_id, armature_scale)
 
-        armature_data = {
-            "joints": [get_joint_data_json(j, joint_name_to_id) for j in joints],
-        }
+        # meshes
+        data["meshes"] = get_mesh_json_armature(armature.children[0], meshes_list, material_idx_map, joints, joint_name_to_id)
 
+        # Find unused joints - for now only drop leaf joints if no mesh if affected by it
+        used_joints = set()
+        unused_joints = set()
+        for mesh in data["meshes"]:
+            used_joints.add(int(mesh["joint_id"]))
+        for j in joints:
+            if not j.children:
+                joint_id = joint_name_to_id[j.name]
+                if joint_id in used_joints:
+                    unused_joints.add(joint_id)
+
+        # write armature
         num_joints = len(joint_name_to_id)
         inverse_bind_matrices = [None] * num_joints
         for bone in bones:
@@ -540,10 +575,12 @@ def write_psxtools_json(context, filepath):
                     [ib[2][0], ib[2][1], ib[2][2], ib[2][3]],
                     [ib[3][0], ib[3][1], ib[3][2], ib[3][3]],
                 ]
-        armature_data["inverseBindMatrices"] = inverse_bind_matrices
 
-        # meshes
-        data["meshes"] = get_mesh_json_armature(armature.children[0], meshes_list, material_idx_map, joints, joint_name_to_id)
+        armature_data = {
+            "joints": [get_joint_data_json(j, joint_name_to_id) for j in joints]
+        }
+
+        armature_data["inverseBindMatrices"] = inverse_bind_matrices
         data["armature"] = armature_data
 
         # Go into pose mode, otherwise animation bake won't work
@@ -573,7 +610,7 @@ def write_psxtools_json(context, filepath):
                     channel_types={'LOCATION', 'ROTATION'},
             )
             action_json = get_action_json(joints, joint_name_to_id, 
-                                          action, armature_scale)
+                                          action, armature_scale, unused_joints)
             data["animations"].append(action_json)
 
     json.dump(data, f, indent=2)
