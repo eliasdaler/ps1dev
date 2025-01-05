@@ -104,11 +104,21 @@ void AnimatedModelObject::setFaceAnimation(std::uint8_t faceU, std::uint8_t face
         return;
     }
 
-    auto& faceMesh = eastl::get<Mesh>(model.meshes[faceSubmeshIdx]);
     const auto offsetU = faceU - faceOffsetU;
     const auto offsetV = faceV - faceOffsetV;
+    eastl::visit(
+        [offsetU, offsetV](auto&& mesh) { shiftUVs(mesh, offsetU, offsetV); },
+        model.meshes[faceSubmeshIdx]);
+
+    faceOffsetU = faceU;
+    faceOffsetV = faceV;
+}
+
+template<RenderableMesh T>
+void AnimatedModelObject::shiftUVs(T& mesh, int offsetU, int offsetV)
+{
     for (int i = 0; i < 2; ++i) {
-        for (auto& gt3 : faceMesh.gt3[i]) {
+        for (auto& gt3 : mesh.getGT3s(i)) {
             gt3.primitive.uvA.u += offsetU;
             gt3.primitive.uvA.v += offsetV;
             gt3.primitive.uvB.u += offsetU;
@@ -116,7 +126,7 @@ void AnimatedModelObject::setFaceAnimation(std::uint8_t faceU, std::uint8_t face
             gt3.primitive.uvC.u += offsetU;
             gt3.primitive.uvC.v += offsetV;
         }
-        for (auto& gt4 : faceMesh.gt4[i]) {
+        for (auto& gt4 : mesh.getGT4s(i)) {
             gt4.primitive.uvA.u += offsetU;
             gt4.primitive.uvA.v += offsetV;
             gt4.primitive.uvB.u += offsetU;
@@ -127,9 +137,6 @@ void AnimatedModelObject::setFaceAnimation(std::uint8_t faceU, std::uint8_t face
             gt4.primitive.uvD.v += offsetV;
         }
     }
-
-    faceOffsetU = faceU;
-    faceOffsetV = faceV;
 }
 
 void AnimatedModelObject::setFaceAnimation(StringHash faceName, bool updateCurrent)

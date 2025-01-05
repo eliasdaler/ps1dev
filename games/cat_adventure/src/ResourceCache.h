@@ -137,7 +137,7 @@ struct ResourceCache {
     }
 
     template<typename T>
-    T& getResourceNonConst(StringHash hash)
+    T& getResource(StringHash hash)
     {
         auto& container = getResourceContainter<T>();
         const auto it = container.find(hash);

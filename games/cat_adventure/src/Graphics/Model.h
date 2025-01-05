@@ -10,6 +10,7 @@
 #include <psyqo/primitives/quads.hh>
 #include <psyqo/primitives/triangles.hh>
 
+#include <concepts>
 #include <cstdint>
 
 using ssize_t = std::int32_t;
@@ -50,6 +51,16 @@ struct MeshData {
     MeshUnique makeInstanceUnique();
 };
 
+template<typename T>
+concept RenderableMesh = requires(T mesh, int parity) {
+    { mesh.getJointId() } -> std::same_as<std::uint16_t>;
+    { mesh.getG3s(parity) } -> std::same_as<FragData<psyqo::Prim::GouraudTriangle>&>;
+    { mesh.getG4s(parity) } -> std::same_as<FragData<psyqo::Prim::GouraudQuad>&>;
+    { mesh.getGT3s(parity) } -> std::same_as<FragData<psyqo::Prim::GouraudTexturedTriangle>&>;
+    { mesh.getGT4s(parity) } -> std::same_as<FragData<psyqo::Prim::GouraudTexturedQuad>&>;
+    { mesh.getVertices() } -> std::same_as<const eastl::vector<Vec3Pad>&>;
+};
+
 struct Mesh {
     std::uint16_t getJointId() const { return jointId; }
     const eastl::vector<Vec3Pad>& getVertices() const { return *vertices; }
@@ -70,14 +81,16 @@ struct Mesh {
     FragDataDoubleBuffer<psyqo::Prim::GouraudTexturedQuad> gt4;
 };
 
+static_assert(RenderableMesh<Mesh>);
+
 struct MeshUnique {
-    std::uint16_t getJointId() const { return meshData->jointId; }
-    const eastl::vector<Vec3Pad>& getVertices() const { return meshData->vertices; }
+    std::uint16_t getJointId() const { return meshData.jointId; }
+    const eastl::vector<Vec3Pad>& getVertices() const { return meshData.vertices; }
 
     FragData<psyqo::Prim::GouraudTriangle>& getG3s(int parity)
     {
         if (parity == 0) {
-            return meshData->g3;
+            return meshData.g3;
         }
         return g3;
     }
@@ -85,7 +98,7 @@ struct MeshUnique {
     FragData<psyqo::Prim::GouraudQuad>& getG4s(int parity)
     {
         if (parity == 0) {
-            return meshData->g4;
+            return meshData.g4;
         }
         return g4;
     }
@@ -93,7 +106,7 @@ struct MeshUnique {
     FragData<psyqo::Prim::GouraudTexturedTriangle>& getGT3s(int parity)
     {
         if (parity == 0) {
-            return meshData->gt3;
+            return meshData.gt3;
         }
         return gt3;
     }
@@ -101,19 +114,21 @@ struct MeshUnique {
     FragData<psyqo::Prim::GouraudTexturedQuad>& getGT4s(int parity)
     {
         if (parity == 0) {
-            return meshData->gt4;
+            return meshData.gt4;
         }
         return gt4;
     }
 
     // data
-    MeshData* meshData{nullptr};
+    MeshData& meshData;
 
     FragData<psyqo::Prim::GouraudTriangle> g3;
     FragData<psyqo::Prim::GouraudQuad> g4;
     FragData<psyqo::Prim::GouraudTexturedTriangle> gt3;
     FragData<psyqo::Prim::GouraudTexturedQuad> gt4;
 };
+
+static_assert(RenderableMesh<MeshUnique>);
 
 struct Model;
 

@@ -96,21 +96,19 @@ Mesh MeshData::makeInstance() const
 
 MeshUnique MeshData::makeInstanceUnique()
 {
-    MeshUnique instance{
-        .meshData = this,
+    return MeshUnique{
+        .meshData = *this,
+        .g3 = g3,
+        .g4 = g4,
+        .gt3 = gt3,
+        .gt4 = gt4,
     };
-
-    instance.g3 = g3;
-    instance.g4 = g4;
-    instance.gt3 = gt3;
-    instance.gt4 = gt4;
-
-    return instance;
 }
 
 Model ModelData::makeInstance() const
 {
     Model instance{};
+
     instance.armature = armature;
     instance.meshes.reserve(meshes.size());
     for (const auto& mesh : meshes) {
@@ -123,7 +121,10 @@ Model ModelData::makeInstance() const
 Model ModelData::makeInstanceUnique()
 {
     Model instance{};
+
+    // technically we don't need to copy armature here, but whatever
     instance.armature = armature;
+
     instance.meshes.reserve(meshes.size());
     for (auto& mesh : meshes) {
         instance.meshes.push_back(mesh.makeInstanceUnique());

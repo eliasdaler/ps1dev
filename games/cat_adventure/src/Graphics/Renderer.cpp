@@ -139,39 +139,47 @@ void Renderer::drawAnimatedModelObject(
         return;
     }
 
-    const auto& globalJointTransforms = object.jointGlobalTransforms;
     for (auto& mv : model.meshes) {
-        auto& mesh = eastl::get<Mesh>(mv);
-        const auto& jointTransform = globalJointTransforms[mesh.jointId];
-
-        const auto t1 = combineTransforms(object.transform, jointTransform);
-
-        // This is basically combineTransforms(camera.view, t1),
-        // but we do a trick which allows us to prevent 4.12 range overflow
-        {
-            using namespace psyqo::GTE;
-            using namespace psyqo::GTE::Math;
-
-            TransformMatrix t2;
-
-            // V * M * J
-            multiplyMatrix33<
-                PseudoRegister::Rotation,
-                PseudoRegister::V0>(camera.view.rotation, t1.rotation, &t2.rotation);
-
-            // Instead of using camera.view.translation (which is V * (-camPos)),
-            // we're going into the camera/view space and do calculations there
-            t2.translation = t1.translation - camera.position;
-            matrixVecMul3<
-                PseudoRegister::Rotation, // camera.view.rotation
-                PseudoRegister::V0>(t2.translation, &t2.translation);
-
-            writeSafe<PseudoRegister::Rotation>(t2.rotation);
-            writeSafe<PseudoRegister::Translation>(t2.translation);
-        }
-
-        drawMesh(mesh);
+        eastl::visit([&](auto&& mesh) { drawMeshArmature(object, camera, armature, mesh); }, mv);
     }
+}
+
+template<RenderableMesh T>
+void Renderer::drawMeshArmature(
+    const AnimatedModelObject& object,
+    const Camera& camera,
+    const Armature& armature,
+    T& mesh)
+{
+    const auto& jointTransform = object.jointGlobalTransforms[mesh.getJointId()];
+
+    const auto t1 = combineTransforms(object.transform, jointTransform);
+
+    // This is basically combineTransforms(camera.view, t1),
+    // but we do a trick which allows us to prevent 4.12 range overflow
+    {
+        using namespace psyqo::GTE;
+        using namespace psyqo::GTE::Math;
+
+        TransformMatrix t2;
+
+        // V * M * J
+        multiplyMatrix33<
+            PseudoRegister::Rotation,
+            PseudoRegister::V0>(camera.view.rotation, t1.rotation, &t2.rotation);
+
+        // Instead of using camera.view.translation (which is V * (-camPos)),
+        // we're going into the camera/view space and do calculations there
+        t2.translation = t1.translation - camera.position;
+        matrixVecMul3<
+            PseudoRegister::Rotation, // camera.view.rotation
+            PseudoRegister::V0>(t2.translation, &t2.translation);
+
+        writeSafe<PseudoRegister::Rotation>(t2.rotation);
+        writeSafe<PseudoRegister::Translation>(t2.translation);
+    }
+
+    drawMesh(mesh);
 }
 
 void Renderer::drawMeshObject(MeshObject& object, const Camera& camera)
@@ -186,15 +194,11 @@ void Renderer::drawMeshObject(MeshObject& object, const Camera& camera)
 void Renderer::drawModel(Model& model)
 {
     for (auto& mesh : model.meshes) {
-        if (eastl::holds_alternative<MeshUnique>(mesh)) {
-            drawMesh(eastl::get<MeshUnique>(mesh));
-        } else {
-            drawMesh(eastl::get<Mesh>(mesh));
-        }
+        eastl::visit([&](auto&& mesh) { drawMesh(mesh); }, mesh);
     }
 }
 
-template<typename T>
+template<RenderableMesh T>
 void Renderer::drawMesh(T& mesh)
 {
     auto& ot = getOrderingTable();

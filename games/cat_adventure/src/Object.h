@@ -98,6 +98,9 @@ struct AnimatedModelObject : ModelObject {
     void setFaceAnimation(std::uint8_t faceOffsetU, std::uint8_t faceOffsetV);
     void setFaceAnimation(StringHash faceName, bool updateCurrent = true);
 
+    template<RenderableMesh T>
+    static void shiftUVs(T& mesh, int offsetU, int offsetV);
+
     Circle collisionCircle;
     Circle interactionCircle;
 

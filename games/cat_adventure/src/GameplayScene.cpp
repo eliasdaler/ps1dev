@@ -48,15 +48,18 @@ void GameplayScene::start(StartReason reason)
         interactionDialogueBox.size.y = 32;
         interactionDialogueBox.displayMoreTextArrow = false;
 
-        player.model = game.resourceCache.getResource<ModelData>(CATO_MODEL_HASH).makeInstance();
+        player.model =
+            game.resourceCache.getResource<ModelData>(CATO_MODEL_HASH).makeInstanceUnique();
 
+        // FIXME: somehow mark face mesh in Blender
         player.faceSubmeshIdx = 0;
         for (int i = 0; i < player.model.meshes.size(); ++i) {
-            const auto& submesh = eastl::get<Mesh>(player.model.meshes[i]);
-            if (submesh.gt4.size() == 16) { // FIXME: mark submesh as "face" somehow
+            const auto& submesh = eastl::get<MeshUnique>(player.model.meshes[i]);
+            if (submesh.gt4.size() == 16) {
                 player.faceSubmeshIdx = i;
             }
         }
+
         player.setFaceAnimation(DEFAULT_FACE_ANIMATION);
         player.blinkPeriod = 140;
         player.closedEyesTime = 4;
@@ -103,8 +106,8 @@ void GameplayScene::start(StartReason reason)
     if (game.level.id == 0) {
         game.renderer.setFogEnabled(false);
 
-        levelObj.model = game.resourceCache.getResourceNonConst<ModelData>(LEVEL1_MODEL_HASH)
-                             .makeInstanceUnique();
+        levelObj.model =
+            game.resourceCache.getResource<ModelData>(LEVEL1_MODEL_HASH).makeInstanceUnique();
 
         player.setPosition({0.0, 0.0, 0.25});
         player.rotation = {0.0, -1.0};
