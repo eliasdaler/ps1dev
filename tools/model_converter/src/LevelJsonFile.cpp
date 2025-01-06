@@ -13,8 +13,12 @@ LevelJson parseLevelJsonFile(
     file >> root;
 
     LevelJson level{};
-    level.usedTextures = root.at("used_textures");
-    level.usedModels = root.at("used_models");
+    if (root.contains("used_textures")) {
+        level.usedTextures = root.at("used_textures");
+    }
+    if (root.contains("used_models")) {
+        level.usedModels = root.at("used_models");
+    }
 
     return level;
 }

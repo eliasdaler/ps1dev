@@ -109,6 +109,7 @@ set(models
   "${ASSETS_DIR_RAW}/house_psx.blend"
   "${ASSETS_DIR_RAW}/human2.blend"
   "${ASSETS_DIR_RAW}/level_new.blend"
+  "${ASSETS_DIR_RAW}/level.blend"
 )
 
 if (BUILD_ASSETS) 

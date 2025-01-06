@@ -21,7 +21,7 @@ struct ImageData {
     Color32 getPixel(int x, int y) const
     {
         Color32 c{};
-        std::memcpy(&c, &pixelsRaw[y * width * channels + x], sizeof(Color32));
+        std::memcpy(&c, &pixelsRaw[y * width * channels + x * 4], sizeof(Color32));
         return c;
     }
 

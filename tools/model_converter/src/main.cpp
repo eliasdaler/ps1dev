@@ -51,7 +51,27 @@ int main(int argc, char* argv[])
     TexturesData textures;
     textures.load(assetDirPath, assetDirPath / "../tims.json"); // TODO: don't hardcode path
 
+    if (inputFilePath.stem() == "level") {
+        conversionParams.isLevel = true;
+    }
+
     const auto psxModel = jsonToPsxModel(modelJson, textures, conversionParams);
+
+    if (inputFilePath.stem() == "level") {
+        // FIXME: add flag
+        auto outLevelPath = outputFilePath;
+        outLevelPath.replace_extension(".lvl");
+
+        auto levelMetaPath =
+            assetDirPath / "levels" / inputFilePath.stem().replace_extension(".json");
+        std::cout << "level metadata:" << levelMetaPath << std::endl;
+        LevelJson levelJson = parseLevelJsonFile(levelMetaPath, assetDirPath);
+
+        std::cout << "Writing new  level data to " << outLevelPath << std::endl;
+        writeLevelToFileNew(outLevelPath, modelJson, psxModel, levelJson, conversionParams);
+        return 0;
+    }
+
     if (!modelJson.animations.empty()) {
         auto outAnimPath = outputFilePath;
         outAnimPath.replace_extension(".anm");
@@ -74,7 +94,7 @@ int main(int argc, char* argv[])
         writeLevelToFile(outLevelPath, modelJson, levelJson, conversionParams);
     }
 
-    writeFastPsxModel(psxModel, outputFilePath);
+    writePsxModel(psxModel, outputFilePath);
 
     std::cout << "Done!" << std::endl;
 }

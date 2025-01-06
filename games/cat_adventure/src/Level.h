@@ -5,6 +5,7 @@
 #include <Core/StringHash.h>
 
 #include "Collision.h"
+#include "Object.h"
 
 struct Level {
     int id{0};
@@ -14,4 +15,8 @@ struct Level {
     eastl::vector<AABB> collisionBoxes;
 
     void load(const eastl::vector<uint8_t>& data);
+    void loadNewFormat(const eastl::vector<uint8_t>& data);
+
+    ModelData modelData;
+    eastl::vector<MeshObject> staticObjects;
 };

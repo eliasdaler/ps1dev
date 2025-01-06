@@ -17,6 +17,7 @@ inline void initStringHashes()
     // textures
     HASH_PUT2(CATO_TEXTURE_HASH);
     HASH_PUT2(BRICKS_TEXTURE_HASH);
+    HASH_PUT2(ATLAS2_TEXTURE_HASH);
 
     // models
     HASH_PUT2(HUMAN_MODEL_HASH);

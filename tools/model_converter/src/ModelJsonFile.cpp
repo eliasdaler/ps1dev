@@ -109,11 +109,14 @@ ModelJson parseJsonFile(
             }
 
             // uvs
-            const auto& uvsObj = faceObj.at("uvs");
-            face.uvs.reserve(uvsObj.size());
-            for (const auto& uvObj : uvsObj) {
-                assert(uvObj.is_array() && uvObj.size() == 2);
-                face.uvs.push_back(glm::vec2{uvObj[0], uvObj[1]});
+            const auto uvsIt = faceObj.find("uvs");
+            if (uvsIt != faceObj.end()) {
+                const auto& uvsObj = *uvsIt;
+                face.uvs.reserve(uvsObj.size());
+                for (const auto& uvObj : uvsObj) {
+                    assert(uvObj.is_array() && uvObj.size() == 2);
+                    face.uvs.push_back(glm::vec2{uvObj[0], uvObj[1]});
+                }
             }
 
             const auto it = faceObj.find("material");

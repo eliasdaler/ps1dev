@@ -6,7 +6,7 @@
 
 namespace
 {
-const int startLevel = 0;
+const int startLevel = 1;
 
 const char* getLevelModelPath(int levelId)
 {
@@ -97,15 +97,8 @@ psyqo::Coroutine<> loadCoroutine(Game& game)
         game.cd.loadLevel(LEVEL1_LEVEL_HASH.getStr(), game.level);
         co_await awaiter;
     } else {
-        // TODO: load from .lvl file
-        game.level.collisionBoxes.clear();
-        game.level.usedTextures = {
-            CATO_TEXTURE_HASH,
-        };
-        game.level.usedModels = {
-            CATO_MODEL_HASH,
-            LEVEL2_MODEL_HASH,
-        };
+        game.cd.loadLevel(LEVEL2_LEVEL_HASH.getStr(), game.level);
+        co_await awaiter;
     }
 
     { // clean up unused resources
@@ -169,7 +162,7 @@ psyqo::Coroutine<> loadCoroutine(Game& game)
         game.firstLoad = false;
     }
 
-    ramsyscall_printf("-----\n");
+    ramsyscall_printf("Load done\n-----\n");
 }
 }
 

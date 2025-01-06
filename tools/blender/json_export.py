@@ -114,7 +114,7 @@ def collect_materials(scene):
 def get_object_data_json(obj, meshes_idx_map, has_armature):
     object_data = {
         "name": obj.name,
-        "position": [obj.location.x, obj.location.y, obj.location.z],
+        "position": [obj.location.x, obj.location.z, -obj.location.y],
     }
 
     if not has_armature:
@@ -172,10 +172,10 @@ def get_mesh_json(mesh, material_idx_map):
 
         face_json = {
             "vertices": face_vert_indices,
-            "uvs": face_uvs,
         }
 
         if has_materials_with_textures:
+            face_json["uvs"] = face_uvs
             material_idx = material_idx_map[mesh.materials[poly.material_index].name]
             face_json["material"] = material_idx
 
@@ -549,9 +549,9 @@ def write_psxtools_json(context, filepath):
         for mesh in data["meshes"]:
             used_joints.add(int(mesh["joint_id"]))
         for j in joints:
-            if not j.children:
+            if len(j.children) == 0:
                 joint_id = joint_name_to_id[j.name]
-                if joint_id in used_joints:
+                if not joint_id in used_joints:
                     unused_joints.add(joint_id)
 
         # write armature

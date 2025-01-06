@@ -20,7 +20,7 @@ std::uint8_t uvToInt8(float v)
 
 // "Fix" rectangular UVs to not bleed into other squares
 // E.g. (64, 64, 128, 128) UV will be changed to (64, 64, 127, 127)
-void offsetRectUV(std::array<PsxVert, 4>& quad)
+void offsetRectUV(PsxQuadFace& quad)
 {
     std::uint8_t maxU = 0;
     std::uint8_t maxV = 0;
@@ -28,7 +28,7 @@ void offsetRectUV(std::array<PsxVert, 4>& quad)
     std::uint8_t minV = 255;
 
     for (int i = 0; i < 4; ++i) {
-        const auto& v = quad[i];
+        const auto& v = quad.vs[i];
         minU = std::min(minU, v.uv.x);
         minV = std::min(minV, v.uv.y);
         maxU = std::max(maxU, v.uv.x);
@@ -42,14 +42,14 @@ void offsetRectUV(std::array<PsxVert, 4>& quad)
 
     // check if UV is rectangular
     for (int i = 0; i < 4; ++i) {
-        const auto& v = quad[i];
+        const auto& v = quad.vs[i];
         if ((v.uv.x != minU && v.uv.x != maxU) || (v.uv.y != minV && v.uv.y != maxV)) {
             return;
         }
     }
 
     for (int i = 0; i < 4; ++i) {
-        auto& v = quad[i];
+        auto& v = quad.vs[i];
         if (v.uv.x == maxU) {
             v.uv.x = maxU - 1;
         }
@@ -63,19 +63,13 @@ PsxSubmesh processMesh(
     const ModelJson& modelJson,
     const TexturesData& textures,
     const ConversionParams& params,
-    const Object& object,
+    const glm::mat4& tm,
     const Mesh& mesh)
 {
     static const auto zeroUV = glm::vec2{};
     static const glm::mat4 I{1.0};
 
-    const auto tm = object.transform.asMatrix();
-
     PsxSubmesh psxMesh;
-
-    if (object.name.ends_with(".SD")) {
-        psxMesh.subdivide = true;
-    }
 
     // TODO: support multiple materials?
 
@@ -86,8 +80,8 @@ PsxSubmesh processMesh(
     for (const auto& face : mesh.faces) {
         std::array<PsxVert, 4> psxFace;
         if (face.vertices.size() != 3 && face.vertices.size() != 4) {
-            throw std::runtime_error(std::format(
-                "bad face in submesh {}: has {} vertices", object.name, face.vertices.size()));
+            throw std::runtime_error(
+                std::format("bad face in submesh: has {} vertices", face.vertices.size()));
         }
         assert(face.vertices.size() <= 4);
 
@@ -147,6 +141,31 @@ PsxSubmesh processMesh(
             }
         }
 
+        // check if semitransparent (any pixels covered by face are semi-transparent)
+        // NOTE: have to do before shifting coords (see below)
+        bool semiTrans = false;
+        if (hasTexture) {
+            Vec2<std::uint8_t> uvMin{255, 255};
+            Vec2<std::uint8_t> uvMax{0, 0};
+
+            for (std::size_t i = 0; i < psxFace.size(); ++i) {
+                uvMin.x = std::min(uvMin.x, psxFace[i].uv.x);
+                uvMin.y = std::min(uvMin.y, psxFace[i].uv.y);
+                uvMax.x = std::max(uvMax.x, psxFace[i].uv.x);
+                uvMax.y = std::max(uvMax.y, psxFace[i].uv.y);
+            }
+
+            for (int v = uvMin.y; v <= uvMax.y; ++v) {
+                for (int u = uvMin.x; u <= uvMax.x; ++u) {
+                    auto pixel = td->imageData.getPixel(u, v);
+                    if (pixel.a > 0 && pixel.a < 255) {
+                        semiTrans = true;
+                    }
+                    break;
+                }
+            }
+        }
+
         // if the texture is 8-bit/2-page and the UVs are on the right side,
         // then we need to use a different tpage
         if (hasTexture && td->pmode == TimFile::PMode::Clut8Bit && td->imageData.width == 256) {
@@ -174,7 +193,10 @@ PsxSubmesh processMesh(
         }
 
         if (face.vertices.size() == 3) {
-            auto face = PsxTriFace{psxFace[0], psxFace[2], psxFace[1]};
+            auto face = PsxTriFace{
+                .vs = {psxFace[0], psxFace[2], psxFace[1]},
+                .semiTrans = semiTrans,
+            };
             if (hasTexture) {
                 psxMesh.triFaces.push_back(std::move(face));
             } else {
@@ -183,7 +205,10 @@ PsxSubmesh processMesh(
         } else {
             assert(face.vertices.size() == 4);
             // note the order - that's how PS1 quads work
-            auto face = PsxQuadFace{psxFace[3], psxFace[2], psxFace[0], psxFace[1]};
+            auto face = PsxQuadFace{
+                .vs = {psxFace[3], psxFace[2], psxFace[0], psxFace[1]},
+                .semiTrans = semiTrans,
+            };
             if (hasTexture) {
                 offsetRectUV(face);
                 psxMesh.quadFaces.push_back(std::move(face));
@@ -204,12 +229,20 @@ PsxModel jsonToPsxModel(
 {
     PsxModel psxModel;
 
-    for (const auto& object : modelJson.objects) {
-        if (object.mesh == -1) {
-            continue;
+    if (!params.isLevel) {
+        for (const auto& object : modelJson.objects) {
+            if (object.mesh == -1) {
+                continue;
+            }
+            const auto& mesh = modelJson.meshes[object.mesh];
+            psxModel.submeshes.push_back(
+                processMesh(modelJson, textures, params, object.transform.asMatrix(), mesh));
         }
-        const auto& mesh = modelJson.meshes[object.mesh];
-        psxModel.submeshes.push_back(processMesh(modelJson, textures, params, object, mesh));
+    } else {
+        static const glm::mat4 I{1.0};
+        for (const auto& mesh : modelJson.meshes) {
+            psxModel.submeshes.push_back(processMesh(modelJson, textures, params, I, mesh));
+        }
     }
 
     if (!modelJson.armature.joints.empty()) {
@@ -219,7 +252,8 @@ PsxModel jsonToPsxModel(
         assert(modelJson.objects.size() == 1);
         const auto& object = modelJson.objects[0];
         for (const auto& mesh : modelJson.meshes) {
-            psxModel.submeshes.push_back(processMesh(modelJson, textures, params, object, mesh));
+            psxModel.submeshes.push_back(
+                processMesh(modelJson, textures, params, object.transform.asMatrix(), mesh));
         }
 
         // convert joints

@@ -78,7 +78,7 @@ void GameplayScene::start(StartReason reason)
     }
 
     triggers.clear();
-    staticObjects.clear();
+    // staticObjects.clear();
 
     if (game.level.id == 0) { // TODO: load from level
         Trigger trigger;
@@ -100,14 +100,14 @@ void GameplayScene::start(StartReason reason)
         triggers.push_back(trigger);
     }
 
-    levelObj.setPosition({});
-    levelObj.rotation = {};
+    // levelObj.setPosition({});
+    // levelObj.rotation = {};
 
     if (game.level.id == 0) {
         game.renderer.setFogEnabled(false);
 
-        levelObj.model =
-            game.resourceCache.getResource<ModelData>(LEVEL1_MODEL_HASH).makeInstanceUnique();
+        /* levelObj.model =
+            game.resourceCache.getResource<ModelData>(LEVEL1_MODEL_HASH).makeInstanceUnique(); */
 
         player.setPosition({0.0, 0.0, 0.25});
         player.rotation = {0.0, -1.0};
@@ -137,9 +137,6 @@ void GameplayScene::start(StartReason reason)
         followCamera = false;
     } else if (game.level.id == 1) {
         game.renderer.setFogEnabled(true);
-
-        levelObj.model =
-            game.resourceCache.getResource<ModelData>(LEVEL2_MODEL_HASH).makeInstance();
 
         player.setPosition({0.5, 0.0, 0.5});
         player.rotation = {0.0, 0.5};
@@ -410,9 +407,9 @@ void GameplayScene::updateCamera()
 
     if (!freeCamera && followCamera) {
         static constexpr auto cameraOffset = psyqo::Vec3{
-            .x = -0.05,
-            .y = 0.21,
-            .z = -0.26,
+            .x = -0.1,
+            .y = 0.22,
+            .z = -0.30,
         };
         static constexpr auto cameraPitch = psyqo::FixedPoint<10>(0.045);
 
@@ -639,7 +636,8 @@ void GameplayScene::draw(Renderer& renderer)
     gp.chain(tpage);
 
     // clear
-    psyqo::Color bg{{.r = 33, .g = 14, .b = 58}};
+    // psyqo::Color bg{{.r = 33, .g = 14, .b = 58}};
+    psyqo::Color bg{{.r = 0, .g = 0, .b = 0}};
     // psyqo::Color bg{{.r = 0, .g = 0, .b = 0}};
     auto& fill = primBuffer.allocateFragment<psyqo::Prim::FastFill>();
     gp.getNextClear(fill.primitive, bg);
@@ -647,14 +645,10 @@ void GameplayScene::draw(Renderer& renderer)
 
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
 
+    // renderer.bias = 300;
     // draw static objects
-    if (game.level.id == 0) {
-        renderer.bias = 50;
-        renderer.drawModelObject(levelObj, camera, false);
-    } else if (game.level.id == 1) {
-        for (auto& staticObject : staticObjects) {
-            renderer.drawMeshObject(staticObject, camera);
-        }
+    for (auto& staticObject : game.level.staticObjects) {
+        renderer.drawMeshObject(staticObject, camera);
     }
 
     gp.pumpCallbacks();
@@ -744,6 +738,7 @@ void GameplayScene::draw(Renderer& renderer)
 
 void GameplayScene::makeTestLevel()
 {
+#if 0
     MeshObject object;
     auto& levelModel = levelObj.model;
     auto& meshA = eastl::get<Mesh>(levelModel.meshes[0]);
@@ -782,6 +777,7 @@ void GameplayScene::makeTestLevel()
     object.setPosition(ToWorldCoords(8.0), 0.0, 0.0);
     object.calculateWorldMatrix();
     staticObjects.push_back(object);
+#endif
 }
 
 void GameplayScene::drawDebugInfo(Renderer& renderer)

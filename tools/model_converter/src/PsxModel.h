@@ -23,8 +23,15 @@ struct PsxVert {
     std::uint16_t originalIndex;
 };
 
-using PsxTriFace = std::array<PsxVert, 3>;
-using PsxQuadFace = std::array<PsxVert, 4>;
+struct PsxTriFace {
+    std::array<PsxVert, 3> vs;
+    bool semiTrans{false};
+};
+
+struct PsxQuadFace {
+    std::array<PsxVert, 4> vs;
+    bool semiTrans{false};
+};
 
 struct PsxSubmesh {
     bool subdivide{false};
@@ -62,5 +69,5 @@ struct PsxModel {
 };
 
 void writePsxModel(const PsxModel& model, const std::filesystem::path& path);
-
-void writeFastPsxModel(const PsxModel& model, const std::filesystem::path& path);
+// appends to a file
+void writePsxModel(const PsxModel& model, std::ofstream& file);

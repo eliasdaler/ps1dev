@@ -10,6 +10,13 @@ void ModelData::load(const eastl::vector<uint8_t>& data)
     util::FileReader fr{
         .bytes = data.data(),
     };
+    load(fr);
+}
+
+void ModelData::load(util::FileReader& fr)
+{
+    const auto flags = fr.GetUInt16();
+    bool hasArmature = ((flags & 1) != 0);
 
     const auto numSubmeshes = fr.GetUInt16();
     meshes.reserve(numSubmeshes);
@@ -50,30 +57,28 @@ void ModelData::load(const eastl::vector<uint8_t>& data)
         meshes.push_back(std::move(mesh));
     }
 
-    if (fr.cursor == data.size()) {
-        return;
-    }
+    if (hasArmature) {
+        const auto numJoints = fr.GetUInt16();
+        armature.joints.resize(numJoints);
+        for (int i = 0; i < numJoints; ++i) {
+            auto& joint = armature.joints[i];
+            joint.id = i;
 
-    const auto numJoints = fr.GetUInt16();
-    armature.joints.resize(numJoints);
-    for (int i = 0; i < numJoints; ++i) {
-        auto& joint = armature.joints[i];
-        joint.id = i;
+            auto& translation = joint.localTransform.translation;
+            translation.x.value = fr.GetInt16();
+            translation.y.value = fr.GetInt16();
+            translation.z.value = fr.GetInt16();
+            fr.SkipBytes(2); // pad
 
-        auto& translation = joint.localTransform.translation;
-        translation.x.value = fr.GetInt16();
-        translation.y.value = fr.GetInt16();
-        translation.z.value = fr.GetInt16();
-        fr.SkipBytes(2); // pad
+            auto& rotation = joint.localTransform.rotation;
+            rotation.w.value = fr.GetInt16();
+            rotation.x.value = fr.GetInt16();
+            rotation.y.value = fr.GetInt16();
+            rotation.z.value = fr.GetInt16();
 
-        auto& rotation = joint.localTransform.rotation;
-        rotation.w.value = fr.GetInt16();
-        rotation.x.value = fr.GetInt16();
-        rotation.y.value = fr.GetInt16();
-        rotation.z.value = fr.GetInt16();
-
-        joint.firstChild = fr.GetUInt8();
-        joint.nextSibling = fr.GetUInt8();
+            joint.firstChild = fr.GetUInt8();
+            joint.nextSibling = fr.GetUInt8();
+        }
     }
 }
 

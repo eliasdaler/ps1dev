@@ -20,10 +20,11 @@
                 <file name="SYSTEM.CNF"	type="data" source="system.cnf"/>
                 <file name="GAME.EXE" type="data" source="game.ps-exe"/>
                 <file name="BRICKS.TIM" type="data" source="assets/bricks.tim"/>
+                <file name="ATLAS2.TIM" type="data" source="assets/atlas2.tim"/>
                 <file name="LEVEL.FM" type="data" source="assets/house_psx.fm"/>
                 <file name="LEVEL.LVL" type="data" source="assets/house_psx.lvl"/>
+                <file name="LEVEL2.LVL" type="data" source="assets/level.lvl"/>
                 <file name="LEVEL2.FM" type="data" source="assets/level_new.fm"/>
-                <file name="CATO.BIN" type="data" source="assets/cato.bin"/>
                 <file name="CATO.FM" type="data" source="assets/cato.fm"/>
                 <file name="CATO.ANM" type="data" source="assets/cato.anm"/>
                 <file name="HUMAN.FM" type="data" source="assets/human2.fm"/>

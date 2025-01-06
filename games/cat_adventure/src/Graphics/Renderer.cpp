@@ -201,6 +201,8 @@ void Renderer::drawModel(Model& model)
 template<RenderableMesh T>
 void Renderer::drawMesh(T& mesh)
 {
+    static constexpr auto neutralColor = psyqo::Color{.r = 64, .g = 80, .b = 100};
+
     auto& ot = getOrderingTable();
 
     auto parity = gpu.getParity();
@@ -251,8 +253,7 @@ void Renderer::drawMesh(T& mesh)
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&tri2d.pointB.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&tri2d.pointC.packed);
 
-        // FIXME: enable fog again
-        /* if constexpr (fogEnabledT) {
+        if (fogEnabled) {
             const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
             const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
             const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
@@ -263,15 +264,11 @@ void Renderer::drawMesh(T& mesh)
             const auto p2 = calcInterpFactor(sz2);
 
             psyqo::Color col;
-            interpColor(v0.col, p0, &col);
+            interpColor(neutralColor, p0, &col);
             tri2d.setColorA(col);
-            interpColor(v1.col, p1, &tri2d.colorB);
-            interpColor(v2.col, p2, &tri2d.colorC);
-        } else {
-            tri2d.setColorA(v0.col);
-            tri2d.setColorB(v1.col);
-            tri2d.setColorC(v2.col);
-        } */
+            interpColor(neutralColor, p1, &tri2d.colorB);
+            interpColor(neutralColor, p2, &tri2d.colorC);
+        }
 
         ot.insert(triFrag, avgZ);
     }
@@ -318,8 +315,7 @@ void Renderer::drawMesh(T& mesh)
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointC.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
 
-        // FIXME: enable fog again
-        /* if constexpr (fogEnabledT) { // per vertex interpolation
+        if (fogEnabled) { // per vertex interpolation
             const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
             const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
             const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
@@ -331,17 +327,12 @@ void Renderer::drawMesh(T& mesh)
             const auto p3 = calcInterpFactor(sz3);
 
             psyqo::Color col;
-            interpColor(v0.col, p0, &col);
+            interpColor(neutralColor, p0, &col);
             quad2d.setColorA(col);
-            interpColor(v1.col, p1, &quad2d.colorB);
-            interpColor(v2.col, p2, &quad2d.colorC);
-            interpColor(v3.col, p3, &quad2d.colorD);
-        } else {
-            quad2d.setColorA(v0.col);
-            quad2d.setColorB(v1.col);
-            quad2d.setColorC(v2.col);
-            quad2d.setColorD(v3.col);
-        } */
+            interpColor(neutralColor, p1, &quad2d.colorB);
+            interpColor(neutralColor, p2, &quad2d.colorC);
+            interpColor(neutralColor, p3, &quad2d.colorD);
+        }
 
         ot.insert(quadFrag, avgZ);
     }
@@ -382,8 +373,7 @@ void Renderer::drawMesh(T& mesh)
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&tri2d.pointB.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&tri2d.pointC.packed);
 
-        // FIXME: enable fog again
-        /* if constexpr (fogEnabledT) {
+        if (fogEnabled) {
             const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
             const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
             const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
@@ -394,15 +384,11 @@ void Renderer::drawMesh(T& mesh)
             const auto p2 = calcInterpFactor(sz2);
 
             psyqo::Color col;
-            interpColor(v0.col, p0, &col);
+            interpColor(neutralColor, p0, &col);
             tri2d.setColorA(col);
-            interpColor(v1.col, p1, &tri2d.colorB);
-            interpColor(v2.col, p2, &tri2d.colorC);
-        } else {
-            tri2d.setColorA(v0.col);
-            tri2d.setColorB(v1.col);
-            tri2d.setColorC(v2.col);
-        } */
+            interpColor(neutralColor, p1, &tri2d.colorB);
+            interpColor(neutralColor, p2, &tri2d.colorC);
+        }
 
         ot.insert(triFrag, avgZ);
     }
@@ -442,6 +428,11 @@ void Renderer::drawMesh(T& mesh)
         }
 
         avgZ += bias; // add bias
+
+        if (gt4s.size() == 16) { // TEMP HACK: add bias to floor tiles
+            avgZ += 500;
+        }
+
         if (avgZ >= Renderer::OT_SIZE) {
             continue;
         }
@@ -450,8 +441,7 @@ void Renderer::drawMesh(T& mesh)
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointC.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
 
-        // FIXME: enable fog again
-        /* if constexpr (fogEnabledT) { // per vertex interpolation
+        if (fogEnabled) { // per vertex interpolation
             const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
             const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
             const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
@@ -463,17 +453,12 @@ void Renderer::drawMesh(T& mesh)
             const auto p3 = calcInterpFactor(sz3);
 
             psyqo::Color col;
-            interpColor(v0.col, p0, &col);
+            interpColor(neutralColor, p0, &col);
             quad2d.setColorA(col);
-            interpColor(v1.col, p1, &quad2d.colorB);
-            interpColor(v2.col, p2, &quad2d.colorC);
-            interpColor(v3.col, p3, &quad2d.colorD);
-        } else {
-            quad2d.setColorA(v0.col);
-            quad2d.setColorB(v1.col);
-            quad2d.setColorC(v2.col);
-            quad2d.setColorD(v3.col);
-        } */
+            interpColor(neutralColor, p1, &quad2d.colorB);
+            interpColor(neutralColor, p2, &quad2d.colorC);
+            interpColor(neutralColor, p3, &quad2d.colorD);
+        }
 
         ot.insert(quadFrag, avgZ);
     }

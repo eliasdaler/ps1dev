@@ -72,7 +72,9 @@ void CDLoader::loadAnimations(
 
 void CDLoader::loadLevel(eastl::string_view filename, Level& level)
 {
-    loadFromCD(filename, [&level](eastl::vector<uint8_t>&& buffer) { level.load(buffer); });
+    loadFromCD(filename, [&level](eastl::vector<uint8_t>&& buffer) {
+        level.loadNewFormat(buffer);
+    });
 }
 
 void CDLoader::loadFromCD(

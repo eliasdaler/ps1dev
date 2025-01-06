@@ -1,5 +1,11 @@
 #pragma once
 
+#include <concepts>
+#include <cstdint>
+
+using ssize_t = std::int32_t; // TODO: remove after updating psyqo
+#include <EASTL/variant.h>
+
 #include <EASTL/string_view.h>
 #include <EASTL/vector.h>
 
@@ -10,19 +16,17 @@
 #include <psyqo/primitives/quads.hh>
 #include <psyqo/primitives/triangles.hh>
 
-#include <concepts>
-#include <cstdint>
-
-using ssize_t = std::int32_t;
-
-#include <EASTL/variant.h>
-
 #include "Armature.h"
 
 struct Vec3Pad {
     psyqo::GTE::PackedVec3 pos;
     std::uint16_t pad;
 };
+
+namespace util
+{
+struct FileReader;
+}
 
 template<typename PrimType>
 using FragData = eastl::vector<psyqo::Fragments::SimpleFragment<PrimType>>;
@@ -137,6 +141,8 @@ struct ModelData {
     Armature armature;
 
     void load(const eastl::vector<uint8_t>& data);
+    void load(util::FileReader& fr);
+
     Model makeInstance() const;
     Model makeInstanceUnique();
 };

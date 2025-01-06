@@ -1,60 +1,9 @@
-import std.string;
-import std.math;
-import std.core;
-import std.io;
-import std.sys;
-
-fn fixed16_to_float(auto fp16) {
-    return fp16.value / 4096.f;
-};
-
-fn format_fixed16(auto fp16) {
-    return fixed16_to_float(fp16);
-};
-
-fn format_quat(auto quat) {
-    return std::format("({:.3f}, {:.3f}, {:.3f}, {:.3f})", 
-        fixed16_to_float(quat.w),
-        fixed16_to_float(quat.x),
-        fixed16_to_float(quat.y),
-        fixed16_to_float(quat.z));
-};
-
-fn format_vec3(auto v) {
-    return std::format("({:.3f}, {:.3f}, {:.3f})", 
-        fixed16_to_float(v.x),
-        fixed16_to_float(v.y),
-        fixed16_to_float(v.z));
-};
-
-fn format_color(auto c) {
-    return std::format("({}, {}, {})", 
-        c.r,
-        c.g,
-        c.b);
-};
-
-// 4.12
-struct FixedPoint16 {
-    s16 value;
-} [[sealed, format("format_fixed16")]];
-
-struct Vec3 {
-    FixedPoint16 x, y, z;
-} [[sealed, format("format_vec3")]];
+#include <math.hexpat>
 
 struct Vec3WithPadding {
-    FixedPoint16 x, y, z;
+    FixedPoint<s16> x, y, z;
     u16 pad [[hidden]];
 } [[sealed, format("format_vec3")]];
-
-struct Quaternion {
-    FixedPoint16 w, x, y, z;
-} [[sealed, format("format_quat")]];
-
-struct RGB8 {
-  u8 r, g, b;
-} [[sealed, static, format("format_color"), color(std::format("{:02X}{:02X}{:02X}", r*2, g*2, b*2))]];
 
 struct GouraudTriangle {
     u32 tag;
@@ -174,10 +123,16 @@ struct Armature {
     Joint joints[numJoints];
 };
 
+bitfield ModelFlags {
+    bool hasArmature: 1;
+    unsigned unused: 15;
+};
+
 struct Model {
+    ModelFlags modelFlags;
     u16 submeshes_size;
     Submesh submeshes[submeshes_size];
-    if (!std::mem::eof()) {
+    if (modelFlags.hasArmature) {
         Armature armature;
     }
 };

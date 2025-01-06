@@ -41,7 +41,7 @@ file(MAKE_DIRECTORY "${MODELS_BUILD_DIR_JSON}")
 function (add_build_model_command MODEL_PATH)
   get_filename_component(MODEL_FILENAME "${MODEL_PATH}" NAME_WLE)
   set(CONVERTED_MODEL_PATH "${MODELS_BUILD_DIR_JSON}/${MODEL_FILENAME}.json")
-  set(FINAL_MODEL_PATH "${ASSETS_DIR}/${MODEL_FILENAME}.bin")
+  set(FINAL_MODEL_PATH "${ASSETS_DIR}/${MODEL_FILENAME}.fm")
 
   # Convert from .blend to .json
   add_custom_command(

@@ -47,8 +47,6 @@ private:
     Game& game;
 
     // game objects
-    ModelObject levelObj;
-
     AnimatedModelObject player;
     AnimatedModelObject npc;
 
@@ -87,15 +85,13 @@ private:
     eastl::vector<Circle> collisionCircles;
     eastl::vector<Trigger> triggers;
 
-    eastl::vector<MeshObject> staticObjects;
-
     int fadeLevel = 0;
 
     bool fadeFinished{false};
     bool fadeOut{false}; // if false - fade in
     int destinationLevelId = 0;
 
-    bool collisionEnabled{true};
+    bool collisionEnabled{false};
 
     bool cutscene{false};
 };

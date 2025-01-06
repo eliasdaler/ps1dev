@@ -8,6 +8,13 @@
       "pix": [320, 0]
     },
     {
+      "input": "raw/atlas2.png",
+      "output": "atlas2.tim",
+      "bits": 8,
+      "clut": [0, 240],
+      "pix": [320, 0]
+    },
+    {
       "input": "raw/cato.png",
       "output": "cato.tim",
       "bits": 8,

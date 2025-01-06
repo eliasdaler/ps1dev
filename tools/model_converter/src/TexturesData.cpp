@@ -50,7 +50,6 @@ void TexturesData::load(
                 .pmode = config.pmode,
                 .imageData = util::loadImage(imgPath),
             });
-            std::cout << imgPath << " " << textures.back().imageData.width << std::endl;
             if (textures.back().imageData.pixels.empty()) {
                 throw std::runtime_error("Failed to open texture: " + imgPath.string());
             }

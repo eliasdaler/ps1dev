@@ -1,4 +1,10 @@
+#pragma once
+
 import std.string;
+import std.math;
+import std.core;
+import std.io;
+import std.sys;
 
 fn fixed16_to_float(auto fp16) {
     return fp16.value / 4096.f;
@@ -23,6 +29,14 @@ fn format_vec3(auto v) {
         fixed16_to_float(v.z));
 };
 
+fn format_color(auto c) {
+    return std::format("({}, {}, {})", 
+        c.r,
+        c.g,
+        c.b);
+};
+
+// 4.12
 struct FixedPoint<T> {
     T value;
 } [[sealed, format("format_fixed16")]];
@@ -35,39 +49,7 @@ struct Quaternion {
     FixedPoint<s16> w, x, y, z;
 } [[sealed, format("format_quat")]];
 
-struct Key<auto keyType> {
-    FixedPoint<s32> frame;
-    if (keyType == 0) {
-        Quaternion rotation;
-    } else if (keyType == 1) {
-        Vec3 translation;
-        s16 pad [[hidden]];
-    }
-};
+struct RGB8 {
+  u8 r, g, b;
+} [[sealed, static, format("format_color"), color(std::format("{:02X}{:02X}{:02X}", r*2, g*2, b*2))]];
 
-struct Track {
-    u8 type;
-    u8 jointId;
-    u16 numKeys;
-    Key<type> keys[numKeys];
-};
-
-bitfield AnimationFlags {
-    bool looped: 1;
-    unsigned unused: 31;
-};
-    
-struct Animation {
-    u32 name;
-    AnimationFlags flags;
-    u16 length;
-    u16 numTracks;
-    Track tracks[numTracks];
-};
-
-struct AnimationsFile {
-    u32 numAnimations;
-    Animation animations[numAnimations];
-};
-
-AnimationsFile file @ 0x0;

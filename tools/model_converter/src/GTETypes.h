@@ -22,9 +22,13 @@
      (((y) & 0x200) << 2))
 
 inline constexpr std::uint8_t G3_CODE = 0x30;
+inline constexpr std::uint8_t G3_CODE_SEMITRANS = 0x32;
 inline constexpr std::uint8_t G4_CODE = 0x38;
+inline constexpr std::uint8_t G4_CODE_SEMITRANS = 0x3A;
 inline constexpr std::uint8_t GT3_CODE = 0x34;
+inline constexpr std::uint8_t GT3_CODE_SEMITRANS = 0x36;
 inline constexpr std::uint8_t GT4_CODE = 0x3c;
+inline constexpr std::uint8_t GT4_CODE_SEMITRANS = 0x3E;
 
 struct P_TAG {
     unsigned addr : 24;

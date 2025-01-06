@@ -13,123 +13,123 @@ namespace
 static const std::uint8_t pad8{0};
 static const std::uint16_t pad16{0};
 
-void writeG3Prims(std::ofstream& file, const std::vector<std::array<PsxVert, 3>>& faces)
+void writeG3Prims(std::ofstream& file, const std::vector<PsxTriFace>& faces)
 {
     for (const auto& face : faces) {
         fsutil::binaryWrite(file, static_cast<std::uint32_t>(0)); // head
 
         GouraudTriangle tri{
             // 0
-            .r0 = face[0].color.x,
-            .g0 = face[0].color.y,
-            .b0 = face[0].color.z,
+            .r0 = face.vs[0].color.x,
+            .g0 = face.vs[0].color.y,
+            .b0 = face.vs[0].color.z,
             .code = G3_CODE,
             // 1
-            .r1 = face[1].color.x,
-            .g1 = face[1].color.y,
-            .b1 = face[1].color.z,
+            .r1 = face.vs[1].color.x,
+            .g1 = face.vs[1].color.y,
+            .b1 = face.vs[1].color.z,
             // 2
-            .r2 = face[2].color.x,
-            .g2 = face[2].color.y,
-            .b2 = face[2].color.z,
+            .r2 = face.vs[2].color.x,
+            .g2 = face.vs[2].color.y,
+            .b2 = face.vs[2].color.z,
         };
         fsutil::binaryWrite(file, tri);
     }
 }
 
-void writeG4Prims(std::ofstream& file, const std::vector<std::array<PsxVert, 4>>& faces)
+void writeG4Prims(std::ofstream& file, const std::vector<PsxQuadFace>& faces)
 {
     for (const auto& face : faces) {
         fsutil::binaryWrite(file, static_cast<std::uint32_t>(0)); // head
 
         GouraudQuad quad{
             // 0
-            .r0 = face[0].color.x,
-            .g0 = face[0].color.y,
-            .b0 = face[0].color.z,
+            .r0 = face.vs[0].color.x,
+            .g0 = face.vs[0].color.y,
+            .b0 = face.vs[0].color.z,
             .code = G4_CODE,
             // 1
-            .r1 = face[1].color.x,
-            .g1 = face[1].color.y,
-            .b1 = face[1].color.z,
+            .r1 = face.vs[1].color.x,
+            .g1 = face.vs[1].color.y,
+            .b1 = face.vs[1].color.z,
             // 2
-            .r2 = face[2].color.x,
-            .g2 = face[2].color.y,
-            .b2 = face[2].color.z,
+            .r2 = face.vs[2].color.x,
+            .g2 = face.vs[2].color.y,
+            .b2 = face.vs[2].color.z,
             // 3
-            .r3 = face[3].color.x,
-            .g3 = face[3].color.y,
-            .b3 = face[3].color.z,
+            .r3 = face.vs[3].color.x,
+            .g3 = face.vs[3].color.y,
+            .b3 = face.vs[3].color.z,
         };
         fsutil::binaryWrite(file, quad);
     }
 }
 
-void writeGT3Prims(std::ofstream& file, const std::vector<std::array<PsxVert, 3>>& faces)
+void writeGT3Prims(std::ofstream& file, const std::vector<PsxTriFace>& faces)
 {
     for (const auto& face : faces) {
         fsutil::binaryWrite(file, static_cast<std::uint32_t>(0)); // head
 
         GouraudTexturedTriangle tri{
             // 0
-            .r0 = face[0].color.x,
-            .g0 = face[0].color.y,
-            .b0 = face[0].color.z,
+            .r0 = face.vs[0].color.x,
+            .g0 = face.vs[0].color.y,
+            .b0 = face.vs[0].color.z,
             .code = GT3_CODE,
-            .u0 = face[0].uv.x,
-            .v0 = face[0].uv.y,
-            .clut = static_cast<uint16_t>(face[0].clut),
+            .u0 = face.vs[0].uv.x,
+            .v0 = face.vs[0].uv.y,
+            .clut = static_cast<uint16_t>(face.vs[0].clut),
             // 1
-            .r1 = face[1].color.x,
-            .g1 = face[1].color.y,
-            .b1 = face[1].color.z,
-            .u1 = face[1].uv.x,
-            .v1 = face[1].uv.y,
-            .tpage = static_cast<uint16_t>(face[0].tpage),
+            .r1 = face.vs[1].color.x,
+            .g1 = face.vs[1].color.y,
+            .b1 = face.vs[1].color.z,
+            .u1 = face.vs[1].uv.x,
+            .v1 = face.vs[1].uv.y,
+            .tpage = static_cast<uint16_t>(face.vs[0].tpage),
             // 2
-            .r2 = face[2].color.x,
-            .g2 = face[2].color.y,
-            .b2 = face[2].color.z,
-            .u2 = face[2].uv.x,
-            .v2 = face[2].uv.y,
+            .r2 = face.vs[2].color.x,
+            .g2 = face.vs[2].color.y,
+            .b2 = face.vs[2].color.z,
+            .u2 = face.vs[2].uv.x,
+            .v2 = face.vs[2].uv.y,
         };
         fsutil::binaryWrite(file, tri);
     }
 }
 
-void writeGT4Prims(std::ofstream& file, const std::vector<std::array<PsxVert, 4>>& faces)
+void writeGT4Prims(std::ofstream& file, const std::vector<PsxQuadFace>& faces)
 {
     for (const auto& face : faces) {
         fsutil::binaryWrite(file, static_cast<std::uint32_t>(0)); // head
 
         GouraudTexturedQuad quad{
             // 0
-            .r0 = face[0].color.x,
-            .g0 = face[0].color.y,
-            .b0 = face[0].color.z,
-            .code = GT4_CODE,
-            .u0 = face[0].uv.x,
-            .v0 = face[0].uv.y,
-            .clut = static_cast<uint16_t>(face[0].clut),
+            .r0 = face.vs[0].color.x,
+            .g0 = face.vs[0].color.y,
+            .b0 = face.vs[0].color.z,
+            .code = face.semiTrans ? GT4_CODE_SEMITRANS : GT4_CODE,
+            .u0 = face.vs[0].uv.x,
+            .v0 = face.vs[0].uv.y,
+            .clut = static_cast<uint16_t>(face.vs[0].clut),
             // 1
-            .r1 = face[1].color.x,
-            .g1 = face[1].color.y,
-            .b1 = face[1].color.z,
-            .u1 = face[1].uv.x,
-            .v1 = face[1].uv.y,
-            .tpage = static_cast<uint16_t>(face[0].tpage),
+            .r1 = face.vs[1].color.x,
+            .g1 = face.vs[1].color.y,
+            .b1 = face.vs[1].color.z,
+            .u1 = face.vs[1].uv.x,
+            .v1 = face.vs[1].uv.y,
+            .tpage = static_cast<uint16_t>(face.vs[0].tpage),
             // 2
-            .r2 = face[2].color.x,
-            .g2 = face[2].color.y,
-            .b2 = face[2].color.z,
-            .u2 = face[2].uv.x,
-            .v2 = face[2].uv.y,
+            .r2 = face.vs[2].color.x,
+            .g2 = face.vs[2].color.y,
+            .b2 = face.vs[2].color.z,
+            .u2 = face.vs[2].uv.x,
+            .v2 = face.vs[2].uv.y,
             // 3
-            .r3 = face[3].color.x,
-            .g3 = face[3].color.y,
-            .b3 = face[3].color.z,
-            .u3 = face[3].uv.x,
-            .v3 = face[3].uv.y,
+            .r3 = face.vs[3].color.x,
+            .g3 = face.vs[3].color.y,
+            .b3 = face.vs[3].color.z,
+            .u3 = face.vs[3].uv.x,
+            .v3 = face.vs[3].uv.y,
         };
         fsutil::binaryWrite(file, quad);
     }
@@ -137,11 +137,21 @@ void writeGT4Prims(std::ofstream& file, const std::vector<std::array<PsxVert, 4>
 
 } // end of anonymous namespace
 
-void writeFastPsxModel(const PsxModel& model, const std::filesystem::path& path)
+void writePsxModel(const PsxModel& model, const std::filesystem::path& path)
 {
     std::ofstream file(path, std::ios::binary);
-    fsutil::binaryWrite(file, static_cast<std::uint16_t>(model.submeshes.size()));
+    writePsxModel(model, file);
+}
 
+// appends to a file
+void writePsxModel(const PsxModel& model, std::ofstream& file)
+{
+    std::uint16_t flags{0};
+    flags |= (!model.armature.joints.empty());
+    // 15 bits unused for now
+
+    fsutil::binaryWrite(file, flags);
+    fsutil::binaryWrite(file, static_cast<std::uint16_t>(model.submeshes.size()));
     for (const auto& mesh : model.submeshes) {
         fsutil::binaryWrite(file, static_cast<std::uint16_t>(mesh.jointId));
         fsutil::binaryWrite(file, static_cast<std::uint16_t>(mesh.untexturedTriFaces.size()));
@@ -151,33 +161,33 @@ void writeFastPsxModel(const PsxModel& model, const std::filesystem::path& path)
 
         for (const auto& face : mesh.untexturedTriFaces) {
             for (int i = 0; i < 3; ++i) {
-                fsutil::binaryWrite(file, face[i].pos.x);
-                fsutil::binaryWrite(file, face[i].pos.y);
-                fsutil::binaryWrite(file, face[i].pos.z);
+                fsutil::binaryWrite(file, face.vs[i].pos.x);
+                fsutil::binaryWrite(file, face.vs[i].pos.y);
+                fsutil::binaryWrite(file, face.vs[i].pos.z);
                 fsutil::binaryWrite(file, pad16);
             }
         }
         for (const auto& face : mesh.untexturedQuadFaces) {
             for (int i = 0; i < 4; ++i) {
-                fsutil::binaryWrite(file, face[i].pos.x);
-                fsutil::binaryWrite(file, face[i].pos.y);
-                fsutil::binaryWrite(file, face[i].pos.z);
+                fsutil::binaryWrite(file, face.vs[i].pos.x);
+                fsutil::binaryWrite(file, face.vs[i].pos.y);
+                fsutil::binaryWrite(file, face.vs[i].pos.z);
                 fsutil::binaryWrite(file, pad16);
             }
         }
         for (const auto& face : mesh.triFaces) {
             for (int i = 0; i < 3; ++i) {
-                fsutil::binaryWrite(file, face[i].pos.x);
-                fsutil::binaryWrite(file, face[i].pos.y);
-                fsutil::binaryWrite(file, face[i].pos.z);
+                fsutil::binaryWrite(file, face.vs[i].pos.x);
+                fsutil::binaryWrite(file, face.vs[i].pos.y);
+                fsutil::binaryWrite(file, face.vs[i].pos.z);
                 fsutil::binaryWrite(file, pad16);
             }
         }
         for (const auto& face : mesh.quadFaces) {
             for (int i = 0; i < 4; ++i) {
-                fsutil::binaryWrite(file, face[i].pos.x);
-                fsutil::binaryWrite(file, face[i].pos.y);
-                fsutil::binaryWrite(file, face[i].pos.z);
+                fsutil::binaryWrite(file, face.vs[i].pos.x);
+                fsutil::binaryWrite(file, face.vs[i].pos.y);
+                fsutil::binaryWrite(file, face.vs[i].pos.z);
                 fsutil::binaryWrite(file, pad16);
             }
         }
