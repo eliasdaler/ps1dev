@@ -139,7 +139,7 @@ void GameplayScene::start(StartReason reason)
         game.renderer.setFogEnabled(true);
 
         player.setPosition({0.5, 0.0, 0.5});
-        player.rotation = {0.0, 0.5};
+        player.rotation = {0.0, 1.37};
 
         camera.position = {0.f, ToWorldCoords(1.5f), -1.f};
         camera.rotation = {0.0, 0.0};
@@ -784,7 +784,9 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
 {
     if (collisionDrawn) { // draw collisions/triggers
         renderer.drawObjectAxes(player, camera);
-        // player.model->armature.drawDebug(renderer);
+
+        renderer.drawArmature(player, camera);
+
         if (game.level.id == 0) {
             renderer.drawArmature(npc, camera);
         }

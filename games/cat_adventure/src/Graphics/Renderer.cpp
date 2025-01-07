@@ -12,46 +12,24 @@
 
 namespace
 {
-
-template<typename PrimType>
-void interpColorD(const psyqo::Color& c, PrimType& prim)
-{
-    psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(&c.packed);
-    psyqo::GTE::Kernels::dpcs();
-    psyqo::GTE::read<psyqo::GTE::Register::RGB2>(&prim.colorD.packed);
-};
-
-template<typename PrimType>
-void interpColor3(
-    const psyqo::Color& c0,
-    const psyqo::Color& c1,
-    const psyqo::Color& c2,
-    PrimType& prim)
-{
-    psyqo::GTE::write<psyqo::GTE::Register::RGB0, psyqo::GTE::Unsafe>(&c0.packed);
-    psyqo::GTE::write<psyqo::GTE::Register::RGB1, psyqo::GTE::Unsafe>(&c1.packed);
-    psyqo::GTE::write<psyqo::GTE::Register::RGB2, psyqo::GTE::Safe>(&c2.packed);
-    psyqo::GTE::Kernels::dpct();
-
-    psyqo::Color col;
-    psyqo::GTE::read<psyqo::GTE::Register::RGB0>(&col.packed);
-    col.packed &= 0xffffff;
-    prim.setColorA(col);
-
-    psyqo::GTE::read<psyqo::GTE::Register::RGB1>(&prim.colorB.packed);
-    psyqo::GTE::read<psyqo::GTE::Register::RGB2>(&prim.colorC.packed);
-}
-
 void interpColor(const psyqo::Color& input, uint32_t p, psyqo::Color* out)
 {
     const auto max = 0x1FFFF;
     if (p > max) {
         p = max;
     }
-    psyqo::GTE::write<psyqo::GTE::Register::IR0>(&p);
+    psyqo::GTE::write<psyqo::GTE::Register::IR0, psyqo::GTE::Unsafe>(&p);
     psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(&input.packed);
     psyqo::GTE::Kernels::dpcs();
     psyqo::GTE::read<psyqo::GTE::Register::RGB2>(&out->packed);
+}
+
+// Interpolate color immediately after doing rtps (IR0 has "p" in it already)
+psyqo::Color interpColorImm(psyqo::Color input)
+{
+    psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(input.packed);
+    psyqo::GTE::Kernels::dpcs();
+    return {.packed = psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2>()};
 }
 
 }
@@ -102,7 +80,7 @@ void Renderer::calculateViewModelMatrix(const Object& object, const Camera& came
 
 bool Renderer::shouldCullObject(const Object& object, const Camera& camera) const
 {
-    static constexpr auto cullDistance = psyqo::FixedPoint<>(64.f);
+    static constexpr auto cullDistance = psyqo::FixedPoint<>(12.f);
     auto posCamSpace = object.transform.translation - camera.position;
     if (posCamSpace.x * posCamSpace.x + posCamSpace.y * posCamSpace.y +
             posCamSpace.z * posCamSpace.z >
@@ -338,14 +316,32 @@ void Renderer::drawMesh(T& mesh)
     }
 
     for (std::size_t i = 0; i < gt3s.size(); ++i) {
+        auto& triFrag = gt3s[i];
+        auto& tri2d = triFrag.primitive;
+
         const auto& v0 = verts[gt3Offset + i * 3 + 0];
         const auto& v1 = verts[gt3Offset + i * 3 + 1];
         const auto& v2 = verts[gt3Offset + i * 3 + 2];
 
-        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
-        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
-        psyqo::GTE::Kernels::rtpt();
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
+        psyqo::GTE::Kernels::rtps();
+        if (fogEnabled) {
+            tri2d.setColorA(interpColorImm(neutralColor));
+        }
+
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
+        psyqo::GTE::Kernels::rtps();
+        const auto p1 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+        if (fogEnabled) {
+            tri2d.colorB = interpColorImm(neutralColor);
+        }
+
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v2.pos);
+        psyqo::GTE::Kernels::rtps();
+        const auto p2 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+        if (fogEnabled) {
+            tri2d.colorC = interpColorImm(neutralColor);
+        }
 
         psyqo::GTE::Kernels::nclip();
         const auto dot =
@@ -366,44 +362,39 @@ void Renderer::drawMesh(T& mesh)
             continue;
         }
 
-        auto& triFrag = gt3s[i];
-        auto& tri2d = triFrag.primitive;
-
         psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&tri2d.pointA.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&tri2d.pointB.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&tri2d.pointC.packed);
-
-        if (fogEnabled) {
-            const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
-            const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
-            const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
-
-            // per vertex interpolation
-            const auto p0 = calcInterpFactor(sz0);
-            const auto p1 = calcInterpFactor(sz1);
-            const auto p2 = calcInterpFactor(sz2);
-
-            psyqo::Color col;
-            interpColor(neutralColor, p0, &col);
-            tri2d.setColorA(col);
-            interpColor(neutralColor, p1, &tri2d.colorB);
-            interpColor(neutralColor, p2, &tri2d.colorC);
-        }
 
         ot.insert(triFrag, avgZ);
     }
 
     for (std::size_t i = 0; i < gt4s.size(); ++i) {
+        auto& quadFrag = gt4s[i];
+        auto& quad2d = quadFrag.primitive;
+
         const auto& v0 = verts[gt4Offset + i * 4 + 0];
         const auto& v1 = verts[gt4Offset + i * 4 + 1];
         const auto& v2 = verts[gt4Offset + i * 4 + 2];
         const auto& v3 = verts[gt4Offset + i * 4 + 3];
-        // ramsyscall_printf("HM: %d\n", gt4Offset + i * 4 + 3);
 
-        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
-        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
-        psyqo::GTE::Kernels::rtpt();
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
+        psyqo::GTE::Kernels::rtps();
+        if (fogEnabled) {
+            quad2d.setColorA(interpColorImm(neutralColor));
+        }
+
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
+        psyqo::GTE::Kernels::rtps();
+        if (fogEnabled) {
+            quad2d.colorB = interpColorImm(neutralColor);
+        }
+
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v2.pos);
+        psyqo::GTE::Kernels::rtps();
+        if (fogEnabled) {
+            quad2d.colorC = interpColorImm(neutralColor);
+        }
 
         psyqo::GTE::Kernels::nclip();
         const auto dot =
@@ -412,13 +403,13 @@ void Renderer::drawMesh(T& mesh)
             continue;
         }
 
-        auto& quadFrag = gt4s[i];
-        auto& quad2d = quadFrag.primitive;
-
         psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointA.packed);
 
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v3.pos);
         psyqo::GTE::Kernels::rtps();
+        if (fogEnabled) {
+            quad2d.colorD = interpColorImm(neutralColor);
+        }
 
         psyqo::GTE::Kernels::avsz4();
 
@@ -429,18 +420,16 @@ void Renderer::drawMesh(T& mesh)
 
         avgZ += bias; // add bias
 
-        if (gt4s.size() == 16) { // TEMP HACK: add bias to floor tiles
-            // avgZ += 500;
-        }
-
-        uint32_t uvCPacked = reinterpret_cast<std::uint32_t&>(quad2d.uvC);
-        int addBias = (uvCPacked & 0xFFFF0000) >> 16;
-        if (addBias == 50) {
-            avgZ += addBias * 10;
-        } else if (addBias == 40) {
-            avgZ += addBias;
-        } else {
-            avgZ -= addBias;
+        { // load additional bias stored in padding
+            uint32_t uvCPacked = reinterpret_cast<std::uint32_t&>(quad2d.uvC);
+            int addBias = (uvCPacked & 0xFFFF0000) >> 16;
+            if (addBias == 50) {
+                avgZ += addBias * 10;
+            } else if (addBias == 40) {
+                avgZ += addBias;
+            } else {
+                avgZ -= addBias;
+            }
         }
 
         if (avgZ >= Renderer::OT_SIZE) {
@@ -450,25 +439,6 @@ void Renderer::drawMesh(T& mesh)
         psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointB.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quad2d.pointC.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quad2d.pointD.packed);
-
-        if (fogEnabled) { // per vertex interpolation
-            const auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
-            const auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
-            const auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
-            const auto sz3 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
-
-            const auto p0 = calcInterpFactor(sz0);
-            const auto p1 = calcInterpFactor(sz1);
-            const auto p2 = calcInterpFactor(sz2);
-            const auto p3 = calcInterpFactor(sz3);
-
-            psyqo::Color col;
-            interpColor(neutralColor, p0, &col);
-            quad2d.setColorA(col);
-            interpColor(neutralColor, p1, &quad2d.colorB);
-            interpColor(neutralColor, p2, &quad2d.colorC);
-            interpColor(neutralColor, p3, &quad2d.colorD);
-        }
 
         ot.insert(quadFrag, avgZ);
     }

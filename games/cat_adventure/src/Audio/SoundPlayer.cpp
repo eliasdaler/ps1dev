@@ -122,7 +122,7 @@ void SoundPlayer::init()
     }
 
     setReverbEnabled();
-    setReverbPreset(SpuReverbPreset::Off);
+    setReverbPreset(SpuReverbPreset::Room);
 }
 
 void SoundPlayer::setDMAWriteState()
