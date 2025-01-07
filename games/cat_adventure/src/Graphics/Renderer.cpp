@@ -323,24 +323,25 @@ void Renderer::drawMesh(T& mesh)
         const auto& v1 = verts[gt3Offset + i * 3 + 1];
         const auto& v2 = verts[gt3Offset + i * 3 + 2];
 
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
-        psyqo::GTE::Kernels::rtps();
         if (fogEnabled) {
+            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
+            psyqo::GTE::Kernels::rtps();
             tri2d.setColorA(interpColorImm(neutralColor));
-        }
 
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
-        psyqo::GTE::Kernels::rtps();
-        const auto p1 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-        if (fogEnabled) {
+            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
+            psyqo::GTE::Kernels::rtps();
+            const auto p1 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
             tri2d.colorB = interpColorImm(neutralColor);
-        }
 
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v2.pos);
-        psyqo::GTE::Kernels::rtps();
-        const auto p2 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-        if (fogEnabled) {
+            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v2.pos);
+            psyqo::GTE::Kernels::rtps();
+            const auto p2 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
             tri2d.colorC = interpColorImm(neutralColor);
+        } else {
+            psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
+            psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
+            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
+            psyqo::GTE::Kernels::rtpt();
         }
 
         psyqo::GTE::Kernels::nclip();
@@ -389,22 +390,23 @@ void Renderer::drawMesh(T& mesh)
         const auto& v2 = verts[gt4Offset + i * 4 + 2];
         const auto& v3 = verts[gt4Offset + i * 4 + 3];
 
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
-        psyqo::GTE::Kernels::rtps();
         if (fogEnabled) {
+            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
+            psyqo::GTE::Kernels::rtps();
             quad2d.setColorA(interpColorImm(neutralColor));
-        }
 
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
-        psyqo::GTE::Kernels::rtps();
-        if (fogEnabled) {
+            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
+            psyqo::GTE::Kernels::rtps();
             quad2d.colorB = interpColorImm(neutralColor);
-        }
 
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v2.pos);
-        psyqo::GTE::Kernels::rtps();
-        if (fogEnabled) {
+            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v2.pos);
+            psyqo::GTE::Kernels::rtps();
             quad2d.colorC = interpColorImm(neutralColor);
+        } else {
+            psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
+            psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
+            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
+            psyqo::GTE::Kernels::rtpt();
         }
 
         psyqo::GTE::Kernels::nclip();

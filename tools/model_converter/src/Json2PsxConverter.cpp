@@ -164,7 +164,7 @@ PsxSubmesh processMesh(
                         semiTrans = true;
                         if (pixel.r == pixel.g && pixel.g == pixel.b) {
                             isShadow = true;
-                        } else if (pixel.r > 200 && pixel.g > 200 && pixel.b < 180) {
+                        } else if (pixel.r > 150 && pixel.g > 150 && pixel.b < 150) {
                             // yellowish color - TODO: better way to detect this?
                             isLight = true;
                         }

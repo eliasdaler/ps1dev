@@ -408,10 +408,10 @@ void GameplayScene::updateCamera()
     if (!freeCamera && followCamera) {
         static constexpr auto cameraOffset = psyqo::Vec3{
             .x = -0.1,
-            .y = 0.22,
-            .z = -0.30,
+            .y = 0.42,
+            .z = -0.60,
         };
-        static constexpr auto cameraPitch = psyqo::FixedPoint<10>(0.045);
+        static constexpr auto cameraPitch = psyqo::FixedPoint<10>(0.085);
 
         const auto fwdVector = player.getFront();
         const auto rightVector = player.getRight();
@@ -632,13 +632,13 @@ void GameplayScene::draw(Renderer& renderer)
 
     // set dithering ON globally
     auto& tpage = primBuffer.allocateFragment<psyqo::Prim::TPage>();
-    tpage.primitive.attr.setDithering(true).set(psyqo::Prim::TPageAttr::FullBackSubFullFront);
+    tpage.primitive.attr.setDithering(true);
     gp.chain(tpage);
 
     // clear
     // psyqo::Color bg{{.r = 33, .g = 14, .b = 58}};
-    psyqo::Color bg{{.r = 0, .g = 0, .b = 0}};
     // psyqo::Color bg{{.r = 0, .g = 0, .b = 0}};
+    psyqo::Color bg{{.r = 0, .g = 0, .b = 0}};
     auto& fill = primBuffer.allocateFragment<psyqo::Prim::FastFill>();
     gp.getNextClear(fill.primitive, bg);
     gp.chain(fill);
