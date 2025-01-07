@@ -126,6 +126,10 @@ ModelJson parseJsonFile(
                 face.material = -1;
             }
 
+            if (faceObj.contains("bias")) {
+                face.bias = faceObj.at("bias");
+            }
+
             mesh.faces.push_back(std::move(face));
         }
 

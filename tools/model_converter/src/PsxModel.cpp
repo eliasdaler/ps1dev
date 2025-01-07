@@ -83,6 +83,7 @@ void writeGT3Prims(std::ofstream& file, const std::vector<PsxTriFace>& faces)
             .r1 = face.vs[1].color.x,
             .g1 = face.vs[1].color.y,
             .b1 = face.vs[1].color.z,
+            .p1 = (std::uint8_t)face.bias, // HACK
             .u1 = face.vs[1].uv.x,
             .v1 = face.vs[1].uv.y,
             .tpage = static_cast<uint16_t>(face.vs[0].tpage),
@@ -92,6 +93,7 @@ void writeGT3Prims(std::ofstream& file, const std::vector<PsxTriFace>& faces)
             .b2 = face.vs[2].color.z,
             .u2 = face.vs[2].uv.x,
             .v2 = face.vs[2].uv.y,
+            .pad2 = (std::uint16_t)face.bias, // HACK!
         };
         fsutil::binaryWrite(file, tri);
     }
@@ -124,6 +126,7 @@ void writeGT4Prims(std::ofstream& file, const std::vector<PsxQuadFace>& faces)
             .b2 = face.vs[2].color.z,
             .u2 = face.vs[2].uv.x,
             .v2 = face.vs[2].uv.y,
+            .pad2 = (std::uint16_t)face.bias, // HACK!
             // 3
             .r3 = face.vs[3].color.x,
             .g3 = face.vs[3].color.y,

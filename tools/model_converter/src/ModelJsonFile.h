@@ -30,6 +30,7 @@ struct Face {
     std::vector<std::size_t> vertices;
     std::vector<glm::vec2> uvs;
     int material{-1};
+    int bias{0};
 };
 
 struct Mesh {

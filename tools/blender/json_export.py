@@ -144,7 +144,9 @@ def get_mesh_json(mesh, material_idx_map):
     faces = []
     has_materials_with_textures = mesh_has_materials_with_textures(mesh)
 
-    for poly in mesh.polygons:
+    bias_attr = mesh.attributes.get("Bias")
+
+    for face_idx, poly in enumerate(mesh.polygons):
         face_vert_indices = []
         face_uvs = []
         for loop_index in poly.loop_indices:
@@ -178,6 +180,9 @@ def get_mesh_json(mesh, material_idx_map):
             face_json["uvs"] = face_uvs
             material_idx = material_idx_map[mesh.materials[poly.material_index].name]
             face_json["material"] = material_idx
+
+        if bias_attr:
+            face_json["bias"] = bias_attr.data[face_idx].value
 
         faces.append(face_json)
 

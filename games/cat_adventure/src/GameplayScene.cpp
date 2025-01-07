@@ -632,7 +632,7 @@ void GameplayScene::draw(Renderer& renderer)
 
     // set dithering ON globally
     auto& tpage = primBuffer.allocateFragment<psyqo::Prim::TPage>();
-    tpage.primitive.attr.setDithering(true);
+    tpage.primitive.attr.setDithering(true).set(psyqo::Prim::TPageAttr::FullBackSubFullFront);
     gp.chain(tpage);
 
     // clear

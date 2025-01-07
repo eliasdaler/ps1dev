@@ -144,6 +144,7 @@ PsxSubmesh processMesh(
         // check if semitransparent (any pixels covered by face are semi-transparent)
         // NOTE: have to do before shifting coords (see below)
         bool semiTrans = false;
+        bool isShadow = false;
         if (hasTexture) {
             Vec2<std::uint8_t> uvMin{255, 255};
             Vec2<std::uint8_t> uvMax{0, 0};
@@ -160,6 +161,9 @@ PsxSubmesh processMesh(
                     auto pixel = td->imageData.getPixel(u, v);
                     if (pixel.a > 0 && pixel.a < 255) {
                         semiTrans = true;
+                        if (pixel.r == pixel.g && pixel.g == pixel.b) {
+                            isShadow = true;
+                        }
                     }
                     break;
                 }
@@ -192,28 +196,36 @@ PsxSubmesh processMesh(
             }
         }
 
+        for (std::size_t i = 0; i < face.vertices.size(); ++i) {
+            if (semiTrans && isShadow) {
+                psxFace[i].tpage &= ~(0x3 << 5);
+                psxFace[i].tpage |= (2 << 5);
+            }
+        }
+
         if (face.vertices.size() == 3) {
-            auto face = PsxTriFace{
+            auto facePsx = PsxTriFace{
                 .vs = {psxFace[0], psxFace[2], psxFace[1]},
                 .semiTrans = semiTrans,
             };
             if (hasTexture) {
-                psxMesh.triFaces.push_back(std::move(face));
+                psxMesh.triFaces.push_back(std::move(facePsx));
             } else {
-                psxMesh.untexturedTriFaces.push_back(std::move(face));
+                psxMesh.untexturedTriFaces.push_back(std::move(facePsx));
             }
         } else {
             assert(face.vertices.size() == 4);
             // note the order - that's how PS1 quads work
-            auto face = PsxQuadFace{
+            auto facePsx = PsxQuadFace{
                 .vs = {psxFace[3], psxFace[2], psxFace[0], psxFace[1]},
                 .semiTrans = semiTrans,
+                .bias = face.bias,
             };
             if (hasTexture) {
-                offsetRectUV(face);
-                psxMesh.quadFaces.push_back(std::move(face));
+                offsetRectUV(facePsx);
+                psxMesh.quadFaces.push_back(std::move(facePsx));
             } else {
-                psxMesh.untexturedQuadFaces.push_back(std::move(face));
+                psxMesh.untexturedQuadFaces.push_back(std::move(facePsx));
             }
         }
     }
