@@ -182,7 +182,9 @@ def get_mesh_json(mesh, material_idx_map):
             face_json["material"] = material_idx
 
         if bias_attr:
-            face_json["bias"] = bias_attr.data[face_idx].value
+            bias = bias_attr.data[face_idx].value
+            if bias != 0:
+                face_json["bias"] = bias
 
         faces.append(face_json)
 

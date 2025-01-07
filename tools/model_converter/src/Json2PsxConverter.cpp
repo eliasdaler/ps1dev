@@ -216,6 +216,7 @@ PsxSubmesh processMesh(
             auto facePsx = PsxTriFace{
                 .vs = {psxFace[0], psxFace[2], psxFace[1]},
                 .semiTrans = semiTrans,
+                .bias = static_cast<std::int16_t>(face.bias),
             };
             if (hasTexture) {
                 psxMesh.triFaces.push_back(std::move(facePsx));
@@ -228,7 +229,7 @@ PsxSubmesh processMesh(
             auto facePsx = PsxQuadFace{
                 .vs = {psxFace[3], psxFace[2], psxFace[0], psxFace[1]},
                 .semiTrans = semiTrans,
-                .bias = face.bias,
+                .bias = static_cast<std::int16_t>(face.bias),
             };
             if (hasTexture) {
                 offsetRectUV(facePsx);

@@ -26,13 +26,13 @@ struct PsxVert {
 struct PsxTriFace {
     std::array<PsxVert, 3> vs;
     bool semiTrans{false};
-    int bias{0};
+    std::int16_t bias{0};
 };
 
 struct PsxQuadFace {
     std::array<PsxVert, 4> vs;
     bool semiTrans{false};
-    int bias{0};
+    std::int16_t bias{0};
 };
 
 struct PsxSubmesh {

@@ -51,7 +51,7 @@ struct GouraudTexturedTriangle {
     u8 r2, g2, b2, p2;
     s16 x2, y2;
     u8 u2, v2;
-    u16 pad2;
+    u16 bias; // actually padding
 };
 
 struct GouraudTexturedQuad {
@@ -71,7 +71,7 @@ struct GouraudTexturedQuad {
     u8 r2, g2, b2, p2;
     s16 x2, y2;
     u8 u2, v2;
-    u16 pad2;
+    s16 bias; // actually u16 pad2
 
     u8 r3, g3, b3, p3;
     s16 x3, y3;
