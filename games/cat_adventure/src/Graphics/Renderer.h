@@ -35,24 +35,22 @@ public:
 
     void drawMeshObject(MeshObject& object, const Camera& camera);
     void drawModelObject(ModelObject& object, const Camera& camera, bool setViewRot = true);
-    void drawModel(Model& model);
+    void drawModel(const Model& model);
 
-    template<RenderableMesh T>
-    void drawMesh(T& mesh);
+    void drawMesh(const Mesh& mesh);
 
-    template<RenderableMesh T>
     void drawMeshArmature(
         const AnimatedModelObject& object,
         const Camera& camera,
         const Armature& armature,
-        T& mesh);
+        const Mesh& mesh);
 
     static constexpr auto OT_SIZE = 4096 * 2;
     using OrderingTableType = psyqo::OrderingTable<OT_SIZE>;
     eastl::array<OrderingTableType, 2> ots;
 
     // TODO: can make much smaller once static geometry stores primitives on heap
-    static constexpr int PRIMBUFFLEN = 32768 * 2;
+    static constexpr int PRIMBUFFLEN = 32768 * 20;
     using PrimBufferAllocatorType = psyqo::BumpAllocator<PRIMBUFFLEN>;
     eastl::array<PrimBufferAllocatorType, 2> primBuffers;
 

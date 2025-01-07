@@ -48,13 +48,12 @@ void GameplayScene::start(StartReason reason)
         interactionDialogueBox.size.y = 32;
         interactionDialogueBox.displayMoreTextArrow = false;
 
-        player.model =
-            game.resourceCache.getResource<ModelData>(CATO_MODEL_HASH).makeInstanceUnique();
+        player.model = game.resourceCache.getResource<ModelData>(CATO_MODEL_HASH).makeInstance();
 
         // FIXME: somehow mark face mesh in Blender
-        player.faceSubmeshIdx = 0;
+        player.faceSubmeshIdx = 0xFF;
         for (int i = 0; i < player.model.meshes.size(); ++i) {
-            const auto& submesh = eastl::get<MeshUnique>(player.model.meshes[i]);
+            const auto& submesh = *player.model.meshes[i].meshData;
             if (submesh.gt4.size() == 16) {
                 player.faceSubmeshIdx = i;
             }
@@ -669,7 +668,6 @@ void GameplayScene::draw(Renderer& renderer)
     gp.chain(ot);
 
     if (fadeLevel != 0) {
-        auto& primBuffer = renderer.getPrimBuffer();
         auto& gpu = renderer.getGPU();
 
         auto& tpage = primBuffer.allocateFragment<psyqo::Prim::TPage>();
@@ -891,6 +889,13 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
             textCol,
             "heap used: %d",
             (int)((uint8_t*)psyqo_heap_end() - (uint8_t*)psyqo_heap_start()));
+
+        game.romFont.chainprintf(
+            game.gpu(),
+            {{.x = 16, .y = 80}},
+            textCol,
+            "pb used: %d",
+            (int)renderer.getPrimBuffer().getNumBytesUsed());
 
         if (!freeCamera) {
             /* game.romFont.chainprintf(

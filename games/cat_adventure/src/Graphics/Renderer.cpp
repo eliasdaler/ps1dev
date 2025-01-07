@@ -117,19 +117,19 @@ void Renderer::drawAnimatedModelObject(
         return;
     }
 
-    for (auto& mv : model.meshes) {
-        eastl::visit([&](auto&& mesh) { drawMeshArmature(object, camera, armature, mesh); }, mv);
+    for (auto& mesh : model.meshes) {
+        drawMeshArmature(object, camera, armature, mesh);
     }
 }
 
-template<RenderableMesh T>
 void Renderer::drawMeshArmature(
     const AnimatedModelObject& object,
     const Camera& camera,
     const Armature& armature,
-    T& mesh)
+    const Mesh& mesh)
 {
-    const auto& jointTransform = object.jointGlobalTransforms[mesh.getJointId()];
+    const auto& meshData = *mesh.meshData;
+    const auto& jointTransform = object.jointGlobalTransforms[meshData.jointId];
 
     const auto t1 = combineTransforms(object.transform, jointTransform);
 
@@ -169,33 +169,33 @@ void Renderer::drawMeshObject(MeshObject& object, const Camera& camera)
     drawMesh(object.mesh);
 }
 
-void Renderer::drawModel(Model& model)
+void Renderer::drawModel(const Model& model)
 {
-    for (auto& mesh : model.meshes) {
-        eastl::visit([&](auto&& mesh) { drawMesh(mesh); }, mesh);
+    for (const auto& mesh : model.meshes) {
+        drawMesh(mesh);
     }
 }
 
-template<RenderableMesh T>
-void Renderer::drawMesh(T& mesh)
+void Renderer::drawMesh(const Mesh& mesh)
 {
     static constexpr auto neutralColor = psyqo::Color{.r = 64, .g = 80, .b = 100};
 
     auto& ot = getOrderingTable();
+    auto& primBuffer = getPrimBuffer();
 
-    auto parity = gpu.getParity();
-    auto& g3s = mesh.getG3s(parity);
-    auto& g4s = mesh.getG4s(parity);
-    auto& gt3s = mesh.getGT3s(parity);
-    auto& gt4s = mesh.getGT4s(parity);
+    const auto& meshData = *mesh.meshData;
+    const auto& g3s = meshData.g3;
+    const auto& g4s = meshData.g4;
+    const auto& gt3s = meshData.gt3;
+    const auto& gt4s = meshData.gt4;
 
     const auto g4Offset = g3s.size() * 3;
     const auto gt3Offset = g4Offset + g4s.size() * 4;
     const auto gt4Offset = gt3Offset + gt3s.size() * 3;
 
-    const auto& verts = mesh.getVertices();
+    const auto& verts = meshData.vertices;
 
-    for (std::size_t i = 0; i < g3s.size(); ++i) {
+    /* for (std::size_t i = 0; i < g3s.size(); ++i) {
         const auto& v0 = verts[i * 3 + 0];
         const auto& v1 = verts[i * 3 + 1];
         const auto& v2 = verts[i * 3 + 2];
@@ -313,11 +313,20 @@ void Renderer::drawMesh(T& mesh)
         }
 
         ot.insert(quadFrag, avgZ);
-    }
+    } */
+
+    /* ramsyscall_printf(
+        "%d, %d, %d, %d\n",
+        (int)meshData.vertices.size(),
+        (int)gt3s.size(),
+        (int)gt4s.size(),
+        (int)primBuffer.getNumBytesUsed()); */
 
     for (std::size_t i = 0; i < gt3s.size(); ++i) {
-        auto& triFrag = gt3s[i];
+        auto& triFrag = primBuffer.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
         auto& tri2d = triFrag.primitive;
+
+        tri2d = gt3s[i]; // copy
 
         const auto& v0 = verts[gt3Offset + i * 3 + 0];
         const auto& v1 = verts[gt3Offset + i * 3 + 1];
@@ -377,8 +386,10 @@ void Renderer::drawMesh(T& mesh)
     }
 
     for (std::size_t i = 0; i < gt4s.size(); ++i) {
-        auto& quadFrag = gt4s[i];
+        auto& quadFrag = primBuffer.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
         auto& quad2d = quadFrag.primitive;
+
+        quad2d = gt4s[i]; // copy
 
         const auto& v0 = verts[gt4Offset + i * 4 + 0];
         const auto& v1 = verts[gt4Offset + i * 4 + 1];

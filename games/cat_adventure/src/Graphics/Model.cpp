@@ -35,13 +35,6 @@ void ModelData::load(util::FileReader& fr)
         mesh.vertices.resize(numVertices);
         fr.ReadArr(mesh.vertices.data(), numVertices);
 
-        /* ramsyscall_printf(
-            "%d, %d, %d, %d\n",
-            mesh.numUntexturedTris,
-            mesh.numUntexturedQuads,
-            mesh.numTris,
-            mesh.numQuads); */
-
         mesh.g3.resize(mesh.numUntexturedTris);
         fr.ReadArr(mesh.g3.data(), mesh.numUntexturedTris);
 
@@ -84,29 +77,8 @@ void ModelData::load(util::FileReader& fr)
 
 Mesh MeshData::makeInstance() const
 {
-    Mesh instance{
-        .jointId = jointId,
-        .vertices = &vertices,
-    };
-
-    for (int i = 0; i < 2; ++i) {
-        instance.g3[i] = g3;
-        instance.g4[i] = g4;
-        instance.gt3[i] = gt3;
-        instance.gt4[i] = gt4;
-    }
-
-    return instance;
-}
-
-MeshUnique MeshData::makeInstanceUnique()
-{
-    return MeshUnique{
-        .meshData = *this,
-        .g3 = g3,
-        .g4 = g4,
-        .gt3 = gt3,
-        .gt4 = gt4,
+    return Mesh{
+        .meshData = this,
     };
 }
 
@@ -118,21 +90,6 @@ Model ModelData::makeInstance() const
     instance.meshes.reserve(meshes.size());
     for (const auto& mesh : meshes) {
         instance.meshes.push_back(mesh.makeInstance());
-    }
-
-    return instance;
-}
-
-Model ModelData::makeInstanceUnique()
-{
-    Model instance{};
-
-    // technically we don't need to copy armature here, but whatever
-    instance.armature = armature;
-
-    instance.meshes.reserve(meshes.size());
-    for (auto& mesh : meshes) {
-        instance.meshes.push_back(mesh.makeInstanceUnique());
     }
 
     return instance;
