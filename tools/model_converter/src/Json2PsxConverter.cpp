@@ -145,6 +145,7 @@ PsxSubmesh processMesh(
         // NOTE: have to do before shifting coords (see below)
         bool semiTrans = false;
         bool isShadow = false;
+        bool isLight = false;
         if (hasTexture) {
             Vec2<std::uint8_t> uvMin{255, 255};
             Vec2<std::uint8_t> uvMax{0, 0};
@@ -163,6 +164,9 @@ PsxSubmesh processMesh(
                         semiTrans = true;
                         if (pixel.r == pixel.g && pixel.g == pixel.b) {
                             isShadow = true;
+                        } else if (pixel.r > 200 && pixel.g > 200 && pixel.b < 180) {
+                            // yellowish color - TODO: better way to detect this?
+                            isLight = true;
                         }
                     }
                     break;
@@ -196,10 +200,15 @@ PsxSubmesh processMesh(
             }
         }
 
-        for (std::size_t i = 0; i < face.vertices.size(); ++i) {
-            if (semiTrans && isShadow) {
-                psxFace[i].tpage &= ~(0x3 << 5);
-                psxFace[i].tpage |= (2 << 5);
+        if (semiTrans) {
+            for (std::size_t i = 0; i < face.vertices.size(); ++i) {
+                if (isShadow) {
+                    psxFace[i].tpage &= ~(0x3 << 5);
+                    psxFace[i].tpage |= (2 << 5); // FullBackSubFullFront
+                } else if (isLight) {
+                    psxFace[i].tpage &= ~(0x3 << 5);
+                    psxFace[i].tpage |= (3 << 5); //  FullBackAndQuarterFront
+                }
             }
         }
 

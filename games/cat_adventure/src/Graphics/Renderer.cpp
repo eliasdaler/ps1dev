@@ -358,6 +358,17 @@ void Renderer::drawMesh(T& mesh)
         }
 
         avgZ += bias; // add bias
+        { // load additional bias stored in padding
+            uint32_t uvCPacked = reinterpret_cast<std::uint32_t&>(tri2d.uvC);
+            int addBias = (uvCPacked & 0xFFFF0000) >> 16;
+            if (addBias == 50) {
+                avgZ += addBias * 10;
+            } else if (addBias == 40) {
+                avgZ += addBias;
+            } else {
+                avgZ -= addBias;
+            }
+        }
         if (avgZ >= Renderer::OT_SIZE) {
             continue;
         }
