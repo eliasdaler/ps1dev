@@ -10,6 +10,10 @@
 #include <Math/gte-math.h>
 #include <Object.h>
 
+#include <cstring> // memcpy
+
+#include "Subdivision.h"
+
 namespace
 {
 void interpColor(const psyqo::Color& input, uint32_t p, psyqo::Color* out)
@@ -174,6 +178,50 @@ void Renderer::drawModel(const Model& model)
     for (const auto& mesh : model.meshes) {
         drawMesh(mesh);
     }
+}
+
+void Renderer::drawQuadSubdiv(const psyqo::Prim::GouraudTexturedQuad& prim, int avgZ, int addBias)
+{
+    auto& ot = getOrderingTable();
+    auto& primBuffer = getPrimBuffer();
+
+    auto& wrk1 = *(SubdivData1*)(SCRATCH_PAD);
+
+    /* verts set in drawMesh */
+
+    wrk1.ouv[0].u = prim.uvA.u;
+    wrk1.ouv[0].v = prim.uvA.v;
+
+    wrk1.ouv[1].u = prim.uvB.u;
+    wrk1.ouv[1].v = prim.uvB.v;
+
+    wrk1.ouv[2].u = prim.uvC.u;
+    wrk1.ouv[2].v = prim.uvC.v;
+
+    wrk1.ouv[3].u = prim.uvD.u;
+    wrk1.ouv[3].v = prim.uvD.v;
+
+    wrk1.ocol[0] = prim.colorA();
+    wrk1.ocol[1] = prim.colorB;
+    wrk1.ocol[2] = prim.colorC;
+    wrk1.ocol[3] = prim.colorD;
+
+    const auto tpage = prim.tpage;
+    const auto clut = prim.clutIndex;
+
+    if (avgZ < LEVEL_2_SUBDIV_DIST) {
+        auto& wrk2 = *(SubdivData2*)(SCRATCH_PAD);
+        for (int i = 0; i < 4; ++i) {
+            wrk2.oov[i] = wrk2.ov[i];
+            wrk2.oouv[i] = wrk2.ouv[i];
+            wrk2.oocol[i] = wrk2.ocol[i];
+        }
+
+        DRAW_QUADS_44(wrk2);
+        return;
+    }
+
+    DRAW_QUADS_22(wrk1);
 }
 
 void Renderer::drawMesh(const Mesh& mesh)
@@ -386,15 +434,24 @@ void Renderer::drawMesh(const Mesh& mesh)
     }
 
     for (std::size_t i = 0; i < gt4s.size(); ++i) {
-        auto& quadFrag = primBuffer.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
-        auto& quad2d = quadFrag.primitive;
-
-        quad2d = gt4s[i]; // copy
-
         const auto& v0 = verts[gt4Offset + i * 4 + 0];
         const auto& v1 = verts[gt4Offset + i * 4 + 1];
         const auto& v2 = verts[gt4Offset + i * 4 + 2];
         const auto& v3 = verts[gt4Offset + i * 4 + 3];
+
+        const auto& prim = gt4s[i];
+
+        auto& quadFrag = primBuffer.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
+        auto& quad2d = quadFrag.primitive;
+
+        /* quad2d.command = prim.command;
+        quad2d.tpage = prim.tpage;
+        quad2d.clutIndex = prim.clutIndex;
+        quad2d.uvA = prim.uvA;
+        quad2d.uvB = prim.uvB;
+        quad2d.uvC = prim.uvC;
+        quad2d.uvD = prim.uvD; */
+        quad2d = prim; // copy
 
         if (fogEnabled) {
             psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
@@ -432,18 +489,65 @@ void Renderer::drawMesh(const Mesh& mesh)
 
         psyqo::GTE::Kernels::avsz4();
 
-        auto avgZ = (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
+        auto avgZ = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
         if (avgZ == 0) { // cull
             continue;
         }
 
-        avgZ += bias; // add bias
+        // load additional bias stored in padding
+        uint32_t uvCPacked = reinterpret_cast<const std::uint32_t&>(prim.uvC);
+        const auto addBias = static_cast<std::int16_t>((uvCPacked & 0xFFFF0000) >> 16);
 
-        { // load additional bias stored in padding
-            uint32_t uvCPacked = reinterpret_cast<std::uint32_t&>(quad2d.uvC);
-            const auto addBias = static_cast<std::int16_t>((uvCPacked & 0xFFFF0000) >> 16);
-            avgZ += addBias;
+        // subdiv
+        if ((addBias == 1 || addBias == 500) && avgZ < LEVEL_1_SUBDIV_DIST) {
+            auto& wrk1 = *(SubdivData1*)(SCRATCH_PAD);
+            wrk1.ov[0] = v0;
+            wrk1.ov[1] = v1;
+            wrk1.ov[2] = v2;
+            wrk1.ov[3] = v3;
+
+#ifdef FULL_INLINE
+            wrk1.ouv[0].u = prim.uvA.u;
+            wrk1.ouv[0].v = prim.uvA.v;
+
+            wrk1.ouv[1].u = prim.uvB.u;
+            wrk1.ouv[1].v = prim.uvB.v;
+
+            wrk1.ouv[2].u = prim.uvC.u;
+            wrk1.ouv[2].v = prim.uvC.v;
+
+            wrk1.ouv[3].u = prim.uvD.u;
+            wrk1.ouv[3].v = prim.uvD.v;
+
+            wrk1.ocol[0].packed = quad2d.colorA();
+            wrk1.ocol[1] = quad2d.colorB;
+            wrk1.ocol[2] = quad2d.colorC;
+            wrk1.ocol[3] = quad2d.colorD;
+
+            const auto tpage = quad2d.tpage;
+            const auto clut = quad2d.clutIndex;
+            const auto command = quad2d.command;
+
+            if (avgZ < LEVEL_2_SUBDIV_DIST) {
+                auto& wrk2 = *(SubdivData2*)(SCRATCH_PAD);
+                for (int i = 0; i < 4; ++i) {
+                    wrk2.oov[i] = wrk2.ov[i];
+                    wrk2.oouv[i] = wrk2.ouv[i];
+                    wrk2.oocol[i] = wrk2.ocol[i];
+                }
+
+                DRAW_QUADS_44(wrk2);
+                continue;
+            }
+
+            DRAW_QUADS_22(wrk1);
+#else
+            drawQuadSubdiv(quad2d, avgZ, addBias);
+#endif
+            continue;
         }
+
+        avgZ += bias + addBias; // add bias
 
         if (avgZ >= Renderer::OT_SIZE) {
             continue;
