@@ -80,8 +80,8 @@ PsxSubmesh processMesh(
     for (const auto& face : mesh.faces) {
         std::array<PsxVert, 4> psxFace;
         if (face.vertices.size() != 3 && face.vertices.size() != 4) {
-            throw std::runtime_error(
-                std::format("bad face in submesh: has {} vertices", face.vertices.size()));
+            throw std::runtime_error(std::format(
+                "bad face in submesh {}: has {} vertices", mesh.name, face.vertices.size()));
         }
         assert(face.vertices.size() <= 4);
 

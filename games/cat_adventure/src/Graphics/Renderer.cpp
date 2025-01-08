@@ -226,7 +226,8 @@ void Renderer::drawQuadSubdiv(const psyqo::Prim::GouraudTexturedQuad& prim, int 
 
 void Renderer::drawMesh(const Mesh& mesh)
 {
-    static constexpr auto neutralColor = psyqo::Color{.r = 64, .g = 80, .b = 100};
+    // static constexpr auto neutralColor = psyqo::Color{.r = 64 + 20, .g = 80 + 20, .b = 100 + 20};
+    static constexpr auto neutralColor = psyqo::Color{.r = 64 + 40, .g = 80 + 40, .b = 100 + 40};
 
     auto& ot = getOrderingTable();
     auto& primBuffer = getPrimBuffer();
@@ -472,11 +473,17 @@ void Renderer::drawMesh(const Mesh& mesh)
             psyqo::GTE::Kernels::rtpt();
         }
 
+        // load additional bias stored in padding
+        uint32_t uvCPacked = reinterpret_cast<const std::uint32_t&>(prim.uvC);
+        const auto addBias = static_cast<std::int16_t>((uvCPacked & 0xFFFF0000) >> 16);
+
         psyqo::GTE::Kernels::nclip();
         const auto dot =
             (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
         if (dot < 0) {
-            continue;
+            if (addBias != 2) {
+                continue;
+            }
         }
 
         psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quad2d.pointA.packed);
@@ -493,10 +500,6 @@ void Renderer::drawMesh(const Mesh& mesh)
         if (avgZ == 0) { // cull
             continue;
         }
-
-        // load additional bias stored in padding
-        uint32_t uvCPacked = reinterpret_cast<const std::uint32_t&>(prim.uvC);
-        const auto addBias = static_cast<std::int16_t>((uvCPacked & 0xFFFF0000) >> 16);
 
         // subdiv
         if ((addBias == 1 || addBias == 500) && avgZ < LEVEL_1_SUBDIV_DIST) {
@@ -519,7 +522,7 @@ void Renderer::drawMesh(const Mesh& mesh)
             wrk1.ouv[3].u = prim.uvD.u;
             wrk1.ouv[3].v = prim.uvD.v;
 
-            wrk1.ocol[0].packed = quad2d.colorA();
+            wrk1.ocol[0] = quad2d.colorA();
             wrk1.ocol[1] = quad2d.colorB;
             wrk1.ocol[2] = quad2d.colorC;
             wrk1.ocol[3] = quad2d.colorD;

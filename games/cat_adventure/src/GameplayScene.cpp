@@ -36,7 +36,7 @@ GameplayScene::GameplayScene(Game& game) : game(game)
 void GameplayScene::start(StartReason reason)
 {
     if (reason == StartReason::Create) {
-        game.renderer.setFogNearFar(0.6, 3.125);
+        game.renderer.setFogNearFar(0.4, 3.125);
         static const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
         game.renderer.setFarColor(farColor);
 
@@ -405,12 +405,21 @@ void GameplayScene::updateCamera()
     const auto& trig = game.trig;
 
     if (!freeCamera && followCamera) {
+#ifdef NEW_CAM
         static constexpr auto cameraOffset = psyqo::Vec3{
             .x = -0.1,
             .y = 0.42,
             .z = -0.60,
         };
         static constexpr auto cameraPitch = psyqo::FixedPoint<10>(0.085);
+#else
+        static constexpr auto cameraOffset = psyqo::Vec3{
+            .x = -0.15,
+            .y = 0.20,
+            .z = -0.32,
+        };
+        static constexpr auto cameraPitch = psyqo::FixedPoint<10>(0.035);
+#endif
 
         const auto fwdVector = player.getFront();
         const auto rightVector = player.getRight();
@@ -500,7 +509,9 @@ void GameplayScene::update()
     updateCamera();
 
     if (gameState == GameState::Normal) {
-        canTalk = circlesIntersect(player.interactionCircle, npc.interactionCircle);
+        if (game.level.id == 0) {
+            canTalk = circlesIntersect(player.interactionCircle, npc.interactionCircle);
+        }
     } else if (gameState == GameState::Dialogue) {
         if (npcRotatesTowardsPlayer) {
             interactRotationLerpFactor += interactRotationLerpSpeed;
@@ -636,11 +647,50 @@ void GameplayScene::draw(Renderer& renderer)
 
     // clear
     // psyqo::Color bg{{.r = 33, .g = 14, .b = 58}};
-    // psyqo::Color bg{{.r = 0, .g = 0, .b = 0}};
     psyqo::Color bg{{.r = 0, .g = 0, .b = 0}};
     auto& fill = primBuffer.allocateFragment<psyqo::Prim::FastFill>();
     gp.getNextClear(fill.primitive, bg);
     gp.chain(fill);
+
+    {
+        auto gradY1 = 100;
+
+        psyqo::Color bg1{{.r = 40, .g = 38, .b = 100}};
+        psyqo::Color bg2{{.r = 255, .g = 128, .b = 0}};
+        {
+            auto& prim = primBuffer.allocateFragment<psyqo::Prim::GouraudQuad>();
+            auto& q = prim.primitive;
+            q.setColorA(bg1);
+            q.setColorB(bg1);
+            q.setColorC(bg2);
+            q.setColorD(bg2);
+            q.pointA.x = 0;
+            q.pointA.y = 0;
+            q.pointB.x = SCREEN_WIDTH;
+            q.pointB.y = 0;
+            q.pointC.x = 0;
+            q.pointC.y = gradY1;
+            q.pointD.x = SCREEN_WIDTH;
+            q.pointD.y = gradY1;
+            gpu().chain(prim);
+        }
+
+        /* {
+            psyqo::Color bg3{{.r = 0, .g = 0, .b = 0}};
+            auto& prim = primBuffer.allocateFragment<psyqo::Prim::Quad>();
+            auto& q = prim.primitive;
+            q.setColor(bg3);
+            q.pointA.x = 0;
+            q.pointA.y = gradY1;
+            q.pointB.x = SCREEN_WIDTH;
+            q.pointB.y = gradY1;
+            q.pointC.x = 0;
+            q.pointC.y = SCREEN_HEIGHT;
+            q.pointD.x = SCREEN_WIDTH;
+            q.pointD.y = SCREEN_HEIGHT;
+            gpu().chain(prim);
+        } */
+    }
 
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
 
