@@ -51,7 +51,7 @@ public:
     eastl::array<OrderingTableType, 2> ots;
 
     // TODO: can make much smaller once static geometry stores primitives on heap
-    static constexpr int PRIMBUFFLEN = 32768 * 20;
+    static constexpr int PRIMBUFFLEN = 32768 * 10;
     using PrimBufferAllocatorType = psyqo::BumpAllocator<PRIMBUFFLEN>;
     eastl::array<PrimBufferAllocatorType, 2> primBuffers;
 

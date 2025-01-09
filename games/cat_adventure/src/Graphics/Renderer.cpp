@@ -84,7 +84,7 @@ void Renderer::calculateViewModelMatrix(const Object& object, const Camera& came
 
 bool Renderer::shouldCullObject(const Object& object, const Camera& camera) const
 {
-    static constexpr auto cullDistance = psyqo::FixedPoint<>(12.f);
+    static constexpr auto cullDistance = psyqo::FixedPoint<>(30.f);
     auto posCamSpace = object.transform.translation - camera.position;
     if (posCamSpace.x * posCamSpace.x + posCamSpace.y * posCamSpace.y +
             posCamSpace.z * posCamSpace.z >
@@ -375,7 +375,8 @@ void Renderer::drawMesh(const Mesh& mesh)
         auto& triFrag = primBuffer.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
         auto& tri2d = triFrag.primitive;
 
-        tri2d = gt3s[i]; // copy
+        const auto& prim = gt3s[i];
+        tri2d = prim; // copy
 
         const auto& v0 = verts[gt3Offset + i * 3 + 0];
         const auto& v1 = verts[gt3Offset + i * 3 + 1];
@@ -384,17 +385,17 @@ void Renderer::drawMesh(const Mesh& mesh)
         if (fogEnabled) {
             psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
             psyqo::GTE::Kernels::rtps();
-            tri2d.setColorA(interpColorImm(neutralColor));
+            tri2d.setColorA(interpColorImm(prim.colorA()));
 
             psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
             psyqo::GTE::Kernels::rtps();
             const auto p1 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-            tri2d.colorB = interpColorImm(neutralColor);
+            tri2d.colorB = interpColorImm(prim.colorB);
 
             psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v2.pos);
             psyqo::GTE::Kernels::rtps();
             const auto p2 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-            tri2d.colorC = interpColorImm(neutralColor);
+            tri2d.colorC = interpColorImm(prim.colorC);
         } else {
             psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
             psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
@@ -457,15 +458,15 @@ void Renderer::drawMesh(const Mesh& mesh)
         if (fogEnabled) {
             psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
             psyqo::GTE::Kernels::rtps();
-            quad2d.setColorA(interpColorImm(neutralColor));
+            quad2d.setColorA(interpColorImm(prim.colorA()));
 
             psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
             psyqo::GTE::Kernels::rtps();
-            quad2d.colorB = interpColorImm(neutralColor);
+            quad2d.colorB = interpColorImm(prim.colorB);
 
             psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v2.pos);
             psyqo::GTE::Kernels::rtps();
-            quad2d.colorC = interpColorImm(neutralColor);
+            quad2d.colorC = interpColorImm(prim.colorC);
         } else {
             psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
             psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
@@ -491,7 +492,7 @@ void Renderer::drawMesh(const Mesh& mesh)
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v3.pos);
         psyqo::GTE::Kernels::rtps();
         if (fogEnabled) {
-            quad2d.colorD = interpColorImm(neutralColor);
+            quad2d.colorD = interpColorImm(prim.colorD);
         }
 
         psyqo::GTE::Kernels::avsz4();

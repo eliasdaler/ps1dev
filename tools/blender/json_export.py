@@ -138,6 +138,8 @@ def get_mesh_json(mesh, material_idx_map):
     uv_layer = mesh.uv_layers[0].data
     vertex_colors = None
     if mesh.color_attributes:
+        if mesh.color_attributes[0].domain == "CORNER":
+            raise ValueError(f"Wrong color attribute for mesh {mesh.name}: should be 'Vertex', not 'Face Corner'")
         vertex_colors = mesh.color_attributes[0].data
 
     vertices = [None] * len(mesh.vertices)
@@ -261,6 +263,7 @@ def get_mesh_json_armature(obj, meshes_list, material_idx_map, joints, joint_nam
 
             if faces and vertices:
                 meshes_data.append({
+                    "name": mesh.name,
                     "joint_id": idx,
                     "faces": faces,
                     "vertices": vertices,

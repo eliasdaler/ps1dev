@@ -20,6 +20,8 @@
 
 #define DEV_TOOLS
 
+#define NEW_CAM
+
 namespace
 {
 constexpr auto worldScale = 8.0;
@@ -653,7 +655,11 @@ void GameplayScene::draw(Renderer& renderer)
     gp.chain(fill);
 
     {
+#ifdef NEW_CAM
+        auto gradY1 = 60;
+#else
         auto gradY1 = 100;
+#endif
 
         psyqo::Color bg1{{.r = 40, .g = 38, .b = 100}};
         psyqo::Color bg2{{.r = 255, .g = 128, .b = 0}};
