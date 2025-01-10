@@ -85,6 +85,12 @@ TimCreateConfig readTimConfig(
     config.setSTPOnNonBlack = getBoolOrElse(j, "set_stp_on_non_black", false);
     config.setSTPOnBlack = getBoolOrElse(j, "set_stp_on_black", false);
 
+    config.neverSetSTP = getBoolOrElse(j, "never_set_stp", false);
+    if (config.neverSetSTP) {
+        config.setSTPOnNonBlack = false;
+        config.setSTPOnBlack = false;
+    }
+
     bool nonTransparentBlackDefault = isFont ? false : true;
     config.nonTransparentBlack =
         getBoolOrElse(j, "non_transparent_black", nonTransparentBlackDefault);

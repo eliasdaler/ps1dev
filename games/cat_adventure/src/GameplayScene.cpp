@@ -38,7 +38,7 @@ GameplayScene::GameplayScene(Game& game) : game(game)
 void GameplayScene::start(StartReason reason)
 {
     if (reason == StartReason::Create) {
-        game.renderer.setFogNearFar(0.4, 3.125);
+        game.renderer.setFogNearFar(0.3, 3.125);
         static const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
         game.renderer.setFarColor(farColor);
 
@@ -634,6 +634,16 @@ collidedWithSomething:
     player.setPosition(oldPos);
 }
 
+namespace
+{
+struct MaskBit {
+    MaskBit(bool set, bool check) : command(0xe6000000 | (set ? 0b1 : 0) | (check ? 0b10 : 0)) {}
+
+private:
+    uint32_t command;
+};
+}
+
 void GameplayScene::draw(Renderer& renderer)
 {
     auto& ot = renderer.getOrderingTable();
@@ -647,6 +657,11 @@ void GameplayScene::draw(Renderer& renderer)
     tpage.primitive.attr.setDithering(true);
     gp.chain(tpage);
 
+    {
+        auto& maskBit = primBuffer.allocateFragment<MaskBit>(false, false);
+        gp.chain(maskBit);
+    }
+
     // clear
     // psyqo::Color bg{{.r = 33, .g = 14, .b = 58}};
     psyqo::Color bg{{.r = 0, .g = 0, .b = 0}};
@@ -654,6 +669,7 @@ void GameplayScene::draw(Renderer& renderer)
     gp.getNextClear(fill.primitive, bg);
     gp.chain(fill);
 
+#if 0
     {
 #ifdef NEW_CAM
         auto gradY1 = 60;
@@ -697,6 +713,43 @@ void GameplayScene::draw(Renderer& renderer)
             gpu().chain(prim);
         } */
     }
+#endif
+
+    {
+        auto& maskBit = primBuffer.allocateFragment<MaskBit>(true, false);
+        gp.chain(maskBit);
+    }
+
+    {
+        /* static constexpr auto fogColor = psyqo::Color{.r = 108, .g = 100, .b = 116};
+        auto& fill = primBuffer.allocateFragment<psyqo::Prim::FastFill>();
+        gp.getNextClear(fill.primitive, fogColor);
+        gp.chain(fill); */
+
+        static constexpr auto fogColor = psyqo::Color{.r = 108, .g = 100, .b = 116};
+
+        auto& quadFrag = primBuffer.allocateFragment<psyqo::Prim::GouraudQuad>();
+        auto& q = quadFrag.primitive;
+        q.pointA.x = 0;
+        q.pointA.y = 0;
+        q.pointB.x = SCREEN_WIDTH;
+        q.pointB.y = 0;
+        q.pointC.x = 0;
+        q.pointC.y = SCREEN_HEIGHT;
+        q.pointD.x = SCREEN_WIDTH;
+        q.pointD.y = SCREEN_HEIGHT;
+        q.setColorA(fogColor);
+        q.colorB = fogColor;
+        q.colorC = fogColor;
+        q.colorD = fogColor;
+
+        gp.chain(quadFrag);
+    }
+
+    {
+        auto& maskBit = primBuffer.allocateFragment<MaskBit>(false, false);
+        gp.chain(maskBit);
+    }
 
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
 
@@ -722,6 +775,37 @@ void GameplayScene::draw(Renderer& renderer)
     gp.pumpCallbacks();
 
     gp.chain(ot);
+
+    {
+        /* static constexpr auto fogColor = psyqo::Color{.r = 108, .g = 100, .b = 116};
+        auto& fill = primBuffer.allocateFragment<psyqo::Prim::FastFill>();
+        gp.getNextClear(fill.primitive, fogColor);
+        gp.chain(fill); */
+
+        static constexpr auto fogColor = psyqo::Color{.r = 34, .g = 32, .b = 37};
+
+        auto& quadFrag = primBuffer.allocateFragment<psyqo::Prim::GouraudQuad>();
+        auto& q = quadFrag.primitive;
+        q.pointA.x = 0;
+        q.pointA.y = 0;
+        q.pointB.x = SCREEN_WIDTH;
+        q.pointB.y = 0;
+        q.pointC.x = 0;
+        q.pointC.y = SCREEN_HEIGHT;
+        q.pointD.x = SCREEN_WIDTH;
+        q.pointD.y = SCREEN_HEIGHT;
+        q.setColorA(fogColor);
+        q.colorB = fogColor;
+        q.colorC = fogColor;
+        q.colorD = fogColor;
+        q.setSemiTrans();
+
+        {
+            auto& maskBit = primBuffer.allocateFragment<MaskBit>(true, true);
+            gp.chain(maskBit);
+        }
+        gp.chain(quadFrag);
+    }
 
     if (fadeLevel != 0) {
         auto& gpu = renderer.getGPU();

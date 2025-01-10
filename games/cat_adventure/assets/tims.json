@@ -10,6 +10,7 @@
     {
       "input": "raw/atlas2.png",
       "output": "atlas2.tim",
+      "set_stp_on_black": true,
       "bits": 8,
       "clut": [0, 240],
       "pix": [320, 0]
@@ -18,6 +19,7 @@
       "input": "raw/cato.png",
       "output": "cato.tim",
       "bits": 8,
+      "never_set_stp": true,
       "clut": [0, 241],
       "pix": [512, 0]
     },

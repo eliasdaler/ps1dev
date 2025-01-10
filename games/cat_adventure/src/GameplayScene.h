@@ -61,7 +61,7 @@ private:
 
     FPSCounter fpsCounter;
 
-    bool debugInfoDrawn{true};
+    bool debugInfoDrawn{false};
     bool collisionDrawn{false};
     bool freeCamera{false};
     bool followCamera{false};
