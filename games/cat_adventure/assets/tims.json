@@ -24,6 +24,14 @@
       "pix": [512, 0]
     },
     {
+      "input": "raw/ash.png",
+      "output": "ash.tim",
+      "bits": 8,
+      "never_set_stp": true,
+      "clut": [0, 246],
+      "pix": [512, 256]
+    },
+    {
       "input": "raw/cato_faces.png",
       "output": "cato_faces.tim",
       "bits": 4,

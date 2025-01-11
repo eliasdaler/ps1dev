@@ -38,7 +38,7 @@ GameplayScene::GameplayScene(Game& game) : game(game)
 void GameplayScene::start(StartReason reason)
 {
     if (reason == StartReason::Create) {
-        game.renderer.setFogNearFar(0.3, 3.125);
+        game.renderer.setFogNearFar(0.3, 2.125);
         static const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
         game.renderer.setFarColor(farColor);
 
@@ -753,6 +753,23 @@ void GameplayScene::draw(Renderer& renderer)
 
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
 
+    {
+        auto playerPosX = (player.getPosition().x * 8).integer();
+        // draw floor
+        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
+        psyqo::Vec3 v{};
+        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Translation>(v);
+        for (int z = -20; z < 20; ++z) {
+            for (int x = -20 + playerPosX; x < 5 + playerPosX; ++x) {
+                int tileId = (z == 0) ? 1 : 0;
+                if (z == -1 || z == -2 || z == 1 || z == 2) {
+                    tileId = 2;
+                }
+                renderer.drawTileQuad(x, z, tileId, camera);
+            }
+        }
+    }
+
     // renderer.bias = 300;
     // draw static objects
     for (auto& staticObject : game.level.staticObjects) {
@@ -853,6 +870,11 @@ void GameplayScene::draw(Renderer& renderer)
 #endif
     }
 
+    {
+        auto& maskBit = primBuffer.allocateFragment<MaskBit>(false, false);
+        gp.chain(maskBit);
+    }
+
     if (gameState == GameState::Normal) {
         if (canTalk) {
             interactionDialogueBox.setText("\5(X)\1 Talk", true);
@@ -866,6 +888,18 @@ void GameplayScene::draw(Renderer& renderer)
     if (gameState == GameState::Dialogue && dialogueBox.isOpen) {
         dialogueBox.draw(renderer, game.font, game.fontTexture, uiTexture);
     }
+
+    /* for (int y = -10; y < 10; ++y) {
+        for (int x = -10; x < 10; ++x) {
+            AABB aabb{.min = {0, 0, 0}, .max = {0.125, 0, 0.125}};
+            aabb.min.x += psyqo::FixedPoint<>(x, 0) * 0.125;
+            aabb.min.z += psyqo::FixedPoint<>(y, 0) * 0.125;
+            aabb.max.x += psyqo::FixedPoint<>(x, 0) * 0.125;
+            aabb.max.z += psyqo::FixedPoint<>(y, 0) * 0.125;
+            psyqo::Color c{.r = 255, .g = 0, .b = 255};
+            renderer.drawAABB(camera, aabb, c);
+        }
+    } */
 
     if (debugInfoDrawn) {
         drawDebugInfo(renderer);
@@ -978,16 +1012,17 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
             return "";
         }();
 
+        auto playerPosX = -(player.getPosition().x).integer();
+
         game.romFont.chainprintf(
             game.gpu(),
             {{.x = 16, .y = 16}},
             textCol,
-            "p pos = (%.2f, %.2f, %.2f), st:%s, l:%d",
+            "p pos = (%.2f, %.2f, %.2f), %d",
             player.getPosition().x,
             player.getPosition().y,
             player.getPosition().z,
-            stateStr,
-            game.level.id);
+            playerPosX);
 
         game.romFont.chainprintf(
             game.gpu(),

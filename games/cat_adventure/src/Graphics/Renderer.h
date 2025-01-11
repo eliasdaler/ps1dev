@@ -41,6 +41,8 @@ public:
     void drawMesh2(const Mesh& mesh);
     void drawQuadSubdiv(const psyqo::Prim::GouraudTexturedQuad& quad2d, int avgZ, int addBias);
 
+    void drawTileQuad(int x, int z, int tileId, const Camera& camera);
+
     void drawMeshArmature(
         const AnimatedModelObject& object,
         const Camera& camera,
