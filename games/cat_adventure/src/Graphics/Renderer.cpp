@@ -947,30 +947,42 @@ void Renderer::drawTileQuad(int x, int z, int tileId, const Camera& camera)
     auto& ot = getOrderingTable();
     auto& primBuffer = getPrimBuffer();
 
-    const auto col = tileId == 0 ? psyqo::Color{.r = 248, .g = 136, .b = 48} :
-                                   psyqo::Color{.r = 88, .g = 28, .b = 96};
-
     static constexpr auto fogColor = psyqo::Color{.r = 108, .g = 100, .b = 116};
 
-    auto v0 = Vec3Pad{};
-    v0.pos.x = psyqo::GTE::Short(psyqo::FixedPoint(x, 0) * 0.125 - camera.position.x);
-    v0.pos.y = psyqo::GTE::Short(-camera.position.y);
-    v0.pos.z = psyqo::GTE::Short(psyqo::FixedPoint(z, 0) * 0.125 - camera.position.z);
+    const auto v0 = Vec3Pad{
+        .pos =
+            psyqo::GTE::PackedVec3{
+                psyqo::GTE::Short(psyqo::FixedPoint(x, 0) * 0.125 - camera.position.x),
+                psyqo::GTE::Short(-camera.position.y),
+                psyqo::GTE::Short(psyqo::FixedPoint(z, 0) * 0.125 - camera.position.z),
+            },
+    };
 
-    auto v1 = Vec3Pad{};
-    v1.pos.x = psyqo::GTE::Short(psyqo::FixedPoint(x + 1, 0) * 0.125 - camera.position.x);
-    v1.pos.y = psyqo::GTE::Short(-camera.position.y);
-    v1.pos.z = psyqo::GTE::Short(psyqo::FixedPoint(z, 0) * 0.125 - camera.position.z);
+    const auto v1 = Vec3Pad{
+        .pos =
+            psyqo::GTE::PackedVec3{
+                psyqo::GTE::Short(psyqo::FixedPoint(x + 1, 0) * 0.125 - camera.position.x),
+                psyqo::GTE::Short(-camera.position.y),
+                psyqo::GTE::Short(psyqo::FixedPoint(z, 0) * 0.125 - camera.position.z)},
+    };
 
-    auto v2 = Vec3Pad{};
-    v2.pos.x = psyqo::GTE::Short(psyqo::FixedPoint(x, 0) * 0.125 - camera.position.x);
-    v2.pos.y = psyqo::GTE::Short(-camera.position.y);
-    v2.pos.z = psyqo::GTE::Short(psyqo::FixedPoint(z + 1, 0) * 0.125 - camera.position.z);
+    const auto v2 = Vec3Pad{
+        .pos =
+            psyqo::GTE::PackedVec3{
+                psyqo::GTE::Short(psyqo::FixedPoint(x, 0) * 0.125 - camera.position.x),
+                psyqo::GTE::Short(-camera.position.y),
+                psyqo::GTE::Short(psyqo::FixedPoint(z + 1, 0) * 0.125 - camera.position.z),
+            },
+    };
 
-    auto v3 = Vec3Pad{};
-    v3.pos.x = psyqo::GTE::Short(psyqo::FixedPoint(x + 1, 0) * 0.125 - camera.position.x);
-    v3.pos.y = psyqo::GTE::Short(-camera.position.y);
-    v3.pos.z = psyqo::GTE::Short(psyqo::FixedPoint(z + 1, 0) * 0.125 - camera.position.z);
+    const auto v3 = Vec3Pad{
+        .pos =
+            psyqo::GTE::PackedVec3{
+                psyqo::GTE::Short(psyqo::FixedPoint(x + 1, 0) * 0.125 - camera.position.x),
+                psyqo::GTE::Short(-camera.position.y),
+                psyqo::GTE::Short(psyqo::FixedPoint(z + 1, 0) * 0.125 - camera.position.z),
+            },
+    };
 
     auto& quadFragFog = primBuffer.allocateFragment<psyqo::Prim::GouraudQuad>();
     auto& quadFog = quadFragFog.primitive;
@@ -1067,7 +1079,6 @@ void Renderer::drawTileQuad(int x, int z, int tileId, const Camera& camera)
     quadT.pointD = quadFog.pointD;
 
     static constexpr auto white = psyqo::Color{.r = 128, .g = 128, .b = 128};
-    static constexpr auto black = psyqo::Color{.r = 0, .g = 0, .b = 0};
 
     quadT.setColorA(interpColorImm(white, pa));
     quadT.setColorB(interpColorImm(white, pb));
@@ -1076,25 +1087,15 @@ void Renderer::drawTileQuad(int x, int z, int tileId, const Camera& camera)
 
     quadT.setSemiTrans();
 
-    /* quadT.setColorA(interpColorImm(col, pa));
-    quadT.setColorB(interpColorImm(col, pb));
-    quadT.setColorC(interpColorImm(col, pc));
-    quadT.setColorD(interpColorImm(col, pd)); */
-
-    /* quadT.setColorA(black);
-    quadT.setColorB(black);
-    quadT.setColorC(black);
-    quadT.setColorD(black); */
-
     ot.insert(quadFragT, avgZ);
 
-    auto& maskBit2 = primBuffer.allocateFragment<MaskBit>(false, false);
-    ot.insert(maskBit2, avgZ);
+    // auto& maskBit2 = primBuffer.allocateFragment<MaskBit>(false, false);
+    // ot.insert(maskBit2, avgZ);
 
     ot.insert(quadFragFog, avgZ);
 
-    auto& maskBit = primBuffer.allocateFragment<MaskBit>(true, false);
-    ot.insert(maskBit, avgZ);
+    // auto& maskBit = primBuffer.allocateFragment<MaskBit>(true, false);
+    // ot.insert(maskBit, avgZ);
 }
 
 void Renderer::drawObjectAxes(const Object& object, const Camera& camera)
