@@ -18,7 +18,7 @@ struct Object {
 
     psyqo::Vec3 getFront() const
     {
-        // assume no yaw
+        // assume no pitch
         return {
             .x = trig.sin(rotation.y),
             .y = 0.0,
@@ -28,7 +28,7 @@ struct Object {
 
     psyqo::Vec3 getRight() const
     {
-        // assume no yaw
+        // assume no pitch
         return {
             .x = trig.cos(rotation.y),
             .y = 0.0,

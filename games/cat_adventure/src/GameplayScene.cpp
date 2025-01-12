@@ -38,7 +38,8 @@ GameplayScene::GameplayScene(Game& game) : game(game)
 void GameplayScene::start(StartReason reason)
 {
     if (reason == StartReason::Create) {
-        game.renderer.setFogNearFar(0.3, 2.125);
+        game.renderer.setFogNearFar(0.3, 1.5);
+        game.renderer.setFogNearFar(0.8, 16.125);
         static const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
         game.renderer.setFarColor(farColor);
 
@@ -753,22 +754,58 @@ void GameplayScene::draw(Renderer& renderer)
 
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
 
+    auto yaw = player.rotation.y;
+    auto fov = psyqo::Angle(0.23);
+    auto viewDistSide = psyqo::FixedPoint(3.2);
+
+    // auto origin = player.getPosition();
+    static psyqo::Vec3 origin;
+
+    if (!freeCamera) {
+        origin = camera.position;
+    }
+
+    auto pLeft = origin + psyqo::Vec3{
+                              .x = viewDistSide * game.trig.sin(yaw - fov),
+                              .y = 0,
+                              .z = viewDistSide * game.trig.cos(yaw - fov)};
+    auto pRight = origin + psyqo::Vec3{
+                               .x = viewDistSide * game.trig.sin(yaw + fov),
+                               .y = 0,
+                               .z = viewDistSide * game.trig.cos(yaw + fov)};
+
+    auto minX = eastl::min(eastl::min(origin.x, pLeft.x), pRight.x);
+    auto minZ = eastl::min(eastl::min(origin.z, pLeft.z), pRight.z);
+
+    auto maxX = eastl::max(eastl::max(origin.x, pLeft.x), pRight.x);
+    auto maxZ = eastl::max(eastl::max(origin.z, pLeft.z), pRight.z);
+
+    numTilesDrawn = 0;
     {
         auto playerPosX = (player.getPosition().x * 8).integer();
         // draw floor
         psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
         psyqo::Vec3 v{};
         psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Translation>(v);
-        for (int z = -20; z < 20; ++z) {
-            for (int x = -20 + playerPosX; x < 5 + playerPosX; ++x) {
+        for (int z = (minZ * 8).integer(); z < (maxZ * 8).integer(); ++z) {
+            for (int x = (minX * 8).integer(); x < (maxX * 8).integer(); ++x) {
+                // for (int z = -20; z < 20; ++z) {
+                //    for (int x = -20 + playerPosX; x < 5 + playerPosX; ++x) {
                 int tileId = (z == 0) ? 1 : 0;
                 if (z == -1 || z == -2 || z == 1 || z == 2) {
                     tileId = 2;
                 }
+                if ((x + z) % 2 == 0) {
+                    tileId = 0;
+                } else {
+                    tileId = 1;
+                }
                 renderer.drawTileQuad(x, z, tileId, camera);
+                ++numTilesDrawn;
             }
         }
     }
+endTileRender:
 
     // renderer.bias = 300;
     // draw static objects
@@ -873,6 +910,31 @@ void GameplayScene::draw(Renderer& renderer)
     {
         auto& maskBit = primBuffer.allocateFragment<MaskBit>(false, false);
         gp.chain(maskBit);
+    }
+
+    if (debugInfoDrawn) {
+        const auto front = psyqo::Vec3{
+            .x = game.trig.sin(camera.rotation.y),
+            .y = 0.0,
+            .z = game.trig.cos(camera.rotation.y),
+        };
+        // auto front = player.getFront();
+        /* renderer.drawLineWorldSpace(
+            camera, origin, origin + front * 1.0, psyqo::Color{.r = 255, .g = 0, .b = 255}); */
+
+        renderer
+            .drawLineWorldSpace(camera, origin, pLeft, psyqo::Color{.r = 255, .g = 0, .b = 255});
+
+        renderer
+            .drawLineWorldSpace(camera, origin, pRight, psyqo::Color{.r = 255, .g = 0, .b = 255});
+
+        renderer.drawAABB(
+            camera,
+            AABB{
+                .min = {.x = minX, .y = 0, .z = minZ},
+                .max = {.x = maxX, .y = 0, .z = maxZ},
+            },
+            psyqo::Color{.r = 0, .g = 255, .b = 0});
     }
 
     if (gameState == GameState::Normal) {
@@ -997,6 +1059,18 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
         }
     }
 
+    {
+        static const psyqo::Color textCol = {{.r = 255, .g = 255, .b = 255}};
+        game.romFont.chainprintf(
+            game.gpu(),
+            {{.x = 16, .y = 32}},
+            textCol,
+            "pb used: %d, tiles drawn: %d",
+            (int)renderer.getPrimBuffer().getNumBytesUsed(),
+            numTilesDrawn);
+    }
+    return;
+
     if (!game.debugMenu.open) {
         static const psyqo::Color textCol = {{.r = 255, .g = 255, .b = 255}};
 
@@ -1069,8 +1143,9 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
             game.gpu(),
             {{.x = 16, .y = 80}},
             textCol,
-            "pb used: %d",
-            (int)renderer.getPrimBuffer().getNumBytesUsed());
+            "pb used: %d, tiles drawn: %d",
+            (int)renderer.getPrimBuffer().getNumBytesUsed(),
+            numTilesDrawn);
 
         if (!freeCamera) {
             /* game.romFont.chainprintf(

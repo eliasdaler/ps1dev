@@ -94,4 +94,6 @@ private:
     bool collisionEnabled{false};
 
     bool cutscene{false};
+
+    int numTilesDrawn{0};
 };
