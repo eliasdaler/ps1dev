@@ -1,6 +1,6 @@
 [submodule "third_party/nugget"]
 	path = third_party/nugget
-	url = https://github.com/eliasdaler/nugget/
+	url = https://github.com/pcsx-redux/nugget/
 [submodule "third_party/json"]
 	path = third_party/json
 	url = https://github.com/nlohmann/json

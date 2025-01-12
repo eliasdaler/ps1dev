@@ -226,7 +226,7 @@ void Renderer::drawQuadSubdiv(const psyqo::Prim::GouraudTexturedQuad& prim, int 
     wrk1.ouv[3].u = prim.uvD.u;
     wrk1.ouv[3].v = prim.uvD.v;
 
-    wrk1.ocol[0] = prim.colorA();
+    wrk1.ocol[0] = prim.getColorA();
     wrk1.ocol[1] = prim.colorB;
     wrk1.ocol[2] = prim.colorC;
     wrk1.ocol[3] = prim.colorD;
