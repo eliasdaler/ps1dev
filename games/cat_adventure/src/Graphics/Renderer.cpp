@@ -389,13 +389,6 @@ void Renderer::drawMesh(const Mesh& mesh)
         ot.insert(quadFrag, avgZ);
     } */
 
-    /* ramsyscall_printf(
-        "%d, %d, %d, %d\n",
-        (int)meshData.vertices.size(),
-        (int)gt3s.size(),
-        (int)gt4s.size(),
-        (int)primBuffer.getNumBytesUsed()); */
-
     for (std::size_t i = 0; i < gt3s.size(); ++i) {
         auto& triFrag = primBuffer.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
         auto& tri2d = triFrag.primitive;
@@ -410,7 +403,7 @@ void Renderer::drawMesh(const Mesh& mesh)
         if (fogEnabled) {
             psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
             psyqo::GTE::Kernels::rtps();
-            tri2d.setColorA(interpColorImm(prim.colorA()));
+            tri2d.setColorA(interpColorImm(prim.getColorA()));
 
             psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
             psyqo::GTE::Kernels::rtps();
@@ -483,7 +476,7 @@ void Renderer::drawMesh(const Mesh& mesh)
         if (fogEnabled) {
             psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
             psyqo::GTE::Kernels::rtps();
-            quad2d.setColorA(interpColorImm(prim.colorA()));
+            quad2d.setColorA(interpColorImm(prim.getColorA()));
 
             psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
             psyqo::GTE::Kernels::rtps();
@@ -548,7 +541,7 @@ void Renderer::drawMesh(const Mesh& mesh)
             wrk1.ouv[3].u = prim.uvD.u;
             wrk1.ouv[3].v = prim.uvD.v;
 
-            wrk1.ocol[0] = quad2d.colorA();
+            wrk1.ocol[0] = quad2d.getColorA();
             wrk1.ocol[1] = quad2d.colorB;
             wrk1.ocol[2] = quad2d.colorC;
             wrk1.ocol[3] = quad2d.colorD;
@@ -798,12 +791,14 @@ void Renderer::drawMesh2(const Mesh& mesh)
         quadT.pointD = quad2d.pointD;
 
         if (addBias == 3) { // textures with alpha
-            auto& maskBit2 = primBuffer.allocateFragment<MaskBit>(false, false);
+            auto& maskBit2 = primBuffer.allocateFragment<psyqo::Prim::MaskControl>(
+                psyqo::Prim::MaskControl::Set::FromSource, psyqo::Prim::MaskControl::Test::No);
             ot.insert(maskBit2, avgZ);
 
             ot.insert(quadFragFog, avgZ);
 
-            auto& maskBit1 = primBuffer.allocateFragment<MaskBit>(true, true);
+            auto& maskBit1 = primBuffer.allocateFragment<psyqo::Prim::MaskControl>(
+                psyqo::Prim::MaskControl::Set::ForceSet, psyqo::Prim::MaskControl::Test::Yes);
             ot.insert(maskBit1, avgZ);
 
             ot.insert(quadFragT, avgZ);

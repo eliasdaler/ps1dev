@@ -30,6 +30,65 @@ consteval long double ToWorldCoords(long double d)
     return d / worldScale;
 }
 
+static int tileIds[64][64];
+
+int orient2d(int ax, int ay, int bx, int by, int cx, int cy)
+{
+    return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+}
+
+void rasterizeTriangle(int x1, int y1, int x2, int y2, int x3, int y3)
+{
+    int minX = eastl::min({x1, x2, x3});
+    int maxX = eastl::max({x1, x2, x3});
+    int minY = eastl::min({y1, y2, y3});
+    int maxY = eastl::max({y1, y2, y3});
+
+    // Clamp to tileIds boundaries
+    minX = eastl::max(0, minX);
+    maxX = eastl::min(63, maxX);
+    minY = eastl::max(0, minY);
+    maxY = eastl::min(63, maxY);
+
+    /* ramsyscall_printf(
+        "rast: x1=%d, y1=%d, x2=%d, y2=%d, x3=%d, y3=%d, minX=%d, maxX=%d, minY=%d, maxY=%d\n",
+        x1,
+        y1,
+        x2,
+        y2,
+        x3,
+        y3,
+        minX,
+        maxX,
+        minY,
+        maxY); */
+
+    for (int y = minY; y <= maxY; ++y) {
+        for (int x = minX; x <= maxX; ++x) {
+            int w0 = orient2d(x2, y2, x3, y3, x, y);
+            int w1 = orient2d(x3, y3, x1, y1, x, y);
+            int w2 = orient2d(x1, y1, x2, y2, x, y);
+
+            if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
+                tileIds[y][x] = 1;
+            }
+        }
+    }
+
+    /* for (int y = minY; y <= maxY; ++y) {
+        for (int x = minX; x <= maxX; ++x) {
+            if (tileIds[y][x] == 1) {
+                if (x - 1 > 0 && x - 1 < 64) {
+                    tileIds[y][x - 1] = 1;
+                }
+                if (x + 1 > 0 && x + 1 < 64) {
+                    tileIds[y][x + 1] = 1;
+                }
+            }
+        }
+    } */
+}
+
 } // end of anonymous namespace
 
 GameplayScene::GameplayScene(Game& game) : game(game)
@@ -39,7 +98,7 @@ void GameplayScene::start(StartReason reason)
 {
     if (reason == StartReason::Create) {
         game.renderer.setFogNearFar(0.3, 1.5);
-        game.renderer.setFogNearFar(0.8, 16.125);
+        // game.renderer.setFogNearFar(0.8, 16.125);
         static const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
         game.renderer.setFarColor(farColor);
 
@@ -109,7 +168,8 @@ void GameplayScene::start(StartReason reason)
         game.renderer.setFogEnabled(false);
 
         /* levelObj.model =
-            game.resourceCache.getResource<ModelData>(LEVEL1_MODEL_HASH).makeInstanceUnique(); */
+            game.resourceCache.getResource<ModelData>(LEVEL1_MODEL_HASH).makeInstanceUnique();
+         */
 
         player.setPosition({0.0, 0.0, 0.25});
         player.rotation = {0.0, -1.0};
@@ -154,6 +214,19 @@ void GameplayScene::start(StartReason reason)
     canTalk = false;
     canInteract = false;
     player.animator.setAnimation("Idle"_sh);
+
+    // tile cull test
+    /*
+    freeCamera = true;
+    camera.position = {2.2587, 3.1545, 1.1418};
+    camera.rotation = {0.3007, 1.3701};
+    game.renderer.setFogNearFar(0.8, 50.125);
+    debugInfoDrawn = true;
+    */
+
+    player.setPosition({-2.4526, 0.0000, 0.1406});
+    player.rotation = {0.0000, 1.2148};
+    debugInfoDrawn = true;
 }
 
 void GameplayScene::frame()
@@ -635,16 +708,6 @@ collidedWithSomething:
     player.setPosition(oldPos);
 }
 
-namespace
-{
-struct MaskBit {
-    MaskBit(bool set, bool check) : command(0xe6000000 | (set ? 0b1 : 0) | (check ? 0b10 : 0)) {}
-
-private:
-    uint32_t command;
-};
-}
-
 void GameplayScene::draw(Renderer& renderer)
 {
     auto& ot = renderer.getOrderingTable();
@@ -659,7 +722,8 @@ void GameplayScene::draw(Renderer& renderer)
     gp.chain(tpage);
 
     {
-        auto& maskBit = primBuffer.allocateFragment<MaskBit>(false, false);
+        auto& maskBit = primBuffer.allocateFragment<psyqo::Prim::MaskControl>(
+            psyqo::Prim::MaskControl::Set::FromSource, psyqo::Prim::MaskControl::Test::No);
         gp.chain(maskBit);
     }
 
@@ -717,7 +781,8 @@ void GameplayScene::draw(Renderer& renderer)
 #endif
 
     {
-        auto& maskBit = primBuffer.allocateFragment<MaskBit>(true, false);
+        auto& maskBit = primBuffer.allocateFragment<psyqo::Prim::MaskControl>(
+            psyqo::Prim::MaskControl::Set::ForceSet, psyqo::Prim::MaskControl::Test::No);
         gp.chain(maskBit);
     }
 
@@ -748,22 +813,52 @@ void GameplayScene::draw(Renderer& renderer)
     }
 
     {
-        auto& maskBit = primBuffer.allocateFragment<MaskBit>(false, false);
+        auto& maskBit = primBuffer.allocateFragment<psyqo::Prim::MaskControl>(
+            psyqo::Prim::MaskControl::Set::FromSource, psyqo::Prim::MaskControl::Test::No);
         gp.chain(maskBit);
     }
 
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
 
-    auto yaw = player.rotation.y;
     auto fov = psyqo::Angle(0.23);
-    auto viewDistSide = psyqo::FixedPoint(3.2);
+    auto viewDistSide = psyqo::FixedPoint(3.5);
 
     // auto origin = player.getPosition();
     static psyqo::Vec3 origin;
+    static auto yaw = camera.rotation.y;
 
+    // ramsyscall_printf("yaw: %d\n", yaw.value);
+    /* yaw.value = 1801;
     if (!freeCamera) {
-        origin = camera.position;
+        player.rotation.y.value = 1801;
+    } */
+
+#if 1
+
+    // test
+    // origin = {1.0905, 0.4199, 0.6447};
+
+    // static psyqo::Angle testYaw = 1.3701;
+    // testYaw += 0.005;
+    // yaw = testYaw;
+
+    // testYaw.value = 1678;
+
+#endif
+    if (!freeCamera) {
+        const auto front = psyqo::Vec3{
+            .x = game.trig.sin(camera.rotation.y),
+            .y = 0.0,
+            .z = game.trig.cos(camera.rotation.y),
+        };
+        origin = camera.position - front * 0.1;
+        yaw = camera.rotation.y;
+        // ramsyscall_printf("yaw: %d\n", yaw.value);
     }
+
+    // yaw.value = 1924;
+    // yaw.value = 1483;
+    //  player.rotation.y = yaw;
 
     auto pLeft = origin + psyqo::Vec3{
                               .x = viewDistSide * game.trig.sin(yaw - fov),
@@ -780,28 +875,81 @@ void GameplayScene::draw(Renderer& renderer)
     auto maxX = eastl::max(eastl::max(origin.x, pLeft.x), pRight.x);
     auto maxZ = eastl::max(eastl::max(origin.z, pLeft.z), pRight.z);
 
+    auto originTileX = (origin.x * 8).floor();
+    auto originTileZ = (origin.z * 8).floor();
+
+    auto pLeftTileX = (pLeft.x * 8).floor();
+    auto pLeftTiLeZ = (pLeft.z * 8).floor();
+
+    auto pRightTileX = (pRight.x * 8).floor();
+    auto pRightTileZ = (pRight.z * 8).floor();
+
+    for (int z = 0; z < 64; ++z) {
+        for (int x = 0; x < 64; ++x) {
+            tileIds[z][x] = 0;
+        }
+    }
+
+    auto minTileX = (minX * 8).floor();
+    auto minTileZ = (minZ * 8).floor();
+    auto maxTileX = (maxX * 8).ceil();
+    auto maxTileZ = (maxZ * 8).ceil();
+
+    /* rasterizeTriangle(
+        maxTileX - originTileX,
+        maxTileZ - originTileZ,
+        maxTileX - pLeftTileX,
+        maxTileZ - pLeftTiLeZ,
+        maxTileX - pRightTileX,
+        maxTileZ - pRightTiLeZ); */
+
+    auto testX = maxTileX;
+    auto testZ = maxTileZ;
+    rasterizeTriangle(
+        testZ - originTileZ,
+        testX - originTileX,
+        testZ - pLeftTiLeZ,
+        testX - pLeftTileX,
+        testZ - pRightTileZ,
+        testX - pRightTileX);
+
     numTilesDrawn = 0;
     {
-        auto playerPosX = (player.getPosition().x * 8).integer();
+        // auto playerPosX = (player.getPosition().x * 8).integer();
         // draw floor
         psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
         psyqo::Vec3 v{};
         psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Translation>(v);
-        for (int z = (minZ * 8).integer(); z < (maxZ * 8).integer(); ++z) {
-            for (int x = (minX * 8).integer(); x < (maxX * 8).integer(); ++x) {
+        for (int z = minTileZ; z <= maxTileZ; ++z) {
+            for (int x = minTileX; x <= maxTileX; ++x) {
                 // for (int z = -20; z < 20; ++z) {
                 //    for (int x = -20 + playerPosX; x < 5 + playerPosX; ++x) {
                 int tileId = (z == 0) ? 1 : 0;
                 if (z == -1 || z == -2 || z == 1 || z == 2) {
                     tileId = 2;
                 }
-                if ((x + z) % 2 == 0) {
+                /* if ((x + z) % 2 == 0) {
                     tileId = 0;
                 } else {
                     tileId = 1;
+                } */
+                /* tileId = 0;
+                if (x == originTileX && z == originTileZ) {
+                    tileId = 1;
                 }
-                renderer.drawTileQuad(x, z, tileId, camera);
-                ++numTilesDrawn;
+                if (x == pLeftTileX && z == pLeftTiLeZ) {
+                    tileId = 1;
+                }
+                if (x == pRightTileX && z == pRightTileZ) {
+                    tileId = 1;
+                } */
+
+                int x2 = maxTileX - x;
+                int z2 = maxTileZ - z;
+                if (x2 >= 0 && x2 < 64 && z2 >= 0 && z2 < 64 && tileIds[x2][z2] == 1) {
+                    renderer.drawTileQuad(x, z, tileId, camera);
+                    ++numTilesDrawn;
+                }
             }
         }
     }
@@ -855,7 +1003,8 @@ endTileRender:
         q.setSemiTrans();
 
         {
-            auto& maskBit = primBuffer.allocateFragment<MaskBit>(true, true);
+            auto& maskBit = primBuffer.allocateFragment<psyqo::Prim::MaskControl>(
+                psyqo::Prim::MaskControl::Set::ForceSet, psyqo::Prim::MaskControl::Test::Yes);
             gp.chain(maskBit);
         }
         gp.chain(quadFrag);
@@ -908,7 +1057,8 @@ endTileRender:
     }
 
     {
-        auto& maskBit = primBuffer.allocateFragment<MaskBit>(false, false);
+        auto& maskBit = primBuffer.allocateFragment<psyqo::Prim::MaskControl>(
+            psyqo::Prim::MaskControl::Set::FromSource, psyqo::Prim::MaskControl::Test::No);
         gp.chain(maskBit);
     }
 
@@ -1059,17 +1209,17 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
         }
     }
 
-    {
+    /* {
         static const psyqo::Color textCol = {{.r = 255, .g = 255, .b = 255}};
         game.romFont.chainprintf(
             game.gpu(),
             {{.x = 16, .y = 32}},
             textCol,
             "pb used: %d, tiles drawn: %d",
-            (int)renderer.getPrimBuffer().getNumBytesUsed(),
+            (int)renderer.getPrimBuffer().used(),
             numTilesDrawn);
     }
-    return;
+    return; */
 
     if (!game.debugMenu.open) {
         static const psyqo::Color textCol = {{.r = 255, .g = 255, .b = 255}};
@@ -1144,7 +1294,7 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
             {{.x = 16, .y = 80}},
             textCol,
             "pb used: %d, tiles drawn: %d",
-            (int)renderer.getPrimBuffer().getNumBytesUsed(),
+            (int)renderer.getPrimBuffer().used(),
             numTilesDrawn);
 
         if (!freeCamera) {
