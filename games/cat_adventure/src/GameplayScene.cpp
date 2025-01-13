@@ -16,6 +16,8 @@
 #include <Math/gte-math.h>
 #include <UI/TextLabel.h>
 
+#include <EASTL/bitset.h>
+
 #include "Resources.h"
 
 #define DEV_TOOLS
@@ -30,8 +32,14 @@ consteval long double ToWorldCoords(long double d)
     return d / worldScale;
 }
 
-static int tileIds[64][64];
+static constexpr auto TILE_SIZE = 8;
 
+// Tiles which can be seen by the camera
+// Stored in relative coordinates to the minimum point of frustum's AABB in XZ plane
+static constexpr auto MAX_TILES_DIM = 32;
+static eastl::bitset<MAX_TILES_DIM * MAX_TILES_DIM> tileSeen;
+
+/* Adopted from https://fgiesen.wordpress.com/2013/02/08/triangle-rasterization-in-practice/ */
 int orient2d(int ax, int ay, int bx, int by, int cx, int cy)
 {
     return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
@@ -44,24 +52,10 @@ void rasterizeTriangle(int x1, int y1, int x2, int y2, int x3, int y3)
     int minY = eastl::min({y1, y2, y3});
     int maxY = eastl::max({y1, y2, y3});
 
-    // Clamp to tileIds boundaries
     minX = eastl::max(0, minX);
-    maxX = eastl::min(63, maxX);
+    maxX = eastl::min(MAX_TILES_DIM - 1, maxX);
     minY = eastl::max(0, minY);
-    maxY = eastl::min(63, maxY);
-
-    /* ramsyscall_printf(
-        "rast: x1=%d, y1=%d, x2=%d, y2=%d, x3=%d, y3=%d, minX=%d, maxX=%d, minY=%d, maxY=%d\n",
-        x1,
-        y1,
-        x2,
-        y2,
-        x3,
-        y3,
-        minX,
-        maxX,
-        minY,
-        maxY); */
+    maxY = eastl::min(MAX_TILES_DIM - 1, maxY);
 
     for (int y = minY; y <= maxY; ++y) {
         for (int x = minX; x <= maxX; ++x) {
@@ -70,23 +64,10 @@ void rasterizeTriangle(int x1, int y1, int x2, int y2, int x3, int y3)
             int w2 = orient2d(x1, y1, x2, y2, x, y);
 
             if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
-                tileIds[y][x] = 1;
+                tileSeen[y * MAX_TILES_DIM + x] = 1;
             }
         }
     }
-
-    /* for (int y = minY; y <= maxY; ++y) {
-        for (int x = minX; x <= maxX; ++x) {
-            if (tileIds[y][x] == 1) {
-                if (x - 1 > 0 && x - 1 < 64) {
-                    tileIds[y][x - 1] = 1;
-                }
-                if (x + 1 > 0 && x + 1 < 64) {
-                    tileIds[y][x + 1] = 1;
-                }
-            }
-        }
-    } */
 }
 
 } // end of anonymous namespace
@@ -223,10 +204,6 @@ void GameplayScene::start(StartReason reason)
     game.renderer.setFogNearFar(0.8, 50.125);
     debugInfoDrawn = true;
     */
-
-    player.setPosition({-2.4526, 0.0000, 0.1406});
-    player.rotation = {0.0000, 1.2148};
-    debugInfoDrawn = true;
 }
 
 void GameplayScene::frame()
@@ -583,6 +560,7 @@ void GameplayScene::update()
     }
 
     updateCamera();
+    calculateTileVisibility();
 
     if (gameState == GameState::Normal) {
         if (game.level.id == 0) {
@@ -708,6 +686,93 @@ collidedWithSomething:
     player.setPosition(oldPos);
 }
 
+void GameplayScene::calculateTileVisibility()
+{
+    auto fov = psyqo::Angle(0.23);
+    auto viewDistSide = psyqo::FixedPoint(3.5);
+
+    // auto origin = player.getPosition();
+    static psyqo::Vec3 origin;
+    static auto yaw = camera.rotation.y;
+
+    // ramsyscall_printf("yaw: %d\n", yaw.value);
+    /* yaw.value = 1801;
+    if (!freeCamera) {
+        player.rotation.y.value = 1801;
+    } */
+
+#if 1
+
+    // test
+    // origin = {1.0905, 0.4199, 0.6447};
+
+    // static psyqo::Angle testYaw = 1.3701;
+    // testYaw += 0.005;
+    // yaw = testYaw;
+
+    // testYaw.value = 1678;
+
+#endif
+    const auto front = psyqo::Vec3{
+        .x = game.trig.sin(camera.rotation.y),
+        .y = 0.0,
+        .z = game.trig.cos(camera.rotation.y),
+    };
+    if (!freeCamera || true) {
+        origin = camera.position - front * 0.1;
+        yaw = camera.rotation.y;
+        // ramsyscall_printf("yaw: %d\n", yaw.value);
+    }
+
+    if (camera.rotation.x > 0.15) {
+        // TODO: hande better - probably need to calculate
+        origin = camera.position - front * 0.5;
+        viewDistSide = psyqo::FixedPoint(4.0);
+    }
+
+    // yaw.value = 1924;
+    // yaw.value = 1483;
+    //  player.rotation.y = yaw;
+
+    auto frustumLeft = origin + psyqo::Vec3{
+                                    .x = viewDistSide * game.trig.sin(yaw - fov),
+                                    .y = 0,
+                                    .z = viewDistSide * game.trig.cos(yaw - fov)};
+    auto frustumRight = origin + psyqo::Vec3{
+                                     .x = viewDistSide * game.trig.sin(yaw + fov),
+                                     .y = 0,
+                                     .z = viewDistSide * game.trig.cos(yaw + fov)};
+
+    const auto minX = eastl::min({origin.x, frustumLeft.x, frustumRight.x});
+    const auto minZ = eastl::min({origin.z, frustumLeft.z, frustumRight.z});
+    const auto maxX = eastl::max({origin.x, frustumLeft.x, frustumRight.x});
+    const auto maxZ = eastl::max({origin.z, frustumLeft.z, frustumRight.z});
+
+    minTileX = (minX * TILE_SIZE).floor();
+    minTileZ = (minZ * TILE_SIZE).floor();
+    maxTileX = (maxX * TILE_SIZE).ceil();
+    maxTileZ = (maxZ * TILE_SIZE).ceil();
+
+    const auto originTileX = (origin.x * TILE_SIZE).floor();
+    const auto originTileZ = (origin.z * TILE_SIZE).floor();
+
+    const auto pLeftTileX = (frustumLeft.x * TILE_SIZE).floor();
+    const auto pLeftTiLeZ = (frustumLeft.z * TILE_SIZE).floor();
+
+    const auto pRightTileX = (frustumRight.x * TILE_SIZE).floor();
+    const auto pRightTileZ = (frustumRight.z * TILE_SIZE).floor();
+
+    tileSeen.reset();
+
+    rasterizeTriangle(
+        maxTileZ - originTileZ,
+        maxTileX - originTileX,
+        maxTileZ - pLeftTiLeZ,
+        maxTileX - pLeftTileX,
+        maxTileZ - pRightTileZ,
+        maxTileX - pRightTileX);
+}
+
 void GameplayScene::draw(Renderer& renderer)
 {
     auto& ot = renderer.getOrderingTable();
@@ -820,99 +885,6 @@ void GameplayScene::draw(Renderer& renderer)
 
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
 
-    auto fov = psyqo::Angle(0.23);
-    auto viewDistSide = psyqo::FixedPoint(3.5);
-
-    // auto origin = player.getPosition();
-    static psyqo::Vec3 origin;
-    static auto yaw = camera.rotation.y;
-
-    // ramsyscall_printf("yaw: %d\n", yaw.value);
-    /* yaw.value = 1801;
-    if (!freeCamera) {
-        player.rotation.y.value = 1801;
-    } */
-
-#if 1
-
-    // test
-    // origin = {1.0905, 0.4199, 0.6447};
-
-    // static psyqo::Angle testYaw = 1.3701;
-    // testYaw += 0.005;
-    // yaw = testYaw;
-
-    // testYaw.value = 1678;
-
-#endif
-    if (!freeCamera) {
-        const auto front = psyqo::Vec3{
-            .x = game.trig.sin(camera.rotation.y),
-            .y = 0.0,
-            .z = game.trig.cos(camera.rotation.y),
-        };
-        origin = camera.position - front * 0.1;
-        yaw = camera.rotation.y;
-        // ramsyscall_printf("yaw: %d\n", yaw.value);
-    }
-
-    // yaw.value = 1924;
-    // yaw.value = 1483;
-    //  player.rotation.y = yaw;
-
-    auto pLeft = origin + psyqo::Vec3{
-                              .x = viewDistSide * game.trig.sin(yaw - fov),
-                              .y = 0,
-                              .z = viewDistSide * game.trig.cos(yaw - fov)};
-    auto pRight = origin + psyqo::Vec3{
-                               .x = viewDistSide * game.trig.sin(yaw + fov),
-                               .y = 0,
-                               .z = viewDistSide * game.trig.cos(yaw + fov)};
-
-    auto minX = eastl::min(eastl::min(origin.x, pLeft.x), pRight.x);
-    auto minZ = eastl::min(eastl::min(origin.z, pLeft.z), pRight.z);
-
-    auto maxX = eastl::max(eastl::max(origin.x, pLeft.x), pRight.x);
-    auto maxZ = eastl::max(eastl::max(origin.z, pLeft.z), pRight.z);
-
-    auto originTileX = (origin.x * 8).floor();
-    auto originTileZ = (origin.z * 8).floor();
-
-    auto pLeftTileX = (pLeft.x * 8).floor();
-    auto pLeftTiLeZ = (pLeft.z * 8).floor();
-
-    auto pRightTileX = (pRight.x * 8).floor();
-    auto pRightTileZ = (pRight.z * 8).floor();
-
-    for (int z = 0; z < 64; ++z) {
-        for (int x = 0; x < 64; ++x) {
-            tileIds[z][x] = 0;
-        }
-    }
-
-    auto minTileX = (minX * 8).floor();
-    auto minTileZ = (minZ * 8).floor();
-    auto maxTileX = (maxX * 8).ceil();
-    auto maxTileZ = (maxZ * 8).ceil();
-
-    /* rasterizeTriangle(
-        maxTileX - originTileX,
-        maxTileZ - originTileZ,
-        maxTileX - pLeftTileX,
-        maxTileZ - pLeftTiLeZ,
-        maxTileX - pRightTileX,
-        maxTileZ - pRightTiLeZ); */
-
-    auto testX = maxTileX;
-    auto testZ = maxTileZ;
-    rasterizeTriangle(
-        testZ - originTileZ,
-        testX - originTileX,
-        testZ - pLeftTiLeZ,
-        testX - pLeftTileX,
-        testZ - pRightTileZ,
-        testX - pRightTileX);
-
     numTilesDrawn = 0;
     {
         // auto playerPosX = (player.getPosition().x * 8).integer();
@@ -928,25 +900,12 @@ void GameplayScene::draw(Renderer& renderer)
                 if (z == -1 || z == -2 || z == 1 || z == 2) {
                     tileId = 2;
                 }
-                /* if ((x + z) % 2 == 0) {
-                    tileId = 0;
-                } else {
-                    tileId = 1;
-                } */
-                /* tileId = 0;
-                if (x == originTileX && z == originTileZ) {
-                    tileId = 1;
-                }
-                if (x == pLeftTileX && z == pLeftTiLeZ) {
-                    tileId = 1;
-                }
-                if (x == pRightTileX && z == pRightTileZ) {
-                    tileId = 1;
-                } */
+                // tileId = 3;
 
-                int x2 = maxTileX - x;
-                int z2 = maxTileZ - z;
-                if (x2 >= 0 && x2 < 64 && z2 >= 0 && z2 < 64 && tileIds[x2][z2] == 1) {
+                const int xrel = maxTileX - x;
+                const int zrel = maxTileZ - z;
+                if (xrel >= 0 && xrel < MAX_TILES_DIM && zrel >= 0 && zrel < MAX_TILES_DIM &&
+                    tileSeen[xrel * MAX_TILES_DIM + zrel] == 1) {
                     renderer.drawTileQuad(x, z, tileId, camera);
                     ++numTilesDrawn;
                 }
@@ -1062,6 +1021,7 @@ endTileRender:
         gp.chain(maskBit);
     }
 
+#if 0
     if (debugInfoDrawn) {
         const auto front = psyqo::Vec3{
             .x = game.trig.sin(camera.rotation.y),
@@ -1072,11 +1032,11 @@ endTileRender:
         /* renderer.drawLineWorldSpace(
             camera, origin, origin + front * 1.0, psyqo::Color{.r = 255, .g = 0, .b = 255}); */
 
-        renderer
-            .drawLineWorldSpace(camera, origin, pLeft, psyqo::Color{.r = 255, .g = 0, .b = 255});
+        renderer.drawLineWorldSpace(
+            camera, origin, frustumLeft, psyqo::Color{.r = 255, .g = 0, .b = 255});
 
-        renderer
-            .drawLineWorldSpace(camera, origin, pRight, psyqo::Color{.r = 255, .g = 0, .b = 255});
+        renderer.drawLineWorldSpace(
+            camera, origin, frustumRight, psyqo::Color{.r = 255, .g = 0, .b = 255});
 
         renderer.drawAABB(
             camera,
@@ -1086,6 +1046,7 @@ endTileRender:
             },
             psyqo::Color{.r = 0, .g = 255, .b = 0});
     }
+#endif
 
     if (gameState == GameState::Normal) {
         if (canTalk) {

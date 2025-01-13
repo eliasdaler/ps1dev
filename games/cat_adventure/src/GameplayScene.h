@@ -34,6 +34,8 @@ private:
     void handleCollision(psyqo::SoftMath::Axis axis);
     void updateCamera();
 
+    void calculateTileVisibility();
+
     void makeTestLevel();
 
     void draw(Renderer& renderer);
@@ -96,4 +98,7 @@ private:
     bool cutscene{false};
 
     int numTilesDrawn{0};
+
+    int minTileX, maxTileX;
+    int minTileZ, maxTileZ;
 };

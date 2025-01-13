@@ -817,38 +817,39 @@ void Renderer::drawTileQuad(int x, int z, int tileId, const Camera& camera)
     static constexpr auto fogColor = psyqo::Color{.r = 108, .g = 100, .b = 116};
     static constexpr auto white = psyqo::Color{.r = 128, .g = 128, .b = 128};
 
+    constexpr psyqo::FixedPoint tileScale = 0.125; // 1 / TILE_SIZE
     const auto v0 = Vec3Pad{
         .pos =
             psyqo::GTE::PackedVec3{
-                psyqo::GTE::Short(psyqo::FixedPoint(x, 0) * 0.125 - camera.position.x),
+                psyqo::GTE::Short(psyqo::FixedPoint(x, 0) * tileScale - camera.position.x),
                 psyqo::GTE::Short(-camera.position.y),
-                psyqo::GTE::Short(psyqo::FixedPoint(z, 0) * 0.125 - camera.position.z),
+                psyqo::GTE::Short(psyqo::FixedPoint(z, 0) * tileScale - camera.position.z),
             },
     };
 
     const auto v1 = Vec3Pad{
         .pos =
             psyqo::GTE::PackedVec3{
-                psyqo::GTE::Short(psyqo::FixedPoint(x + 1, 0) * 0.125 - camera.position.x),
+                psyqo::GTE::Short(psyqo::FixedPoint(x + 1, 0) * tileScale - camera.position.x),
                 psyqo::GTE::Short(-camera.position.y),
-                psyqo::GTE::Short(psyqo::FixedPoint(z, 0) * 0.125 - camera.position.z)},
+                psyqo::GTE::Short(psyqo::FixedPoint(z, 0) * tileScale - camera.position.z)},
     };
 
     const auto v2 = Vec3Pad{
         .pos =
             psyqo::GTE::PackedVec3{
-                psyqo::GTE::Short(psyqo::FixedPoint(x, 0) * 0.125 - camera.position.x),
+                psyqo::GTE::Short(psyqo::FixedPoint(x, 0) * tileScale - camera.position.x),
                 psyqo::GTE::Short(-camera.position.y),
-                psyqo::GTE::Short(psyqo::FixedPoint(z + 1, 0) * 0.125 - camera.position.z),
+                psyqo::GTE::Short(psyqo::FixedPoint(z + 1, 0) * tileScale - camera.position.z),
             },
     };
 
     const auto v3 = Vec3Pad{
         .pos =
             psyqo::GTE::PackedVec3{
-                psyqo::GTE::Short(psyqo::FixedPoint(x + 1, 0) * 0.125 - camera.position.x),
+                psyqo::GTE::Short(psyqo::FixedPoint(x + 1, 0) * tileScale - camera.position.x),
                 psyqo::GTE::Short(-camera.position.y),
-                psyqo::GTE::Short(psyqo::FixedPoint(z + 1, 0) * 0.125 - camera.position.z),
+                psyqo::GTE::Short(psyqo::FixedPoint(z + 1, 0) * tileScale - camera.position.z),
             },
     };
 
@@ -939,7 +940,7 @@ void Renderer::drawTileQuad(int x, int z, int tileId, const Camera& camera)
         quadT.uvC.v = 63;
         quadT.uvD.u = 127;
         quadT.uvD.v = 63;
-    } else {
+    } else if (tileId == 2) {
         quadT.uvA.u = 0;
         quadT.uvA.v = 0;
         quadT.uvB.u = 63;
@@ -948,6 +949,15 @@ void Renderer::drawTileQuad(int x, int z, int tileId, const Camera& camera)
         quadT.uvC.v = 63;
         quadT.uvD.u = 63;
         quadT.uvD.v = 63;
+    } else {
+        quadT.uvA.u = 0;
+        quadT.uvA.v = 96;
+        quadT.uvB.u = 31;
+        quadT.uvB.v = 96;
+        quadT.uvC.u = 0;
+        quadT.uvC.v = 127;
+        quadT.uvD.u = 31;
+        quadT.uvD.v = 127;
     }
 
     quadT.pointA = quadFog.pointA;
