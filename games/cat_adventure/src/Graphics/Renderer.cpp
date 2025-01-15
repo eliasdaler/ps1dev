@@ -10,6 +10,7 @@
 #include <Graphics/TimFile.h>
 #include <Math/gte-math.h>
 #include <Object.h>
+#include <TileMap.h>
 
 #include <cstring> // memcpy
 
@@ -911,10 +912,9 @@ void Renderer::drawMesh2(const Mesh& mesh)
     }
 }
 
-void Renderer::drawTileQuad(
-    int x,
-    int z,
-    int tileId,
+void Renderer::drawTile(
+    TileIndex tileIndex,
+    const TileInfo& tileInfo,
     const ModelData& prefabs,
     const Camera& camera)
 {
@@ -924,14 +924,17 @@ void Renderer::drawTileQuad(
     static constexpr auto white = psyqo::Color{.r = 128, .g = 128, .b = 128};
 
     constexpr psyqo::FixedPoint tileScale = 0.125; // 1 / TILE_SIZE
-    const auto tileHeight =
-        (tileId != 1 && tileId != 2) ? psyqo::FixedPoint<>(0.0) : psyqo::FixedPoint<>(-0.02);
 
-    if (tileId == 5 || tileId == 6) { // "model" tiles
+    const int x = tileIndex.x;
+    const int z = tileIndex.z;
+    const auto tileId = tileInfo.tileId;
+    const auto modelId = tileInfo.modelId;
+
+    if (modelId != 0xFF) { // "model" tiles
         // mostly like drawMesh2, but moves each vertex into camera space without
         // using rotation/translation registers
         // - FIXME: remove copy-paste
-        const auto& meshData = prefabs.meshes[tileId == 5 ? 4 : 5];
+        const auto& meshData = prefabs.meshes[modelId];
         const auto& g3s = meshData.g3;
         const auto& g4s = meshData.g4;
         const auto& gt3s = meshData.gt3;
@@ -942,13 +945,14 @@ void Renderer::drawTileQuad(
         const auto gt3Offset = g4Offset + g4s.size() * 4;
         const auto gt4Offset = gt3Offset + gt3s.size() * 3;
 
+        // TODO: store in tileInfo
         const auto tileHeight = psyqo::FixedPoint<>(0.0);
 
         const auto originX =
-            psyqo::GTE::Short(psyqo::FixedPoint(x, 0) * tileScale - camera.position.x);
+            psyqo::GTE::Short(psyqo::FixedPoint<>(x, 0) * tileScale - camera.position.x);
         const auto originY = psyqo::GTE::Short(tileHeight - camera.position.y);
         const auto originZ =
-            psyqo::GTE::Short(psyqo::FixedPoint(z, 0) * tileScale - camera.position.z);
+            psyqo::GTE::Short(psyqo::FixedPoint<>(z, 0) * tileScale - camera.position.z);
 
         // FIXME: draw gt3s too!
 
@@ -1056,38 +1060,42 @@ void Renderer::drawTileQuad(
         return;
     }
 
+    // TODO: store in tileInfo
+    const auto tileHeight =
+        (tileId != 1 && tileId != 2) ? psyqo::FixedPoint<>(0.0) : psyqo::FixedPoint<>(-0.02);
+
     const auto v0 = Vec3Pad{
         .pos =
             psyqo::GTE::PackedVec3{
-                psyqo::GTE::Short(psyqo::FixedPoint(x, 0) * tileScale - camera.position.x),
+                psyqo::GTE::Short(psyqo::FixedPoint<>(x, 0) * tileScale - camera.position.x),
                 psyqo::GTE::Short(tileHeight - camera.position.y),
-                psyqo::GTE::Short(psyqo::FixedPoint(z, 0) * tileScale - camera.position.z),
+                psyqo::GTE::Short(psyqo::FixedPoint<>(z, 0) * tileScale - camera.position.z),
             },
     };
 
     const auto v1 = Vec3Pad{
         .pos =
             psyqo::GTE::PackedVec3{
-                psyqo::GTE::Short(psyqo::FixedPoint(x + 1, 0) * tileScale - camera.position.x),
+                psyqo::GTE::Short(psyqo::FixedPoint<>(x + 1, 0) * tileScale - camera.position.x),
                 psyqo::GTE::Short(tileHeight - camera.position.y),
-                psyqo::GTE::Short(psyqo::FixedPoint(z, 0) * tileScale - camera.position.z)},
+                psyqo::GTE::Short(psyqo::FixedPoint<>(z, 0) * tileScale - camera.position.z)},
     };
 
     const auto v2 = Vec3Pad{
         .pos =
             psyqo::GTE::PackedVec3{
-                psyqo::GTE::Short(psyqo::FixedPoint(x, 0) * tileScale - camera.position.x),
+                psyqo::GTE::Short(psyqo::FixedPoint<>(x, 0) * tileScale - camera.position.x),
                 psyqo::GTE::Short(tileHeight - camera.position.y),
-                psyqo::GTE::Short(psyqo::FixedPoint(z + 1, 0) * tileScale - camera.position.z),
+                psyqo::GTE::Short(psyqo::FixedPoint<>(z + 1, 0) * tileScale - camera.position.z),
             },
     };
 
     const auto v3 = Vec3Pad{
         .pos =
             psyqo::GTE::PackedVec3{
-                psyqo::GTE::Short(psyqo::FixedPoint(x + 1, 0) * tileScale - camera.position.x),
+                psyqo::GTE::Short(psyqo::FixedPoint<>(x + 1, 0) * tileScale - camera.position.x),
                 psyqo::GTE::Short(tileHeight - camera.position.y),
-                psyqo::GTE::Short(psyqo::FixedPoint(z + 1, 0) * tileScale - camera.position.z),
+                psyqo::GTE::Short(psyqo::FixedPoint<>(z + 1, 0) * tileScale - camera.position.z),
             },
     };
 

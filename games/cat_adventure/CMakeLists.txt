@@ -27,6 +27,7 @@ add_executable(game
   ./src/Graphics/SkeletonAnimator.cpp
   ./src/Graphics/TimFile.cpp
 
+
   ./src/Math/Math.cpp
   ./src/Math/matrix_test.cpp
   ./src/Math/Quaternion.cpp
@@ -41,6 +42,7 @@ add_executable(game
   ./src/Collision.cpp
   ./src/Object.cpp
   ./src/Level.cpp
+  ./src/TileMap.cpp
 
   ./src/LoadingScene.cpp
   ./src/GameplayScene.cpp

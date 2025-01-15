@@ -19,6 +19,8 @@ struct Camera;
 struct Circle;
 struct AABB;
 struct TimFile;
+struct TileIndex;
+struct TileInfo;
 
 class Renderer {
 public:
@@ -41,7 +43,11 @@ public:
     void drawMesh2(const Mesh& mesh);
     void drawQuadSubdiv(const psyqo::Prim::GouraudTexturedQuad& quad2d, int avgZ, int addBias);
 
-    void drawTileQuad(int x, int z, int tileId, const ModelData& prefabs, const Camera& camera);
+    void drawTile(
+        TileIndex tileIndex,
+        const TileInfo& tileInfo,
+        const ModelData& prefabs,
+        const Camera& camera);
 
     void drawMeshArmature(
         const AnimatedModelObject& object,

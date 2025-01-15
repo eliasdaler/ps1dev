@@ -86,15 +86,11 @@ void rasterizeTriangle(int x1, int y1, int x2, int y2, int x3, int y3)
     }
 }
 
-struct TileIndex {
-    int x, z;
-};
-
 TileIndex getTileIndex(const psyqo::Vec3& pos)
 {
     return TileIndex{
-        .x = (pos.x * TILE_SIZE).floor(),
-        .z = (pos.z * TILE_SIZE).floor(),
+        .x = (int16_t)(pos.x * TILE_SIZE).floor(),
+        .z = (int16_t)(pos.z * TILE_SIZE).floor(),
     };
 }
 
@@ -411,7 +407,10 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
     if (isMoving || isRotating) {
         if (player.animator.frameJustChanged()) {
             const auto animFrame = player.animator.getAnimationFrame();
-            bool onGrass = playerTileIndex.z < -4 || playerTileIndex.z > 4;
+
+            // TODO: optimize
+            const auto tileInfo = tileMap.getTile(playerTileIndex);
+            bool onGrass = (tileInfo.tileId == 3);
 
             if (player.animator.getCurrentAnimationName() == "Walk"_sh) {
                 if (animFrame == 3) {
@@ -706,15 +705,17 @@ void GameplayScene::updateLevelSwitch()
 void GameplayScene::handleFloorCollision()
 {
     const auto playerTileIndex = getTileIndex(player.getPosition());
-    if (playerTileIndex.z >= -2 && playerTileIndex.z <= 2) {
+    const auto tileInfo = tileMap.getTile(playerTileIndex);
+
+    const auto tileId = tileInfo.tileId;
+    if (tileId == 1 || tileId == 2) {
         // on road tile
         player.transform.translation.y = -0.02;
     } else {
-        // on curb tile
         player.transform.translation.y = 0.0;
     }
 
-    if (playerTileIndex.z == -3 || playerTileIndex.z == 3) {
+    if (tileId == 5 || tileId == 6) {
         // on transition tile
 
         psyqo::FixedPoint lerpF = 0.0;
@@ -726,7 +727,7 @@ void GameplayScene::handleFloorCollision()
         static constexpr auto curbMaxHeightPointScale = 50; // 1 / 0.02
 
         if (playerTileIndex.z > 0) {
-            lerpF = (psyqo::FixedPoint(playerTileIndex.z, 0) * TILE_SCALE + curbMaxHeightPoint -
+            lerpF = (psyqo::FixedPoint<>(playerTileIndex.z, 0) * TILE_SCALE + curbMaxHeightPoint -
                      player.transform.translation.z) *
                     curbMaxHeightPointScale;
         } else {
@@ -1205,30 +1206,15 @@ void GameplayScene::drawTiles(Renderer& renderer)
 
     const auto& modelData = game.level.modelData;
 
-    for (int z = minTileZ; z <= maxTileZ; ++z) {
-        for (int x = minTileX; x <= maxTileX; ++x) {
-            int tileId = 3;
-            if (z == 0) {
-                tileId = 1;
-            }
-            if (z == -1 || z == -2 || z == 1 || z == 2) {
-                tileId = 2;
-            }
-            if (z == -4 || z == 4) {
-                tileId = 4;
-            }
-            if (z == 3) {
-                tileId = 5;
-            }
-            if (z == -3) {
-                tileId = 6;
-            }
-
+    for (int16_t z = minTileZ; z <= maxTileZ; ++z) {
+        for (int16_t x = minTileX; x <= maxTileX; ++x) {
             const int xrel = maxTileX - x;
             const int zrel = maxTileZ - z;
             if (xrel >= 0 && xrel < MAX_TILES_DIM && zrel >= 0 && zrel < MAX_TILES_DIM &&
                 tileSeen[xrel * MAX_TILES_DIM + zrel] == 1) {
-                renderer.drawTileQuad(x, z, tileId, modelData, camera);
+                const auto tileIndex = TileIndex{x, z};
+                const auto tileInfo = tileMap.getTile(tileIndex);
+                renderer.drawTile(tileIndex, tileInfo, modelData, camera);
                 ++numTilesDrawn;
             }
         }
@@ -1309,16 +1295,6 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
 
         const auto playerTileIndex = getTileIndex(player.getPosition());
 
-        auto lerpF = (psyqo::FixedPoint(playerTileIndex.z, 0) * 0.125 + 0.1 -
-                      player.transform.translation.z) *
-                     32;
-        lerpF = -(psyqo::FixedPoint(playerTileIndex.z + 1, 0) * 0.125 - 0.02 -
-                  player.transform.translation.z) *
-                50;
-        if (playerTileIndex.z != -3) {
-            lerpF = 2.0;
-        }
-
         game.romFont.chainprintf(
             game.gpu(),
             {{.x = 16, .y = 16}},
@@ -1332,8 +1308,7 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
             game.gpu(),
             {{.x = 16, .y = 32}},
             textCol,
-            "%.2f, (%d, %d)",
-            lerpF,
+            "(%d, %d)",
             playerTileIndex.x,
             playerTileIndex.z);
 

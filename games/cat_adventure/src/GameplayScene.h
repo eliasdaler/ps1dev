@@ -8,6 +8,7 @@
 #include <Graphics/SkeletonAnimator.h>
 #include <Math/Quaternion.h>
 #include <Object.h>
+#include <TileMap.h>
 #include <Trigger.h>
 #include <UI/DialogueBox.h>
 #include <Util/FPSCounter.h>
@@ -102,4 +103,6 @@ private:
 
     int minTileX, maxTileX;
     int minTileZ, maxTileZ;
+
+    TileMap tileMap;
 };
