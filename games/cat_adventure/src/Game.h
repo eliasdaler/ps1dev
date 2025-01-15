@@ -66,6 +66,8 @@ public:
     SongPlayer songPlayer;
     uint32_t step1Sound{0};
     uint32_t step2Sound{0};
+    uint32_t gstep1Sound{0};
+    uint32_t gstep2Sound{0};
 
     DebugMenu debugMenu;
 

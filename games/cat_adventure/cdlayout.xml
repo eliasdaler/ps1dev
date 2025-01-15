@@ -31,13 +31,15 @@
                 <file name="HUMAN.ANM" type="data" source="assets/human2.anm"/>
                 <file name="STEP1.VAG" type="data" source="assets/step1.vag"/>
                 <file name="STEP2.VAG" type="data" source="assets/step2.vag"/>
+                <file name="GSTEP1.VAG" type="data" source="assets/gstep1.vag"/>
+                <file name="GSTEP2.VAG" type="data" source="assets/gstep2.vag"/>
                 <file name="CATO.TIM" type="data" source="assets/cato.tim"/>
                 <file name="CATOF.TIM" type="data" source="assets/cato_faces.tim"/>
                 <file name="FONT.TIM" type="data" source="assets/font.tim"/>
                 <file name="FONT.FNT" type="data" source="assets/font.fnt"/>
-                <file name="SONG.MID" type="data" source="assets/songs/b2/song.mid"/>
-                <file name="INST.VAB" type="data" source="assets/songs/b2/inst.vab"/>
-                <file name="SMPL.PCM" type="data" source="assets/songs/b2/smpl.pcm"/>
+                <file name="SONG.MID" type="data" source="assets/songs/pd/song.mid"/>
+                <file name="INST.VAB" type="data" source="assets/songs/pd/inst.vab"/>
+                <file name="SMPL.PCM" type="data" source="assets/songs/pd/smpl.pcm"/>
                 <dummy sectors="1024"/>
             </directory_tree>
         </track>

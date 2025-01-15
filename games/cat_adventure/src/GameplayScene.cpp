@@ -24,6 +24,21 @@
 
 #define NEW_CAM
 
+uint8_t fogR = 108;
+uint8_t fogG = 100;
+uint8_t fogB = 116;
+
+static uint32_t someLocal = 12;
+
+void pcsxRegisterSomeLocal()
+{
+    register uint32_t* a0 asm("a0") = &someLocal;
+    __asm__ volatile("" : : "r"(a0));
+    ramsyscall_printf("hmmm %x\n", &someLocal);
+    *((volatile uint8_t* const)0x1f802081) = 42;
+    ramsyscall_printf("hmmm2\n");
+}
+
 namespace
 {
 constexpr auto worldScale = 8.0;
@@ -70,6 +85,30 @@ void rasterizeTriangle(int x1, int y1, int x2, int y2, int x3, int y3)
     }
 }
 
+struct TileIndex {
+    int x, z;
+};
+
+TileIndex getTileIndex(const psyqo::Vec3& pos)
+{
+    return TileIndex{
+        .x = (pos.x * TILE_SIZE).floor(),
+        .z = (pos.z * TILE_SIZE).floor(),
+    };
+}
+
+namespace
+{
+    psyqo::FixedPoint<> lerp(
+        psyqo::FixedPoint<> a,
+        psyqo::FixedPoint<> b,
+        psyqo::FixedPoint<> factor)
+    {
+        return a * factor + (psyqo::FixedPoint<>(1.0) - factor) * b;
+    }
+
+}
+
 } // end of anonymous namespace
 
 GameplayScene::GameplayScene(Game& game) : game(game)
@@ -80,8 +119,14 @@ void GameplayScene::start(StartReason reason)
     if (reason == StartReason::Create) {
         game.renderer.setFogNearFar(0.3, 1.5);
         // game.renderer.setFogNearFar(0.8, 16.125);
+        // static constexpr auto farColor = psyqo::Color{.r = 108, .g = 100, .b = 116};
         static const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
         game.renderer.setFarColor(farColor);
+
+        static constexpr auto shFogColor = psyqo::Color{.r = 108, .g = 100, .b = 116};
+        game.renderer.setFogColor(shFogColor);
+
+        // game.renderer.setFogColor({.r = 188, .g = 180, .b = 116});
 
         uiTexture = game.resourceCache.getResource<TextureInfo>(CATO_TEXTURE_HASH);
 
@@ -204,10 +249,27 @@ void GameplayScene::start(StartReason reason)
     game.renderer.setFogNearFar(0.8, 50.125);
     debugInfoDrawn = true;
     */
+
+    player.setPosition({0.4641, 0.0000, 1.0766});
+    player.rotation = {0.0000, 1.9462};
+
+    player.setPosition({0.3803, 0.0000, 0.9570});
+    player.rotation = {0.0000, 1.0771};
+
+    player.setPosition({0.4438, 0.0000, 0.9104});
+    player.rotation = {0.0000, 1.0771};
+
+    player.setPosition({0.4665, 0.0000, 1.0087});
+    player.rotation = {0.0000, 1.0771};
+
+    // pcsxRegisterSomeLocal();
 }
 
 void GameplayScene::frame()
 {
+    // ramsyscall_printf("someLocal: %x, %d\n", &someLocal, (int)someLocal);
+    // game.renderer.setFogColor({.r = fogR, .g = fogG, .b = fogB});
+
     game.handleDeltas();
 
     fpsCounter.update(game.gpu());
@@ -343,20 +405,24 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
         player.animator.setAnimation("Think"_sh);
     }
 
+    const auto playerTileIndex = getTileIndex(player.getPosition());
+
     if (isMoving || isRotating) {
         if (player.animator.frameJustChanged()) {
             const auto animFrame = player.animator.getAnimationFrame();
+            bool onGrass = playerTileIndex.z < -4 || playerTileIndex.z > 4;
+
             if (player.animator.getCurrentAnimationName() == "Walk"_sh) {
                 if (animFrame == 3) {
-                    game.soundPlayer.playSound(20, game.step1Sound);
+                    game.soundPlayer.playSound(20, onGrass ? game.gstep1Sound : game.step1Sound);
                 } else if (animFrame == 15) {
-                    game.soundPlayer.playSound(21, game.step2Sound);
+                    game.soundPlayer.playSound(21, onGrass ? game.gstep2Sound : game.step2Sound);
                 }
             } else if (player.animator.getCurrentAnimationName() == "Run"_sh) {
                 if (animFrame == 2) {
-                    game.soundPlayer.playSound(20, game.step1Sound);
+                    game.soundPlayer.playSound(20, onGrass ? game.gstep1Sound : game.step1Sound);
                 } else if (animFrame == 10) {
-                    game.soundPlayer.playSound(21, game.step2Sound);
+                    game.soundPlayer.playSound(21, onGrass ? game.gstep2Sound : game.step2Sound);
                 }
             }
         }
@@ -464,7 +530,7 @@ void GameplayScene::updateCamera()
             .y = 0.42,
             .z = -0.60,
         };
-        static constexpr auto cameraPitch = psyqo::FixedPoint<10>(0.085);
+        static constexpr auto cameraPitch = psyqo::FixedPoint<10>(0.12);
 #else
         static constexpr auto cameraOffset = psyqo::Vec3{
             .x = -0.15,
@@ -486,6 +552,8 @@ void GameplayScene::updateCamera()
 
         camera.rotation.x = cameraPitch;
         camera.rotation.y = player.rotation.y;
+
+        camera.position.y = 0.42;
     }
 
     // calculate camera rotation matrix
@@ -688,7 +756,7 @@ collidedWithSomething:
 
 void GameplayScene::calculateTileVisibility()
 {
-    auto fov = psyqo::Angle(0.23);
+    auto fov = psyqo::Angle(0.25);
     auto viewDistSide = psyqo::FixedPoint(3.5);
 
     // auto origin = player.getPosition();
@@ -857,7 +925,7 @@ void GameplayScene::draw(Renderer& renderer)
         gp.getNextClear(fill.primitive, fogColor);
         gp.chain(fill); */
 
-        static constexpr auto fogColor = psyqo::Color{.r = 108, .g = 100, .b = 116};
+        auto fogColor = game.renderer.getFogColor();
 
         auto& quadFrag = primBuffer.allocateFragment<psyqo::Prim::GouraudQuad>();
         auto& q = quadFrag.primitive;
@@ -883,36 +951,94 @@ void GameplayScene::draw(Renderer& renderer)
         gp.chain(maskBit);
     }
 
+    {
+        auto& tpage = primBuffer.allocateFragment<psyqo::Prim::TPage>();
+        tpage.primitive.attr.setDithering(true).set(
+            psyqo::Prim::TPageAttr::SemiTrans::FullBackAndFullFront);
+        gp.chain(tpage);
+    }
+
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
 
+    // draw floor
     numTilesDrawn = 0;
     {
-        // auto playerPosX = (player.getPosition().x * 8).integer();
-        // draw floor
         psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
         psyqo::Vec3 v{};
         psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Translation>(v);
+        const auto& modelData = game.level.modelData;
         for (int z = minTileZ; z <= maxTileZ; ++z) {
             for (int x = minTileX; x <= maxTileX; ++x) {
-                // for (int z = -20; z < 20; ++z) {
-                //    for (int x = -20 + playerPosX; x < 5 + playerPosX; ++x) {
-                int tileId = (z == 0) ? 1 : 0;
+                int tileId = 3;
+                if (z == 0) {
+                    tileId = 1;
+                }
                 if (z == -1 || z == -2 || z == 1 || z == 2) {
                     tileId = 2;
                 }
-                // tileId = 3;
+                if (z == -4 || z == 4) {
+                    tileId = 4;
+                }
+                if (z == 3) {
+                    tileId = 5;
+                }
+                if (z == -3) {
+                    tileId = 6;
+                }
 
                 const int xrel = maxTileX - x;
                 const int zrel = maxTileZ - z;
                 if (xrel >= 0 && xrel < MAX_TILES_DIM && zrel >= 0 && zrel < MAX_TILES_DIM &&
                     tileSeen[xrel * MAX_TILES_DIM + zrel] == 1) {
-                    renderer.drawTileQuad(x, z, tileId, camera);
+                    renderer.drawTileQuad(x, z, tileId, modelData, camera);
                     ++numTilesDrawn;
                 }
             }
         }
     }
-endTileRender:
+
+    const auto playerTileIndex = getTileIndex(player.getPosition());
+    if (playerTileIndex.z >= -2 && playerTileIndex.z <= 2) {
+        player.transform.translation.y = -0.02;
+    } else {
+        player.transform.translation.y = 0.0;
+    }
+
+#define SLOW_CURB
+
+    if (playerTileIndex.z == -3 || playerTileIndex.z == 3) {
+        psyqo::FixedPoint lerpF = 0.0;
+        if (playerTileIndex.z > 0) {
+#ifdef SLOW_CURB
+            lerpF = (psyqo::FixedPoint(playerTileIndex.z, 0) * 0.125 + 0.02 -
+                     player.transform.translation.z) *
+                    50;
+#else
+            lerpF = (psyqo::FixedPoint(playerTileIndex.z, 0) * 0.125 + 0.075 -
+                     player.transform.translation.z) *
+                    32;
+#endif
+        } else {
+#ifdef SLOW_CURB
+            lerpF = -(psyqo::FixedPoint(playerTileIndex.z + 1, 0) * 0.125 - 0.02 -
+                      player.transform.translation.z) *
+                    50;
+#else
+            lerpF = -(psyqo::FixedPoint(playerTileIndex.z + 1, 0) * 0.125 - 0.075 -
+                      player.transform.translation.z) *
+                    32;
+#endif
+        }
+
+        if (lerpF < 0.0) {
+            lerpF = 0.0;
+        }
+        if (lerpF > 1.0) {
+            lerpF = 1.0;
+        }
+        player.transform.translation.y = lerp(-0.02, 0.0, lerpF);
+    }
+    player.calculateWorldMatrix();
 
     // renderer.bias = 300;
     // draw static objects
@@ -924,6 +1050,7 @@ endTileRender:
 
     renderer.bias = 0;
     // draw dynamic objects
+#if 1
     {
         // TODO: first draw objects without rotation
         // (won't have to upload camera.viewRot and change PseudoRegister::Rotation then)
@@ -932,42 +1059,11 @@ endTileRender:
             renderer.drawAnimatedModelObject(npc, camera);
         }
     }
+#endif
 
     gp.pumpCallbacks();
 
     gp.chain(ot);
-
-    {
-        /* static constexpr auto fogColor = psyqo::Color{.r = 108, .g = 100, .b = 116};
-        auto& fill = primBuffer.allocateFragment<psyqo::Prim::FastFill>();
-        gp.getNextClear(fill.primitive, fogColor);
-        gp.chain(fill); */
-
-        static constexpr auto fogColor = psyqo::Color{.r = 34, .g = 32, .b = 37};
-
-        auto& quadFrag = primBuffer.allocateFragment<psyqo::Prim::GouraudQuad>();
-        auto& q = quadFrag.primitive;
-        q.pointA.x = 0;
-        q.pointA.y = 0;
-        q.pointB.x = SCREEN_WIDTH;
-        q.pointB.y = 0;
-        q.pointC.x = 0;
-        q.pointC.y = SCREEN_HEIGHT;
-        q.pointD.x = SCREEN_WIDTH;
-        q.pointD.y = SCREEN_HEIGHT;
-        q.setColorA(fogColor);
-        q.colorB = fogColor;
-        q.colorC = fogColor;
-        q.colorD = fogColor;
-        q.setSemiTrans();
-
-        {
-            auto& maskBit = primBuffer.allocateFragment<psyqo::Prim::MaskControl>(
-                psyqo::Prim::MaskControl::Set::ForceSet, psyqo::Prim::MaskControl::Test::Yes);
-            gp.chain(maskBit);
-        }
-        gp.chain(quadFrag);
-    }
 
     if (fadeLevel != 0) {
         auto& gpu = renderer.getGPU();
@@ -1047,6 +1143,14 @@ endTileRender:
             psyqo::Color{.r = 0, .g = 255, .b = 0});
     }
 #endif
+
+    /* renderer.drawLineWorldSpace(
+        camera,
+        player.getPosition(),
+        player.getPosition() + psyqo::Vec3{0.0, 0.1, 0.0} * 1.0,
+        psyqo::Color{.r = 255, .g = 0, .b = 255}); */
+
+    // renderer.drawPointWorldSpace(camera, player.getPosition(), {.r = 255, .g = 0, .b = 255});
 
     if (gameState == GameState::Normal) {
         if (canTalk) {
@@ -1197,25 +1301,43 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
             return "";
         }();
 
-        auto playerPosX = -(player.getPosition().x).integer();
+        const auto playerTileIndex = getTileIndex(player.getPosition());
+
+        auto lerpF = (psyqo::FixedPoint(playerTileIndex.z, 0) * 0.125 + 0.1 -
+                      player.transform.translation.z) *
+                     32;
+        lerpF = -(psyqo::FixedPoint(playerTileIndex.z + 1, 0) * 0.125 - 0.02 -
+                  player.transform.translation.z) *
+                50;
+        if (playerTileIndex.z != -3) {
+            lerpF = 2.0;
+        }
 
         game.romFont.chainprintf(
             game.gpu(),
             {{.x = 16, .y = 16}},
             textCol,
-            "p pos = (%.2f, %.2f, %.2f), %d",
+            "pos = (%.2f, %.4f, %.2f)",
             player.getPosition().x,
             player.getPosition().y,
-            player.getPosition().z,
-            playerPosX);
+            player.getPosition().z);
 
         game.romFont.chainprintf(
             game.gpu(),
             {{.x = 16, .y = 32}},
             textCol,
+            "%.2f, (%d, %d)",
+            lerpF,
+            playerTileIndex.x,
+            playerTileIndex.z);
+
+        /* game.romFont.chainprintf(
+            game.gpu(),
+            {{.x = 16, .y = 32}},
+            textCol,
             "p rot=(%.2f, %.2f)",
             psyqo::FixedPoint<>(player.rotation.x),
-            psyqo::FixedPoint<>(player.rotation.y));
+            psyqo::FixedPoint<>(player.rotation.y)); */
 
         /* game.romFont.chainprintf(
             game.gpu(),

@@ -41,7 +41,7 @@ public:
     void drawMesh2(const Mesh& mesh);
     void drawQuadSubdiv(const psyqo::Prim::GouraudTexturedQuad& quad2d, int avgZ, int addBias);
 
-    void drawTileQuad(int x, int z, int tileId, const Camera& camera);
+    void drawTileQuad(int x, int z, int tileId, const ModelData& prefabs, const Camera& camera);
 
     void drawMeshArmature(
         const AnimatedModelObject& object,
@@ -88,6 +88,12 @@ public:
         const psyqo::Color& c,
         bool cameraViewLoaded = false);
 
+    void drawPointWorldSpace(
+        const Camera& camera,
+        const psyqo::Vec3& p,
+        const psyqo::Color& c,
+        bool cameraViewLoaded = false);
+
     void drawAABB(const Camera& camera, const AABB& aabb, const psyqo::Color& c);
 
     void drawCircle(const Camera& camera, const Circle& circle, const psyqo::Color& c);
@@ -101,6 +107,9 @@ public:
     void setFOV(uint32_t nh);
 
     void setFogEnabled(bool b) { fogEnabled = b; };
+
+    void setFogColor(psyqo::Color c) { fogColor = c; }
+    psyqo::Color getFogColor() const { return fogColor; }
 
 private:
     bool shouldCullObject(const Object& object, const Camera& camera) const;
@@ -119,4 +128,13 @@ private:
     std::uint32_t h{300};
 
     bool fogEnabled{true};
+
+    psyqo::Color fogColor = psyqo::Color{.r = 108, .g = 100, .b = 116};
+
+    uint32_t minAvgZ = 0xFFFF;
+    uint32_t minAvgP = 0xFFFF;
+    int16_t minSX;
+    int16_t minSY;
+    int16_t maxSX;
+    int16_t maxSY;
 };
