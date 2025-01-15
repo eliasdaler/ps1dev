@@ -927,7 +927,10 @@ void Renderer::drawTileQuad(
     const auto tileHeight =
         (tileId != 1 && tileId != 2) ? psyqo::FixedPoint<>(0.0) : psyqo::FixedPoint<>(-0.02);
 
-    if (tileId == 5 || tileId == 6) {
+    if (tileId == 5 || tileId == 6) { // "model" tiles
+        // mostly like drawMesh2, but moves each vertex into camera space without
+        // using rotation/translation registers
+        // - FIXME: remove copy-paste
         const auto& meshData = prefabs.meshes[tileId == 5 ? 4 : 5];
         const auto& g3s = meshData.g3;
         const auto& g4s = meshData.g4;
@@ -946,6 +949,8 @@ void Renderer::drawTileQuad(
         const auto originY = psyqo::GTE::Short(tileHeight - camera.position.y);
         const auto originZ =
             psyqo::GTE::Short(psyqo::FixedPoint(z, 0) * tileScale - camera.position.z);
+
+        // FIXME: draw gt3s too!
 
         for (std::size_t i = 0; i < gt4s.size(); ++i) {
             auto v0 = verts[gt4Offset + i * 4 + 0];
@@ -1047,6 +1052,8 @@ void Renderer::drawTileQuad(
             ot.insert(quadFragT, avgZ);
             ot.insert(quadFragFog, avgZ);
         }
+
+        return;
     }
 
     const auto v0 = Vec3Pad{

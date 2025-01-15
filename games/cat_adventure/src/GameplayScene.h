@@ -31,6 +31,7 @@ private:
     void processDebugInput(const PadManager& pad);
     void update();
     void updateLevelSwitch();
+    void handleFloorCollision();
     void handleCollision(psyqo::SoftMath::Axis axis);
     void updateCamera();
 
@@ -39,8 +40,8 @@ private:
     void makeTestLevel();
 
     void draw(Renderer& renderer);
+    void drawTiles(Renderer& renderer);
 
-    void drawTestLevel(Renderer& renderer);
     void drawDebugInfo(Renderer& renderer);
     void dumpDebugInfoToTTY();
 

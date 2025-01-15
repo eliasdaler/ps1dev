@@ -48,6 +48,7 @@ consteval long double ToWorldCoords(long double d)
 }
 
 static constexpr auto TILE_SIZE = 8;
+static constexpr psyqo::FixedPoint TILE_SCALE = 0.125; // 1 / TILE_SIZE
 
 // Tiles which can be seen by the camera
 // Stored in relative coordinates to the minimum point of frustum's AABB in XZ plane
@@ -590,6 +591,7 @@ void GameplayScene::update()
         auto pos = player.getPosition();
         pos += player.velocity * game.frameDt;
         player.setPosition(pos);
+        handleFloorCollision();
         player.updateCollision();
 
         canInteract = false;
@@ -698,6 +700,48 @@ void GameplayScene::updateLevelSwitch()
     case SwitchLevelState::Done:
         gameState = GameState::Normal;
         break;
+    }
+}
+
+void GameplayScene::handleFloorCollision()
+{
+    const auto playerTileIndex = getTileIndex(player.getPosition());
+    if (playerTileIndex.z >= -2 && playerTileIndex.z <= 2) {
+        // on road tile
+        player.transform.translation.y = -0.02;
+    } else {
+        // on curb tile
+        player.transform.translation.y = 0.0;
+    }
+
+    if (playerTileIndex.z == -3 || playerTileIndex.z == 3) {
+        // on transition tile
+
+        psyqo::FixedPoint lerpF = 0.0;
+        // 0.02 / 0.125 = 0.16 (16% of curb width is where we reach the max height)
+        static constexpr auto curbMaxHeightPoint = 0.02;
+
+        // essentially we're doing lerpF = (x - a) / (b - a),
+        // so curbMaxHeightPointScale is our 1/ ( b - a)
+        static constexpr auto curbMaxHeightPointScale = 50; // 1 / 0.02
+
+        if (playerTileIndex.z > 0) {
+            lerpF = (psyqo::FixedPoint(playerTileIndex.z, 0) * TILE_SCALE + curbMaxHeightPoint -
+                     player.transform.translation.z) *
+                    curbMaxHeightPointScale;
+        } else {
+            lerpF =
+                (player.transform.translation.z -
+                 (psyqo::FixedPoint(playerTileIndex.z + 1, 0) * TILE_SCALE - curbMaxHeightPoint)) *
+                curbMaxHeightPointScale;
+        }
+
+        static constexpr auto zero = psyqo::FixedPoint<>(0.0);
+        static constexpr auto one = psyqo::FixedPoint<>(1.0);
+        lerpF = eastl::clamp(lerpF, zero, one);
+
+        static constexpr auto roadHeight = psyqo::FixedPoint<>(-0.02);
+        player.transform.translation.y = lerp(roadHeight, 0.0, lerpF);
     }
 }
 
@@ -960,85 +1004,7 @@ void GameplayScene::draw(Renderer& renderer)
 
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
 
-    // draw floor
-    numTilesDrawn = 0;
-    {
-        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
-        psyqo::Vec3 v{};
-        psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Translation>(v);
-        const auto& modelData = game.level.modelData;
-        for (int z = minTileZ; z <= maxTileZ; ++z) {
-            for (int x = minTileX; x <= maxTileX; ++x) {
-                int tileId = 3;
-                if (z == 0) {
-                    tileId = 1;
-                }
-                if (z == -1 || z == -2 || z == 1 || z == 2) {
-                    tileId = 2;
-                }
-                if (z == -4 || z == 4) {
-                    tileId = 4;
-                }
-                if (z == 3) {
-                    tileId = 5;
-                }
-                if (z == -3) {
-                    tileId = 6;
-                }
-
-                const int xrel = maxTileX - x;
-                const int zrel = maxTileZ - z;
-                if (xrel >= 0 && xrel < MAX_TILES_DIM && zrel >= 0 && zrel < MAX_TILES_DIM &&
-                    tileSeen[xrel * MAX_TILES_DIM + zrel] == 1) {
-                    renderer.drawTileQuad(x, z, tileId, modelData, camera);
-                    ++numTilesDrawn;
-                }
-            }
-        }
-    }
-
-    const auto playerTileIndex = getTileIndex(player.getPosition());
-    if (playerTileIndex.z >= -2 && playerTileIndex.z <= 2) {
-        player.transform.translation.y = -0.02;
-    } else {
-        player.transform.translation.y = 0.0;
-    }
-
-#define SLOW_CURB
-
-    if (playerTileIndex.z == -3 || playerTileIndex.z == 3) {
-        psyqo::FixedPoint lerpF = 0.0;
-        if (playerTileIndex.z > 0) {
-#ifdef SLOW_CURB
-            lerpF = (psyqo::FixedPoint(playerTileIndex.z, 0) * 0.125 + 0.02 -
-                     player.transform.translation.z) *
-                    50;
-#else
-            lerpF = (psyqo::FixedPoint(playerTileIndex.z, 0) * 0.125 + 0.075 -
-                     player.transform.translation.z) *
-                    32;
-#endif
-        } else {
-#ifdef SLOW_CURB
-            lerpF = -(psyqo::FixedPoint(playerTileIndex.z + 1, 0) * 0.125 - 0.02 -
-                      player.transform.translation.z) *
-                    50;
-#else
-            lerpF = -(psyqo::FixedPoint(playerTileIndex.z + 1, 0) * 0.125 - 0.075 -
-                      player.transform.translation.z) *
-                    32;
-#endif
-        }
-
-        if (lerpF < 0.0) {
-            lerpF = 0.0;
-        }
-        if (lerpF > 1.0) {
-            lerpF = 1.0;
-        }
-        player.transform.translation.y = lerp(-0.02, 0.0, lerpF);
-    }
-    player.calculateWorldMatrix();
+    drawTiles(renderer);
 
     // renderer.bias = 300;
     // draw static objects
@@ -1227,6 +1193,46 @@ void GameplayScene::makeTestLevel()
     object.calculateWorldMatrix();
     staticObjects.push_back(object);
 #endif
+}
+
+void GameplayScene::drawTiles(Renderer& renderer)
+{
+    numTilesDrawn = 0;
+
+    // all translation is handled by us moving tiles into camera space manually
+    static constexpr psyqo::Vec3 v{};
+    psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Translation>(v);
+
+    const auto& modelData = game.level.modelData;
+
+    for (int z = minTileZ; z <= maxTileZ; ++z) {
+        for (int x = minTileX; x <= maxTileX; ++x) {
+            int tileId = 3;
+            if (z == 0) {
+                tileId = 1;
+            }
+            if (z == -1 || z == -2 || z == 1 || z == 2) {
+                tileId = 2;
+            }
+            if (z == -4 || z == 4) {
+                tileId = 4;
+            }
+            if (z == 3) {
+                tileId = 5;
+            }
+            if (z == -3) {
+                tileId = 6;
+            }
+
+            const int xrel = maxTileX - x;
+            const int zrel = maxTileZ - z;
+            if (xrel >= 0 && xrel < MAX_TILES_DIM && zrel >= 0 && zrel < MAX_TILES_DIM &&
+                tileSeen[xrel * MAX_TILES_DIM + zrel] == 1) {
+                renderer.drawTileQuad(x, z, tileId, modelData, camera);
+                ++numTilesDrawn;
+            }
+        }
+    }
 }
 
 void GameplayScene::drawDebugInfo(Renderer& renderer)
