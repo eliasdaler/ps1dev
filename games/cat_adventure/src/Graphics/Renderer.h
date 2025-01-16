@@ -163,8 +163,10 @@ private:
 
     psyqo::Color fogColor = psyqo::Color{.r = 108, .g = 100, .b = 116};
 
-    uint32_t minAvgZ = 0xFFFF;
-    uint32_t minAvgP = 0xFFFF;
+    // used to draw a "fade rect" when doing fog for dynamic objects
+    // calculated while drawing prims in drawMeshFog
+    uint32_t minAvgZ;
+    uint32_t minAvgP;
     int16_t minSX;
     int16_t minSY;
     int16_t maxSX;

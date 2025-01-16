@@ -366,6 +366,8 @@ void Renderer::drawMeshFog(const Mesh& mesh)
         tri2d.colorC = interpColorImm(prim.colorC);
 
         psyqo::GTE::Kernels::nclip();
+        const auto addBias = getAddBias(prim);
+
         const auto dot =
             (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
         if (dot < 0) {
@@ -376,14 +378,12 @@ void Renderer::drawMeshFog(const Mesh& mesh)
 
         auto avgZ = (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
         if (avgZ == 0) { // cull
-            continue;
+            if (addBias != 2) {
+                continue;
+            }
         }
 
-        avgZ += bias; // add bias
-        { // load additional bias stored in padding
-            const auto addBias = getAddBias(prim);
-            avgZ += addBias;
-        }
+        avgZ += bias + addBias; // add bias
 
         if (avgZ >= Renderer::OT_SIZE) {
             continue;
@@ -647,6 +647,7 @@ void Renderer::drawMeshStaticFog(const Mesh& mesh)
     for (std::size_t i = 0; i < gt3s.size(); ++i) {
         auto& triFragT = primBuffer.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
         auto& triT = triFragT.primitive;
+        triT.setSemiTrans();
 
         auto& triFragFog = primBuffer.allocateFragment<psyqo::Prim::GouraudTriangle>();
         auto& triFog = triFragFog.primitive;
@@ -717,7 +718,6 @@ void Renderer::drawMeshStaticFog(const Mesh& mesh)
             continue;
         }
 
-        triT.setSemiTrans();
         triFog.pointA = triT.pointA;
         triFog.pointB = triT.pointB;
         triFog.pointC = triT.pointC;
@@ -1052,17 +1052,6 @@ void Renderer::drawTileFog(
 #define getClut(x, y) (((y) << 6) | (((x) >> 4) & 0x3f))
     quadT.clutIndex = psyqo::PrimPieces::ClutIndex(0, 240);
 
-    // TODO: compute from tileId somehow?
-    const auto& tileInfo = tileset.getTileInfo(tileId);
-    quadT.uvA.u = tileInfo.u0;
-    quadT.uvA.v = tileInfo.v0;
-    quadT.uvB.u = tileInfo.u1;
-    quadT.uvB.v = tileInfo.v0;
-    quadT.uvC.u = tileInfo.u0;
-    quadT.uvC.v = tileInfo.v1;
-    quadT.uvD.u = tileInfo.u1;
-    quadT.uvD.v = tileInfo.v1;
-
     auto& quadFragFog = primBuffer.allocateFragment<psyqo::Prim::GouraudQuad>();
     auto& quadFog = quadFragFog.primitive;
 
@@ -1072,24 +1061,35 @@ void Renderer::drawTileFog(
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
     psyqo::GTE::Kernels::rtps();
 
-    quadT.setColorA(interpColorImm(textureNeutral));
+    // do while rtps does work
+    // TODO: compute from tileId somehow?
+    const auto& tileInfo = tileset.getTileInfo(tileId);
+    quadT.uvA.u = tileInfo.u0;
+    quadT.uvA.v = tileInfo.v0;
 
+    quadT.setColorA(interpColorImm(textureNeutral));
     uint32_t pa = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
     quadFog.setColorA(interpColorBack(fogColor, pa));
 
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
     psyqo::GTE::Kernels::rtps();
 
-    quadT.setColorB(interpColorImm(textureNeutral));
+    // do while rtps does work
+    quadT.uvB.u = tileInfo.u1;
+    quadT.uvB.v = tileInfo.v0;
 
+    quadT.setColorB(interpColorImm(textureNeutral));
     uint32_t pb = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
     quadFog.setColorB(interpColorBack(fogColor, pb));
 
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v2.pos);
     psyqo::GTE::Kernels::rtps();
 
-    quadT.setColorC(interpColorImm(textureNeutral));
+    // do while rtps does work
+    quadT.uvC.u = tileInfo.u0;
+    quadT.uvC.v = tileInfo.v1;
 
+    quadT.setColorC(interpColorImm(textureNeutral));
     uint32_t pc = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
     quadFog.setColorC(interpColorBack(fogColor, pc));
 
@@ -1104,8 +1104,11 @@ void Renderer::drawTileFog(
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v3.pos);
     psyqo::GTE::Kernels::rtps();
 
-    quadT.setColorD(interpColorImm(textureNeutral));
+    // do while rtps does work
+    quadT.uvD.u = tileInfo.u1;
+    quadT.uvD.v = tileInfo.v1;
 
+    quadT.setColorD(interpColorImm(textureNeutral));
     uint32_t pd = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
     quadFog.setColorD(interpColorBack(fogColor, pd));
 

@@ -116,9 +116,7 @@ void GameplayScene::start(StartReason reason)
     if (reason == StartReason::Create) {
         game.renderer.setFogNearFar(0.3, 1.5);
         // game.renderer.setFogNearFar(0.8, 16.125);
-        // static constexpr auto farColor = psyqo::Color{.r = 108, .g = 100, .b = 116};
         static const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
-        // static constexpr auto farColor = psyqo::Color{.r = 108, .g = 100, .b = 116};
         game.renderer.setFarColor(farColor);
 
         static constexpr auto shFogColor = psyqo::Color{.r = 108, .g = 100, .b = 116};
@@ -263,6 +261,7 @@ void GameplayScene::start(StartReason reason)
     auto& tileset = tileMap.tileset;
     tileset.tiles.resize(255);
 
+    // ???
     tileset.tiles[0] = TileInfo{
         .u0 = 0,
         .v0 = 128,
@@ -270,20 +269,23 @@ void GameplayScene::start(StartReason reason)
         .v1 = 255,
     };
 
+    // road with stripe
     tileset.tiles[1] = TileInfo{
-        .u0 = 64,
+        .u0 = 32,
         .v0 = 0,
-        .u1 = 127,
-        .v1 = 63,
+        .u1 = 63,
+        .v1 = 31,
     };
 
+    // road
     tileset.tiles[2] = TileInfo{
         .u0 = 0,
         .v0 = 0,
-        .u1 = 63,
-        .v1 = 63,
+        .u1 = 31,
+        .v1 = 31,
     };
 
+    // grass
     tileset.tiles[3] = TileInfo{
         .u0 = 0,
         .v0 = 96,
@@ -291,6 +293,7 @@ void GameplayScene::start(StartReason reason)
         .v1 = 127,
     };
 
+    // curb
     tileset.tiles[4] = TileInfo{
         .u0 = 0,
         .v0 = 80,
