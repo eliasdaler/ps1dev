@@ -69,6 +69,7 @@ def collect_meshes(obj_list):
     meshes_set = set(o.data for o in obj_list)
     mesh_list = list(meshes_set)
     mesh_list.sort(key=attrgetter("name"))
+    print([mesh.name for mesh in mesh_list])
     return mesh_list
 
 def collect_objects(collection_objects):

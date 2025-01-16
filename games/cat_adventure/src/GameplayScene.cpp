@@ -114,7 +114,7 @@ GameplayScene::GameplayScene(Game& game) : game(game)
 void GameplayScene::start(StartReason reason)
 {
     if (reason == StartReason::Create) {
-        game.renderer.setFogNearFar(0.3, 1.5);
+        game.renderer.setFogNearFar(0.25, 1.5);
         // game.renderer.setFogNearFar(0.8, 16.125);
         static const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
         game.renderer.setFarColor(farColor);
@@ -186,6 +186,11 @@ void GameplayScene::start(StartReason reason)
     // levelObj.setPosition({});
     // levelObj.rotation = {};
 
+    npc.model = game.resourceCache.getResource<ModelData>(HUMAN_MODEL_HASH).makeInstance();
+    npc.jointGlobalTransforms.resize(npc.model.armature.joints.size());
+    npc.animator.animations = &game.humanAnimations;
+    npc.animator.setAnimation("Idle"_sh);
+
     if (game.level.id == 0) {
         game.renderer.setFogEnabled(false);
 
@@ -195,11 +200,6 @@ void GameplayScene::start(StartReason reason)
 
         player.setPosition({0.0, 0.0, 0.25});
         player.rotation = {0.0, -1.0};
-
-        npc.model = game.resourceCache.getResource<ModelData>(HUMAN_MODEL_HASH).makeInstance();
-        npc.jointGlobalTransforms.resize(npc.model.armature.joints.size());
-        npc.animator.animations = &game.humanAnimations;
-        npc.animator.setAnimation("Walk"_sh);
 
         npc.setPosition({0.0, 0.0, -0.11});
         npc.rotation = {0.0, 0.1};
@@ -230,6 +230,9 @@ void GameplayScene::start(StartReason reason)
         camera.rotation = {0.0, 0.0};
 
         followCamera = true;
+
+        npc.setPosition({-0.1083, 0.0000, -1.2602});
+        npc.rotation = {0.0000, -0.0117};
     }
 
     canTalk = false;
@@ -378,8 +381,8 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
 {
     const auto& trig = game.trig;
 
-    constexpr auto walkSpeed = psyqo::FixedPoint<>(0.25);
-    constexpr auto sprintSpeed = psyqo::FixedPoint<>(0.6);
+    constexpr auto walkSpeed = psyqo::FixedPoint<>(0.15);
+    constexpr auto sprintSpeed = psyqo::FixedPoint<>(0.4);
     constexpr auto rotateSpeed = psyqo::FixedPoint<>(1.0);
     const auto dt = game.frameDt;
 
@@ -567,15 +570,15 @@ void GameplayScene::updateCamera()
 #ifdef NEW_CAM
         static constexpr auto cameraOffset = psyqo::Vec3{
             .x = -0.1,
-            .y = 0.42,
-            .z = -0.60,
+            .y = 0.32,
+            .z = -0.50,
         };
         static constexpr auto cameraPitch = psyqo::FixedPoint<10>(0.12);
 #else
         static constexpr auto cameraOffset = psyqo::Vec3{
-            .x = -0.15,
+            .x = -0.10,
             .y = 0.20,
-            .z = -0.32,
+            .z = -0.42,
         };
         static constexpr auto cameraPitch = psyqo::FixedPoint<10>(0.035);
 #endif
@@ -593,7 +596,11 @@ void GameplayScene::updateCamera()
         camera.rotation.x = cameraPitch;
         camera.rotation.y = player.rotation.y;
 
-        camera.position.y = 0.42;
+#ifdef NEW_CAM
+        camera.position.y = 0.32;
+#else
+        camera.position.y = 0.20;
+#endif
     }
 
     // calculate camera rotation matrix
@@ -664,17 +671,13 @@ void GameplayScene::update()
     }
 
     player.update();
-    if (game.level.id == 0) {
-        npc.update();
-    }
+    npc.update();
 
     updateCamera();
     calculateTileVisibility();
 
     if (gameState == GameState::Normal) {
-        if (game.level.id == 0) {
-            canTalk = circlesIntersect(player.interactionCircle, npc.interactionCircle);
-        }
+        canTalk = circlesIntersect(player.interactionCircle, npc.interactionCircle);
     } else if (gameState == GameState::Dialogue) {
         if (npcRotatesTowardsPlayer) {
             interactRotationLerpFactor += interactRotationLerpSpeed;
@@ -1062,9 +1065,7 @@ void GameplayScene::draw(Renderer& renderer)
         // TODO: first draw objects without rotation
         // (won't have to upload camera.viewRot and change PseudoRegister::Rotation then)
         renderer.drawAnimatedModelObject(player, camera);
-        if (game.level.id == 0) {
-            renderer.drawAnimatedModelObject(npc, camera);
-        }
+        renderer.drawAnimatedModelObject(npc, camera);
     }
 #endif
 
@@ -1158,6 +1159,12 @@ void GameplayScene::draw(Renderer& renderer)
         psyqo::Color{.r = 255, .g = 0, .b = 255}); */
 
     // renderer.drawPointWorldSpace(camera, player.getPosition(), {.r = 255, .g = 0, .b = 255});
+
+    {
+        auto& tpage = primBuffer.allocateFragment<psyqo::Prim::TPage>();
+        tpage.primitive.attr.setDithering(false);
+        gp.chain(tpage);
+    }
 
     if (gameState == GameState::Normal) {
         if (canTalk) {
