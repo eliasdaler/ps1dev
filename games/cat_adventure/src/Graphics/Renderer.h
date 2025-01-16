@@ -42,17 +42,34 @@ public:
     void drawModel(const Model& model);
 
     void drawMesh(const Mesh& mesh);
-    void drawMesh2(const Mesh& mesh);
+    void drawMeshNoFog(const Mesh& mesh);
+
+    void drawMeshStatic(const Mesh& mesh);
+    void drawMeshStaticNoFog(const Mesh& mesh);
+
     void drawQuadSubdiv(const psyqo::Prim::GouraudTexturedQuad& quad2d, int avgZ, int addBias);
 
     void drawTile(
         TileIndex tileIndex,
-        const Tile& tileInfo,
-        const Tileset& tilesert,
+        const Tile& tile,
+        const Tileset& tileset,
+        const ModelData& prefabs,
+        const Camera& camera);
+
+    void drawTileNoFog(
+        TileIndex tileIndex,
+        const Tile& tile,
+        const Tileset& tileset,
         const ModelData& prefabs,
         const Camera& camera);
 
     void drawTileMesh(
+        TileIndex tileIndex,
+        const Tile& tileInfo,
+        const MeshData& mesh,
+        const Camera& camera);
+
+    void drawTileMeshNoFog(
         TileIndex tileIndex,
         const Tile& tileInfo,
         const MeshData& mesh,
@@ -122,6 +139,7 @@ public:
     void setFOV(uint32_t nh);
 
     void setFogEnabled(bool b) { fogEnabled = b; };
+    bool isFogEnabled() const { return fogEnabled; }
 
     void setFogColor(psyqo::Color c) { fogColor = c; }
     psyqo::Color getFogColor() const { return fogColor; }

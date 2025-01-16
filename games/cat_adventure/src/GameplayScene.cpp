@@ -222,6 +222,7 @@ void GameplayScene::start(StartReason reason)
         followCamera = false;
     } else if (game.level.id == 1) {
         game.renderer.setFogEnabled(true);
+        // game.renderer.setFogEnabled(false);
 
         player.setPosition({0.5, 0.0, 0.5});
         player.rotation = {0.0, 1.37};
@@ -1251,7 +1252,11 @@ void GameplayScene::drawTiles(Renderer& renderer)
                 tileSeen[xrel * MAX_TILES_DIM + zrel] == 1) {
                 const auto tileIndex = TileIndex{x, z};
                 const auto tile = tileMap.getTile(tileIndex);
-                renderer.drawTile(tileIndex, tile, tileMap.tileset, modelData, camera);
+                if (renderer.isFogEnabled()) {
+                    renderer.drawTile(tileIndex, tile, tileMap.tileset, modelData, camera);
+                } else {
+                    renderer.drawTileNoFog(tileIndex, tile, tileMap.tileset, modelData, camera);
+                }
                 ++numTilesDrawn;
             }
         }
