@@ -260,6 +260,43 @@ void GameplayScene::start(StartReason reason)
     player.rotation = {0.0000, 1.0771};
 
     // pcsxRegisterSomeLocal();
+    auto& tileset = tileMap.tileset;
+    tileset.tiles.resize(255);
+
+    tileset.tiles[0] = TileInfo{
+        .u0 = 0,
+        .v0 = 128,
+        .u1 = 127,
+        .v1 = 255,
+    };
+
+    tileset.tiles[1] = TileInfo{
+        .u0 = 64,
+        .v0 = 0,
+        .u1 = 127,
+        .v1 = 63,
+    };
+
+    tileset.tiles[2] = TileInfo{
+        .u0 = 0,
+        .v0 = 0,
+        .u1 = 63,
+        .v1 = 63,
+    };
+
+    tileset.tiles[3] = TileInfo{
+        .u0 = 0,
+        .v0 = 96,
+        .u1 = 31,
+        .v1 = 127,
+    };
+
+    tileset.tiles[4] = TileInfo{
+        .u0 = 0,
+        .v0 = 80,
+        .u1 = 31,
+        .v1 = 95,
+    };
 }
 
 void GameplayScene::frame()
@@ -1213,8 +1250,8 @@ void GameplayScene::drawTiles(Renderer& renderer)
             if (xrel >= 0 && xrel < MAX_TILES_DIM && zrel >= 0 && zrel < MAX_TILES_DIM &&
                 tileSeen[xrel * MAX_TILES_DIM + zrel] == 1) {
                 const auto tileIndex = TileIndex{x, z};
-                const auto tileInfo = tileMap.getTile(tileIndex);
-                renderer.drawTile(tileIndex, tileInfo, modelData, camera);
+                const auto tile = tileMap.getTile(tileIndex);
+                renderer.drawTile(tileIndex, tile, tileMap.tileset, modelData, camera);
                 ++numTilesDrawn;
             }
         }

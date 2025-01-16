@@ -16,6 +16,10 @@
 
 #include "Subdivision.h"
 
+static constexpr psyqo::FixedPoint tileScale = 0.125; // 1 / TILE_SIZE
+static constexpr auto white = psyqo::Color{.r = 128, .g = 128, .b = 128};
+static constexpr auto floorBias = 500;
+
 namespace
 {
 void interpColor(const psyqo::Color& input, uint32_t p, psyqo::Color* out)
@@ -689,8 +693,6 @@ void Renderer::drawMesh2(const Mesh& mesh)
 
     const auto& verts = meshData.vertices;
 
-    static constexpr auto white = psyqo::Color{.r = 128, .g = 128, .b = 128};
-
     for (std::size_t i = 0; i < gt3s.size(); ++i) {
         auto& triFragFog = primBuffer.allocateFragment<psyqo::Prim::GouraudTriangle>();
         auto& tri2d = triFragFog.primitive;
@@ -815,8 +817,6 @@ void Renderer::drawMesh2(const Mesh& mesh)
 
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
         psyqo::GTE::Kernels::rtps();
-        auto mac0 = psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>();
-        auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
 
         quadT.setColorA(interpColorImm(white));
 
@@ -881,18 +881,6 @@ void Renderer::drawMesh2(const Mesh& mesh)
             quad2d.setSemiTrans();
             quadT.setOpaque();
 
-            auto testcolor = psyqo::Color{.r = 52, .g = 48, .b = 56};
-            auto c = quad2d.getColorA();
-            if (testcolor.r == c.r && testcolor.g == c.g && testcolor.b == c.b) {
-                /* ramsyscall_printf(
-                    "mac0: %d, sz0: %d, calc(sz0): %d, otz: %d, WHAT: %d\n",
-                    mac0,
-                    sz0,
-                    calcInterpFactor(sz0),
-                    avgZ,
-                    (int)pa); */
-            }
-
             auto& maskBit2 = primBuffer.allocateFragment<psyqo::Prim::MaskControl>(
                 psyqo::Prim::MaskControl::Set::FromSource, psyqo::Prim::MaskControl::Test::No);
             ot.insert(maskBit2, avgZ);
@@ -914,151 +902,24 @@ void Renderer::drawMesh2(const Mesh& mesh)
 
 void Renderer::drawTile(
     TileIndex tileIndex,
-    const TileInfo& tileInfo,
+    const Tile& tile,
+    const Tileset& tileset,
     const ModelData& prefabs,
     const Camera& camera)
 {
     auto& ot = getOrderingTable();
     auto& primBuffer = getPrimBuffer();
 
-    static constexpr auto white = psyqo::Color{.r = 128, .g = 128, .b = 128};
+    const auto tileId = tile.tileId;
+    const auto modelId = tile.modelId;
 
-    constexpr psyqo::FixedPoint tileScale = 0.125; // 1 / TILE_SIZE
+    if (modelId != 0xFF) { // "model" tiles
+        drawTileMesh(tileIndex, tile, prefabs.meshes[modelId], camera);
+        return;
+    }
 
     const int x = tileIndex.x;
     const int z = tileIndex.z;
-    const auto tileId = tileInfo.tileId;
-    const auto modelId = tileInfo.modelId;
-
-    if (modelId != 0xFF) { // "model" tiles
-        // mostly like drawMesh2, but moves each vertex into camera space without
-        // using rotation/translation registers
-        // - FIXME: remove copy-paste
-        const auto& meshData = prefabs.meshes[modelId];
-        const auto& g3s = meshData.g3;
-        const auto& g4s = meshData.g4;
-        const auto& gt3s = meshData.gt3;
-        const auto& gt4s = meshData.gt4;
-        const auto& verts = meshData.vertices;
-
-        const auto g4Offset = g3s.size() * 3;
-        const auto gt3Offset = g4Offset + g4s.size() * 4;
-        const auto gt4Offset = gt3Offset + gt3s.size() * 3;
-
-        // TODO: store in tileInfo
-        const auto tileHeight = psyqo::FixedPoint<>(0.0);
-
-        const auto originX =
-            psyqo::GTE::Short(psyqo::FixedPoint<>(x, 0) * tileScale - camera.position.x);
-        const auto originY = psyqo::GTE::Short(tileHeight - camera.position.y);
-        const auto originZ =
-            psyqo::GTE::Short(psyqo::FixedPoint<>(z, 0) * tileScale - camera.position.z);
-
-        // FIXME: draw gt3s too!
-
-        for (std::size_t i = 0; i < gt4s.size(); ++i) {
-            auto v0 = verts[gt4Offset + i * 4 + 0];
-            v0.pos.x += originX;
-            v0.pos.y += originY;
-            v0.pos.z += originZ;
-
-            auto v1 = verts[gt4Offset + i * 4 + 1];
-            v1.pos.x += originX;
-            v1.pos.y += originY;
-            v1.pos.z += originZ;
-
-            auto v2 = verts[gt4Offset + i * 4 + 2];
-            v2.pos.x += originX;
-            v2.pos.y += originY;
-            v2.pos.z += originZ;
-
-            auto v3 = verts[gt4Offset + i * 4 + 3];
-            v3.pos.x += originX;
-            v3.pos.y += originY;
-            v3.pos.z += originZ;
-
-            const auto& prim = gt4s[i];
-
-            auto& quadFragFog = primBuffer.allocateFragment<psyqo::Prim::GouraudQuad>();
-            auto& quadFog = quadFragFog.primitive;
-            quadFog.setOpaque();
-
-            auto& quadFragT = primBuffer.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
-            auto& quadT = quadFragT.primitive;
-            quadT.setSemiTrans();
-
-            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
-            psyqo::GTE::Kernels::rtps();
-
-            quadT.setColorA(interpColorImm(white));
-
-            uint32_t pa = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-            quadFog.setColorA(interpColorImmBack(fogColor, pa));
-
-            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
-            psyqo::GTE::Kernels::rtps();
-
-            quadT.setColorB(interpColorImm(white));
-
-            uint32_t pb = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-            quadFog.setColorB(interpColorImmBack(fogColor, pb));
-
-            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v2.pos);
-            psyqo::GTE::Kernels::rtps();
-
-            quadT.setColorC(interpColorImm(white));
-
-            uint32_t pc = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-            quadFog.setColorC(interpColorImmBack(fogColor, pc));
-
-            psyqo::GTE::Kernels::nclip();
-            const auto dot =
-                (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
-            if (dot < 0) {
-                continue;
-            }
-
-            psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quadFog.pointA.packed);
-
-            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v3.pos);
-            psyqo::GTE::Kernels::rtps();
-
-            quadT.setColorD(interpColorImm(white));
-
-            uint32_t pd = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-            quadFog.setColorD(interpColorImmBack(fogColor, pd));
-
-            psyqo::GTE::Kernels::avsz4();
-
-            auto avgZ = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
-            if (avgZ == 0) { // cull
-                continue;
-            }
-
-            avgZ += 500;
-
-            psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quadFog.pointB.packed);
-            psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quadFog.pointC.packed);
-            psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quadFog.pointD.packed);
-
-            quadT.pointA = quadFog.pointA;
-            quadT.pointB = quadFog.pointB;
-            quadT.pointC = quadFog.pointC;
-            quadT.pointD = quadFog.pointD;
-
-            quadT.tpage = prim.tpage;
-            quadT.clutIndex = prim.clutIndex;
-            quadT.uvA = prim.uvA;
-            quadT.uvB = prim.uvB;
-            quadT.uvC = prim.uvC;
-            quadT.uvD = prim.uvD;
-
-            ot.insert(quadFragT, avgZ);
-            ot.insert(quadFragFog, avgZ);
-        }
-
-        return;
-    }
 
     // TODO: store in tileInfo
     const auto tileHeight =
@@ -1154,66 +1015,30 @@ void Renderer::drawTile(
         return;
     }
 
-    avgZ += 500;
+    avgZ += floorBias;
 
     psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quadFog.pointB.packed);
     psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quadFog.pointC.packed);
     psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quadFog.pointD.packed);
 
+    // TODO: set this for a given chunk/map?
     quadT.tpage.setPageX(5)
         .setPageY(0)
         .set(psyqo::Prim::TPageAttr::ColorMode::Tex8Bits)
         .set(psyqo::Prim::TPageAttr::SemiTrans::FullBackAndFullFront);
-
 #define getClut(x, y) (((y) << 6) | (((x) >> 4) & 0x3f))
     quadT.clutIndex = psyqo::PrimPieces::ClutIndex(0, 240);
 
-    if (tileId == 0) {
-        quadT.uvA.u = 0;
-        quadT.uvA.v = 128;
-        quadT.uvB.u = 127;
-        quadT.uvB.v = 128;
-        quadT.uvC.u = 0;
-        quadT.uvC.v = 255;
-        quadT.uvD.u = 127;
-        quadT.uvD.v = 255;
-    } else if (tileId == 1) {
-        quadT.uvA.u = 64;
-        quadT.uvA.v = 0;
-        quadT.uvB.u = 127;
-        quadT.uvB.v = 0;
-        quadT.uvC.u = 64;
-        quadT.uvC.v = 63;
-        quadT.uvD.u = 127;
-        quadT.uvD.v = 63;
-    } else if (tileId == 2) {
-        quadT.uvA.u = 0;
-        quadT.uvA.v = 0;
-        quadT.uvB.u = 63;
-        quadT.uvB.v = 0;
-        quadT.uvC.u = 0;
-        quadT.uvC.v = 63;
-        quadT.uvD.u = 63;
-        quadT.uvD.v = 63;
-    } else if (tileId == 3) {
-        quadT.uvA.u = 0;
-        quadT.uvA.v = 96;
-        quadT.uvB.u = 31;
-        quadT.uvB.v = 96;
-        quadT.uvC.u = 0;
-        quadT.uvC.v = 127;
-        quadT.uvD.u = 31;
-        quadT.uvD.v = 127;
-    } else {
-        quadT.uvA.u = 0;
-        quadT.uvA.v = 80;
-        quadT.uvB.u = 31;
-        quadT.uvB.v = 80;
-        quadT.uvC.u = 0;
-        quadT.uvC.v = 95;
-        quadT.uvD.u = 31;
-        quadT.uvD.v = 95;
-    }
+    // TODO: compute from tileId somehow?
+    const auto& tileInfo = tileset.getTileInfo(tileId);
+    quadT.uvA.u = tileInfo.u0;
+    quadT.uvA.v = tileInfo.v0;
+    quadT.uvB.u = tileInfo.u1;
+    quadT.uvB.v = tileInfo.v0;
+    quadT.uvC.u = tileInfo.u0;
+    quadT.uvC.v = tileInfo.v1;
+    quadT.uvD.u = tileInfo.u1;
+    quadT.uvD.v = tileInfo.v1;
 
     quadT.pointA = quadFog.pointA;
     quadT.pointB = quadFog.pointB;
@@ -1222,6 +1047,144 @@ void Renderer::drawTile(
 
     ot.insert(quadFragT, avgZ);
     ot.insert(quadFragFog, avgZ);
+}
+
+void Renderer::drawTileMesh(
+    TileIndex tileIndex,
+    const Tile& tileInfo,
+    const MeshData& meshData,
+    const Camera& camera)
+{
+    const int x = tileIndex.x;
+    const int z = tileIndex.z;
+
+    auto& ot = getOrderingTable();
+    auto& primBuffer = getPrimBuffer();
+
+    // mostly like drawMesh2, but moves each vertex into camera space without
+    // using rotation/translation registers
+    // - FIXME: remove copy-paste
+    const auto& g3s = meshData.g3;
+    const auto& g4s = meshData.g4;
+    const auto& gt3s = meshData.gt3;
+    const auto& gt4s = meshData.gt4;
+    const auto& verts = meshData.vertices;
+
+    const auto g4Offset = g3s.size() * 3;
+    const auto gt3Offset = g4Offset + g4s.size() * 4;
+    const auto gt4Offset = gt3Offset + gt3s.size() * 3;
+
+    // TODO: store in tileInfo
+    const auto tileHeight = psyqo::FixedPoint<>(0.0);
+
+    const auto originX =
+        psyqo::GTE::Short(psyqo::FixedPoint<>(x, 0) * tileScale - camera.position.x);
+    const auto originY = psyqo::GTE::Short(tileHeight - camera.position.y);
+    const auto originZ =
+        psyqo::GTE::Short(psyqo::FixedPoint<>(z, 0) * tileScale - camera.position.z);
+
+    // FIXME: draw gt3s too!
+
+    for (std::size_t i = 0; i < gt4s.size(); ++i) {
+        auto v0 = verts[gt4Offset + i * 4 + 0];
+        v0.pos.x += originX;
+        v0.pos.y += originY;
+        v0.pos.z += originZ;
+
+        auto v1 = verts[gt4Offset + i * 4 + 1];
+        v1.pos.x += originX;
+        v1.pos.y += originY;
+        v1.pos.z += originZ;
+
+        auto v2 = verts[gt4Offset + i * 4 + 2];
+        v2.pos.x += originX;
+        v2.pos.y += originY;
+        v2.pos.z += originZ;
+
+        auto v3 = verts[gt4Offset + i * 4 + 3];
+        v3.pos.x += originX;
+        v3.pos.y += originY;
+        v3.pos.z += originZ;
+
+        const auto& prim = gt4s[i];
+
+        auto& quadFragFog = primBuffer.allocateFragment<psyqo::Prim::GouraudQuad>();
+        auto& quadFog = quadFragFog.primitive;
+        quadFog.setOpaque();
+
+        auto& quadFragT = primBuffer.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
+        auto& quadT = quadFragT.primitive;
+        quadT.setSemiTrans();
+
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
+        psyqo::GTE::Kernels::rtps();
+
+        quadT.setColorA(interpColorImm(white));
+
+        uint32_t pa = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+        quadFog.setColorA(interpColorImmBack(fogColor, pa));
+
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
+        psyqo::GTE::Kernels::rtps();
+
+        quadT.setColorB(interpColorImm(white));
+
+        uint32_t pb = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+        quadFog.setColorB(interpColorImmBack(fogColor, pb));
+
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v2.pos);
+        psyqo::GTE::Kernels::rtps();
+
+        quadT.setColorC(interpColorImm(white));
+
+        uint32_t pc = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+        quadFog.setColorC(interpColorImmBack(fogColor, pc));
+
+        psyqo::GTE::Kernels::nclip();
+        const auto dot =
+            (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
+        if (dot < 0) {
+            continue;
+        }
+
+        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quadFog.pointA.packed);
+
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v3.pos);
+        psyqo::GTE::Kernels::rtps();
+
+        quadT.setColorD(interpColorImm(white));
+
+        uint32_t pd = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+        quadFog.setColorD(interpColorImmBack(fogColor, pd));
+
+        psyqo::GTE::Kernels::avsz4();
+
+        auto avgZ = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
+        if (avgZ == 0) { // cull
+            continue;
+        }
+
+        avgZ += floorBias;
+
+        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quadFog.pointB.packed);
+        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quadFog.pointC.packed);
+        psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quadFog.pointD.packed);
+
+        quadT.pointA = quadFog.pointA;
+        quadT.pointB = quadFog.pointB;
+        quadT.pointC = quadFog.pointC;
+        quadT.pointD = quadFog.pointD;
+
+        quadT.tpage = prim.tpage;
+        quadT.clutIndex = prim.clutIndex;
+        quadT.uvA = prim.uvA;
+        quadT.uvB = prim.uvB;
+        quadT.uvC = prim.uvC;
+        quadT.uvD = prim.uvD;
+
+        ot.insert(quadFragT, avgZ);
+        ot.insert(quadFragFog, avgZ);
+    }
 }
 
 void Renderer::drawObjectAxes(const Object& object, const Camera& camera)

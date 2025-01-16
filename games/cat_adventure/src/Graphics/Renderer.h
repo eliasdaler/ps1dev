@@ -19,8 +19,10 @@ struct Camera;
 struct Circle;
 struct AABB;
 struct TimFile;
+
 struct TileIndex;
-struct TileInfo;
+struct Tile;
+struct Tileset;
 
 class Renderer {
 public:
@@ -45,8 +47,15 @@ public:
 
     void drawTile(
         TileIndex tileIndex,
-        const TileInfo& tileInfo,
+        const Tile& tileInfo,
+        const Tileset& tilesert,
         const ModelData& prefabs,
+        const Camera& camera);
+
+    void drawTileMesh(
+        TileIndex tileIndex,
+        const Tile& tileInfo,
+        const MeshData& mesh,
         const Camera& camera);
 
     void drawMeshArmature(

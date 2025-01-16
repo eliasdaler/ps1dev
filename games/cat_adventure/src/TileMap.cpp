@@ -1,11 +1,11 @@
 #include <TileMap.h>
 
-TileInfo TileMap::getTile(TileIndex ti) const
+Tile TileMap::getTile(TileIndex ti) const
 {
     auto x = ti.x;
     auto z = ti.z;
 
-    TileInfo info{
+    Tile info{
         .tileId = 3, // grass
     };
 
