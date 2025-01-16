@@ -36,18 +36,30 @@ public:
         AnimatedModelObject& object,
         const Camera& camera,
         bool setViewRot = true);
+    void drawMeshArmature(
+        const AnimatedModelObject& object,
+        const Camera& camera,
+        const Armature& armature,
+        const Mesh& mesh);
 
     void drawMeshObject(MeshObject& object, const Camera& camera);
     void drawModelObject(ModelObject& object, const Camera& camera, bool setViewRot = true);
     void drawModel(const Model& model);
 
+    void drawMeshFog(const Mesh& mesh);
     void drawMesh(const Mesh& mesh);
-    void drawMeshNoFog(const Mesh& mesh);
 
+    void drawMeshStaticFog(const Mesh& mesh);
     void drawMeshStatic(const Mesh& mesh);
-    void drawMeshStaticNoFog(const Mesh& mesh);
 
     void drawQuadSubdiv(const psyqo::Prim::GouraudTexturedQuad& quad2d, int avgZ, int addBias);
+
+    void drawTileFog(
+        TileIndex tileIndex,
+        const Tile& tile,
+        const Tileset& tileset,
+        const ModelData& prefabs,
+        const Camera& camera);
 
     void drawTile(
         TileIndex tileIndex,
@@ -56,11 +68,10 @@ public:
         const ModelData& prefabs,
         const Camera& camera);
 
-    void drawTileNoFog(
+    void drawTileMeshFog(
         TileIndex tileIndex,
-        const Tile& tile,
-        const Tileset& tileset,
-        const ModelData& prefabs,
+        const Tile& tileInfo,
+        const MeshData& mesh,
         const Camera& camera);
 
     void drawTileMesh(
@@ -68,18 +79,6 @@ public:
         const Tile& tileInfo,
         const MeshData& mesh,
         const Camera& camera);
-
-    void drawTileMeshNoFog(
-        TileIndex tileIndex,
-        const Tile& tileInfo,
-        const MeshData& mesh,
-        const Camera& camera);
-
-    void drawMeshArmature(
-        const AnimatedModelObject& object,
-        const Camera& camera,
-        const Armature& armature,
-        const Mesh& mesh);
 
     static constexpr auto OT_SIZE = 4096 * 2;
     using OrderingTableType = psyqo::OrderingTable<OT_SIZE>;

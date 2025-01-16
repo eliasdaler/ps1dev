@@ -23,11 +23,11 @@ Tile TileMap::getTile(TileIndex ti) const
 
     if (z == 3) { // curb transition
         info.tileId = 5;
-        info.modelId = 4;
+        info.modelId = 2;
     }
     if (z == -3) { // curb transition
         info.tileId = 6;
-        info.modelId = 5;
+        info.modelId = 3;
     }
 
     return info;

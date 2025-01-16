@@ -17,23 +17,11 @@
 #include "Subdivision.h"
 
 static constexpr psyqo::FixedPoint tileScale = 0.125; // 1 / TILE_SIZE
-static constexpr auto white = psyqo::Color{.r = 128, .g = 128, .b = 128};
+static constexpr auto textureNeutral = psyqo::Color{.r = 128, .g = 128, .b = 128};
 static constexpr auto floorBias = 500;
 
 namespace
 {
-void interpColor(const psyqo::Color& input, uint32_t p, psyqo::Color* out)
-{
-    const auto max = 0x1FFFF;
-    if (p > max) {
-        p = max;
-    }
-    psyqo::GTE::write<psyqo::GTE::Register::IR0, psyqo::GTE::Unsafe>(&p);
-    psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(&input.packed);
-    psyqo::GTE::Kernels::dpcs();
-    psyqo::GTE::read<psyqo::GTE::Register::RGB2>(&out->packed);
-}
-
 template<psyqo::Primitive T>
 int16_t getAddBias(const T& prim)
 {
@@ -48,7 +36,9 @@ psyqo::Color interpColorImm(psyqo::Color input)
     return {.packed = psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2>()};
 }
 
-psyqo::Color interpColorImm(psyqo::Color input, uint32_t p)
+// Interpolate from input to fc
+// (0 = input, 1 = fc)
+psyqo::Color interpColor(psyqo::Color input, uint32_t p)
 {
     psyqo::GTE::write<psyqo::GTE::Register::IR0, psyqo::GTE::Unsafe>(p);
     psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(input.packed);
@@ -56,9 +46,10 @@ psyqo::Color interpColorImm(psyqo::Color input, uint32_t p)
     return {.packed = psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2>()};
 }
 
-psyqo::Color interpColorImmBack(psyqo::Color input, uint32_t p)
+// Interpolate from input to fc, but instead of normal dpcs
+// (0 = input, 1 = fc), do (0 = fc, 1 = input)
+psyqo::Color interpColorBack(psyqo::Color input, uint32_t p)
 {
-    // psyqo::GTE::write<psyqo::GTE::Register::IR0, psyqo::GTE::Safe>(eastl::max(4096 - (int)p, 0));
     psyqo::GTE::write<psyqo::GTE::Register::IR0, psyqo::GTE::Unsafe>(4096 - (int)p);
     psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(input.packed);
     psyqo::GTE::Kernels::dpcs();
@@ -188,7 +179,7 @@ void Renderer::drawAnimatedModelObject(
         q.pointD.x = maxSX;
         q.pointD.y = maxSY;
 
-        const auto color = interpColorImmBack(fogColor, minAvgP);
+        const auto color = interpColorBack(fogColor, minAvgP);
         q.setColorA(color);
         q.colorB = color;
         q.colorC = color;
@@ -256,9 +247,9 @@ void Renderer::drawMeshArmature(
     }
 
     if (fogEnabled) {
-        drawMesh(mesh);
+        drawMeshFog(mesh);
     } else {
-        drawMeshNoFog(mesh);
+        drawMesh(mesh);
     }
 }
 
@@ -269,16 +260,16 @@ void Renderer::drawMeshObject(MeshObject& object, const Camera& camera)
     }
     calculateViewModelMatrix(object, camera, false);
     if (fogEnabled) {
-        drawMeshStatic(object.mesh);
+        drawMeshStaticFog(object.mesh);
     } else {
-        drawMeshStaticNoFog(object.mesh);
+        drawMeshStatic(object.mesh);
     }
 }
 
 void Renderer::drawModel(const Model& model)
 {
     for (const auto& mesh : model.meshes) {
-        drawMesh(mesh);
+        drawMeshFog(mesh);
     }
 }
 
@@ -326,7 +317,7 @@ void Renderer::drawQuadSubdiv(const psyqo::Prim::GouraudTexturedQuad& prim, int 
     DRAW_QUADS_22(wrk1);
 }
 
-void Renderer::drawMesh(const Mesh& mesh)
+void Renderer::drawMeshFog(const Mesh& mesh)
 {
     auto& ot = getOrderingTable();
     auto& primBuffer = getPrimBuffer();
@@ -359,27 +350,20 @@ void Renderer::drawMesh(const Mesh& mesh)
         const auto& v1 = verts[gt3Offset + i * 3 + 1];
         const auto& v2 = verts[gt3Offset + i * 3 + 2];
 
-        if (fogEnabled) {
-            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
-            psyqo::GTE::Kernels::rtps();
-            pa = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-            tri2d.setColorA(interpColorImm(prim.getColorA()));
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
+        psyqo::GTE::Kernels::rtps();
+        pa = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+        tri2d.setColorA(interpColorImm(prim.getColorA()));
 
-            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
-            psyqo::GTE::Kernels::rtps();
-            const auto p1 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-            tri2d.colorB = interpColorImm(prim.colorB);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
+        psyqo::GTE::Kernels::rtps();
+        const auto p1 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+        tri2d.colorB = interpColorImm(prim.colorB);
 
-            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v2.pos);
-            psyqo::GTE::Kernels::rtps();
-            const auto p2 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-            tri2d.colorC = interpColorImm(prim.colorC);
-        } else {
-            psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
-            psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
-            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
-            psyqo::GTE::Kernels::rtpt();
-        }
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v2.pos);
+        psyqo::GTE::Kernels::rtps();
+        const auto p2 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+        tri2d.colorC = interpColorImm(prim.colorC);
 
         psyqo::GTE::Kernels::nclip();
         const auto dot =
@@ -440,25 +424,18 @@ void Renderer::drawMesh(const Mesh& mesh)
         quad2d.uvC = prim.uvC;
         quad2d.uvD = prim.uvD;
 
-        if (fogEnabled) {
-            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
-            psyqo::GTE::Kernels::rtps();
-            pa = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-            quad2d.setColorA(interpColorImm(prim.getColorA()));
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
+        psyqo::GTE::Kernels::rtps();
+        pa = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+        quad2d.setColorA(interpColorImm(prim.getColorA()));
 
-            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
-            psyqo::GTE::Kernels::rtps();
-            quad2d.colorB = interpColorImm(prim.colorB);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
+        psyqo::GTE::Kernels::rtps();
+        quad2d.colorB = interpColorImm(prim.colorB);
 
-            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v2.pos);
-            psyqo::GTE::Kernels::rtps();
-            quad2d.colorC = interpColorImm(prim.colorC);
-        } else {
-            psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
-            psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
-            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
-            psyqo::GTE::Kernels::rtpt();
-        }
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v2.pos);
+        psyqo::GTE::Kernels::rtps();
+        quad2d.colorC = interpColorImm(prim.colorC);
 
         // load additional bias stored in padding
         const auto addBias = getAddBias(prim);
@@ -514,7 +491,7 @@ void Renderer::drawMesh(const Mesh& mesh)
     }
 }
 
-void Renderer::drawMeshNoFog(const Mesh& mesh)
+void Renderer::drawMesh(const Mesh& mesh)
 {
     auto& ot = getOrderingTable();
     auto& primBuffer = getPrimBuffer();
@@ -650,7 +627,7 @@ void Renderer::drawMeshNoFog(const Mesh& mesh)
     }
 }
 
-void Renderer::drawMeshStatic(const Mesh& mesh)
+void Renderer::drawMeshStaticFog(const Mesh& mesh)
 {
     auto& ot = getOrderingTable();
     auto& primBuffer = getPrimBuffer();
@@ -668,11 +645,11 @@ void Renderer::drawMeshStatic(const Mesh& mesh)
     const auto& verts = meshData.vertices;
 
     for (std::size_t i = 0; i < gt3s.size(); ++i) {
-        auto& triFragFog = primBuffer.allocateFragment<psyqo::Prim::GouraudTriangle>();
-        auto& triFog = triFragFog.primitive;
-
         auto& triFragT = primBuffer.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
         auto& triT = triFragT.primitive;
+
+        auto& triFragFog = primBuffer.allocateFragment<psyqo::Prim::GouraudTriangle>();
+        auto& triFog = triFragFog.primitive;
 
         const auto& v0 = verts[gt3Offset + i * 3 + 0];
         const auto& v1 = verts[gt3Offset + i * 3 + 1];
@@ -684,8 +661,10 @@ void Renderer::drawMeshStatic(const Mesh& mesh)
         // have some time while rtps does stuff
         const auto& prim = gt3s[i];
 
+        triT.setColorA(interpColorImm(textureNeutral));
+
         const auto pa = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-        triFog.setColorA(interpColorImmBack(fogColor, pa));
+        triFog.setColorA(interpColorBack(fogColor, pa));
 
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
         psyqo::GTE::Kernels::rtps();
@@ -694,19 +673,21 @@ void Renderer::drawMeshStatic(const Mesh& mesh)
         triT.tpage = prim.tpage;
         triT.clutIndex = prim.clutIndex;
 
+        triT.colorB = interpColorImm(textureNeutral);
         const auto pb = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-        triFog.colorB = interpColorImmBack(fogColor, pb);
+        triFog.colorB = interpColorBack(fogColor, pb);
+
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v2.pos);
+        psyqo::GTE::Kernels::rtps();
 
         // have some time while rtps does stuff
         triT.uvA = prim.uvA;
         triT.uvB = prim.uvB;
         triT.uvC = prim.uvC;
 
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v2.pos);
-        psyqo::GTE::Kernels::rtps();
-
+        triT.colorC = interpColorImm(textureNeutral);
         const auto pc = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-        triFog.colorC = interpColorImmBack(fogColor, pc);
+        triFog.colorC = interpColorBack(fogColor, pc);
 
         psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&triT.pointA.packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&triT.pointB.packed);
@@ -741,10 +722,6 @@ void Renderer::drawMeshStatic(const Mesh& mesh)
         triFog.pointB = triT.pointB;
         triFog.pointC = triT.pointC;
 
-        triT.setColorA(interpColorImm(white, pa));
-        triT.colorB = interpColorImm(white, pb);
-        triT.colorC = interpColorImm(white, pc);
-
         ot.insert(triFragT, avgZ);
         ot.insert(triFragFog, avgZ);
     }
@@ -755,54 +732,49 @@ void Renderer::drawMeshStatic(const Mesh& mesh)
         const auto& v2 = verts[gt4Offset + i * 4 + 2];
         const auto& v3 = verts[gt4Offset + i * 4 + 3];
 
-        auto& quadFragFog = primBuffer.allocateFragment<psyqo::Prim::GouraudQuad>();
-        auto& quadFog = quadFragFog.primitive;
-
         auto& quadFragT = primBuffer.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
         auto& quadT = quadFragT.primitive;
         quadT.setSemiTrans();
 
-        const auto& prim = gt4s[i];
-
-        // load additional bias stored in padding
-        const auto addBias = getAddBias(prim);
-        if (addBias == 500) {
-            continue;
-        }
+        auto& quadFragFog = primBuffer.allocateFragment<psyqo::Prim::GouraudQuad>();
+        auto& quadFog = quadFragFog.primitive;
 
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
         psyqo::GTE::Kernels::rtps();
-        // while rtps does stuff
-        quadT.tpage = prim.tpage;
-        quadT.clutIndex = prim.clutIndex;
 
-        quadT.setColorA(interpColorImm(white));
+        // do stuff while rtps works
+        const auto& prim = gt4s[i];
 
+        quadT.setColorA(interpColorImm(textureNeutral));
         uint32_t pa = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-        quadFog.setColorA(interpColorImmBack(fogColor, pa));
+        quadFog.setColorA(interpColorBack(fogColor, pa));
 
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
         psyqo::GTE::Kernels::rtps();
-        // while rtps does stuff
-        quadT.uvA = prim.uvA;
-        quadT.uvB = prim.uvB;
 
-        quadT.colorB = interpColorImm(white);
+        // do stuff while rtps works
+        quadT.tpage = prim.tpage;
+        quadT.clutIndex = prim.clutIndex;
 
+        quadT.colorB = interpColorImm(textureNeutral);
         uint32_t pb = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-        quadFog.colorB = interpColorImmBack(fogColor, pb);
+        quadFog.colorB = interpColorBack(fogColor, pb);
 
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v2.pos);
         psyqo::GTE::Kernels::rtps();
-        // while rtps does stuff
-        quadT.uvC = prim.uvC;
-        quadT.uvD = prim.uvD;
 
-        quadT.colorC = interpColorImm(white);
+        // do stuff while rtps works
+        quadT.uvA = prim.uvA;
+        quadT.uvB = prim.uvB;
+
+        quadT.colorC = interpColorImm(textureNeutral);
         uint32_t pc = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-        quadFog.colorC = interpColorImmBack(fogColor, pc);
+        quadFog.colorC = interpColorBack(fogColor, pc);
 
         psyqo::GTE::Kernels::nclip();
+
+        // load additional bias stored in padding
+        const auto addBias = getAddBias(prim);
         const auto dot =
             (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
         if (dot < 0) {
@@ -815,10 +787,14 @@ void Renderer::drawMeshStatic(const Mesh& mesh)
 
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v3.pos);
         psyqo::GTE::Kernels::rtps();
-        quadT.colorD = interpColorImm(white);
 
+        // do stuff while rtps works
+        quadT.uvC = prim.uvC;
+        quadT.uvD = prim.uvD;
+
+        quadT.colorD = interpColorImm(textureNeutral);
         uint32_t pd = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-        quadFog.colorD = interpColorImmBack(fogColor, pd);
+        quadFog.colorD = interpColorBack(fogColor, pd);
 
         psyqo::GTE::Kernels::avsz4();
 
@@ -865,7 +841,7 @@ void Renderer::drawMeshStatic(const Mesh& mesh)
     }
 }
 
-void Renderer::drawMeshStaticNoFog(const Mesh& mesh)
+void Renderer::drawMeshStatic(const Mesh& mesh)
 {
     auto& ot = getOrderingTable();
     auto& primBuffer = getPrimBuffer();
@@ -1005,6 +981,156 @@ void Renderer::drawMeshStaticNoFog(const Mesh& mesh)
     }
 }
 
+void Renderer::drawTileFog(
+    TileIndex tileIndex,
+    const Tile& tile,
+    const Tileset& tileset,
+    const ModelData& prefabs,
+    const Camera& camera)
+{
+    auto& ot = getOrderingTable();
+    auto& primBuffer = getPrimBuffer();
+
+    const auto tileId = tile.tileId;
+    const auto modelId = tile.modelId;
+
+    if (modelId != 0xFF) { // "model" tiles
+        drawTileMeshFog(tileIndex, tile, prefabs.meshes[modelId], camera);
+        return;
+    }
+
+    const int x = tileIndex.x;
+    const int z = tileIndex.z;
+
+    // TODO: store in tileInfo
+    const auto tileHeight =
+        (tileId != 1 && tileId != 2) ? psyqo::FixedPoint<>(0.0) : psyqo::FixedPoint<>(-0.02);
+
+    const auto v0 = Vec3Pad{
+        .pos =
+            psyqo::GTE::PackedVec3{
+                psyqo::GTE::Short(psyqo::FixedPoint<>(x, 0) * tileScale - camera.position.x),
+                psyqo::GTE::Short(tileHeight - camera.position.y),
+                psyqo::GTE::Short(psyqo::FixedPoint<>(z, 0) * tileScale - camera.position.z),
+            },
+    };
+
+    const auto v1 = Vec3Pad{
+        .pos =
+            psyqo::GTE::PackedVec3{
+                psyqo::GTE::Short(psyqo::FixedPoint<>(x + 1, 0) * tileScale - camera.position.x),
+                psyqo::GTE::Short(tileHeight - camera.position.y),
+                psyqo::GTE::Short(psyqo::FixedPoint<>(z, 0) * tileScale - camera.position.z)},
+    };
+
+    const auto v2 = Vec3Pad{
+        .pos =
+            psyqo::GTE::PackedVec3{
+                psyqo::GTE::Short(psyqo::FixedPoint<>(x, 0) * tileScale - camera.position.x),
+                psyqo::GTE::Short(tileHeight - camera.position.y),
+                psyqo::GTE::Short(psyqo::FixedPoint<>(z + 1, 0) * tileScale - camera.position.z),
+            },
+    };
+
+    const auto v3 = Vec3Pad{
+        .pos =
+            psyqo::GTE::PackedVec3{
+                psyqo::GTE::Short(psyqo::FixedPoint<>(x + 1, 0) * tileScale - camera.position.x),
+                psyqo::GTE::Short(tileHeight - camera.position.y),
+                psyqo::GTE::Short(psyqo::FixedPoint<>(z + 1, 0) * tileScale - camera.position.z),
+            },
+    };
+
+    auto& quadFragT = primBuffer.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
+    auto& quadT = quadFragT.primitive;
+
+    // TODO: set this for a given chunk/map?
+    quadT.tpage.setPageX(5)
+        .setPageY(0)
+        .set(psyqo::Prim::TPageAttr::ColorMode::Tex8Bits)
+        .set(psyqo::Prim::TPageAttr::SemiTrans::FullBackAndFullFront);
+#define getClut(x, y) (((y) << 6) | (((x) >> 4) & 0x3f))
+    quadT.clutIndex = psyqo::PrimPieces::ClutIndex(0, 240);
+
+    // TODO: compute from tileId somehow?
+    const auto& tileInfo = tileset.getTileInfo(tileId);
+    quadT.uvA.u = tileInfo.u0;
+    quadT.uvA.v = tileInfo.v0;
+    quadT.uvB.u = tileInfo.u1;
+    quadT.uvB.v = tileInfo.v0;
+    quadT.uvC.u = tileInfo.u0;
+    quadT.uvC.v = tileInfo.v1;
+    quadT.uvD.u = tileInfo.u1;
+    quadT.uvD.v = tileInfo.v1;
+
+    auto& quadFragFog = primBuffer.allocateFragment<psyqo::Prim::GouraudQuad>();
+    auto& quadFog = quadFragFog.primitive;
+
+    quadFog.setOpaque();
+    quadT.setSemiTrans();
+
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
+    psyqo::GTE::Kernels::rtps();
+
+    quadT.setColorA(interpColorImm(textureNeutral));
+
+    uint32_t pa = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+    quadFog.setColorA(interpColorBack(fogColor, pa));
+
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
+    psyqo::GTE::Kernels::rtps();
+
+    quadT.setColorB(interpColorImm(textureNeutral));
+
+    uint32_t pb = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+    quadFog.setColorB(interpColorBack(fogColor, pb));
+
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v2.pos);
+    psyqo::GTE::Kernels::rtps();
+
+    quadT.setColorC(interpColorImm(textureNeutral));
+
+    uint32_t pc = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+    quadFog.setColorC(interpColorBack(fogColor, pc));
+
+    psyqo::GTE::Kernels::nclip();
+    const auto dot = (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
+    if (dot < 0) {
+        return;
+    }
+
+    psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quadT.pointA.packed);
+
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v3.pos);
+    psyqo::GTE::Kernels::rtps();
+
+    quadT.setColorD(interpColorImm(textureNeutral));
+
+    uint32_t pd = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+    quadFog.setColorD(interpColorBack(fogColor, pd));
+
+    psyqo::GTE::Kernels::avsz4();
+
+    auto avgZ = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
+    if (avgZ == 0) { // cull
+        return;
+    }
+
+    avgZ += floorBias;
+
+    psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quadT.pointB.packed);
+    psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quadT.pointC.packed);
+    psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quadT.pointD.packed);
+
+    quadFog.pointA = quadT.pointA;
+    quadFog.pointB = quadT.pointB;
+    quadFog.pointC = quadT.pointC;
+    quadFog.pointD = quadT.pointD;
+
+    ot.insert(quadFragT, avgZ);
+    ot.insert(quadFragFog, avgZ);
+}
+
 void Renderer::drawTile(
     TileIndex tileIndex,
     const Tile& tile,
@@ -1086,165 +1212,16 @@ void Renderer::drawTile(
     quadT.uvD.u = tileInfo.u1;
     quadT.uvD.v = tileInfo.v1;
 
-    auto& quadFragFog = primBuffer.allocateFragment<psyqo::Prim::GouraudQuad>();
-    auto& quadFog = quadFragFog.primitive;
-
-    quadFog.setOpaque();
-    quadT.setSemiTrans();
-
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
-    psyqo::GTE::Kernels::rtps();
-
-    quadT.setColorA(interpColorImm(white));
-
-    uint32_t pa = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-    quadFog.setColorA(interpColorImmBack(fogColor, pa));
-
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
-    psyqo::GTE::Kernels::rtps();
-
-    quadT.setColorB(interpColorImm(white));
-
-    uint32_t pb = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-    quadFog.setColorB(interpColorImmBack(fogColor, pb));
-
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v2.pos);
-    psyqo::GTE::Kernels::rtps();
-
-    quadT.setColorC(interpColorImm(white));
-
-    uint32_t pc = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-    quadFog.setColorC(interpColorImmBack(fogColor, pc));
-
-    psyqo::GTE::Kernels::nclip();
-    const auto dot = (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
-    if (dot < 0) {
-        return;
-    }
-
-    psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quadT.pointA.packed);
-
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v3.pos);
-    psyqo::GTE::Kernels::rtps();
-
-    quadT.setColorD(interpColorImm(white));
-
-    uint32_t pd = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-    quadFog.setColorD(interpColorImmBack(fogColor, pd));
-
-    psyqo::GTE::Kernels::avsz4();
-
-    auto avgZ = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ, psyqo::GTE::Safe>();
-    if (avgZ == 0) { // cull
-        return;
-    }
-
-    avgZ += floorBias;
-
-    psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quadT.pointB.packed);
-    psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quadT.pointC.packed);
-    psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quadT.pointD.packed);
-
-    quadFog.pointA = quadT.pointA;
-    quadFog.pointB = quadT.pointB;
-    quadFog.pointC = quadT.pointC;
-    quadFog.pointD = quadT.pointD;
-
-    ot.insert(quadFragT, avgZ);
-    ot.insert(quadFragFog, avgZ);
-}
-
-void Renderer::drawTileNoFog(
-    TileIndex tileIndex,
-    const Tile& tile,
-    const Tileset& tileset,
-    const ModelData& prefabs,
-    const Camera& camera)
-{
-    auto& ot = getOrderingTable();
-    auto& primBuffer = getPrimBuffer();
-
-    const auto tileId = tile.tileId;
-    const auto modelId = tile.modelId;
-
-    if (modelId != 0xFF) { // "model" tiles
-        drawTileMeshNoFog(tileIndex, tile, prefabs.meshes[modelId], camera);
-        return;
-    }
-
-    const int x = tileIndex.x;
-    const int z = tileIndex.z;
-
-    // TODO: store in tileInfo
-    const auto tileHeight =
-        (tileId != 1 && tileId != 2) ? psyqo::FixedPoint<>(0.0) : psyqo::FixedPoint<>(-0.02);
-
-    const auto v0 = Vec3Pad{
-        .pos =
-            psyqo::GTE::PackedVec3{
-                psyqo::GTE::Short(psyqo::FixedPoint<>(x, 0) * tileScale - camera.position.x),
-                psyqo::GTE::Short(tileHeight - camera.position.y),
-                psyqo::GTE::Short(psyqo::FixedPoint<>(z, 0) * tileScale - camera.position.z),
-            },
-    };
-
-    const auto v1 = Vec3Pad{
-        .pos =
-            psyqo::GTE::PackedVec3{
-                psyqo::GTE::Short(psyqo::FixedPoint<>(x + 1, 0) * tileScale - camera.position.x),
-                psyqo::GTE::Short(tileHeight - camera.position.y),
-                psyqo::GTE::Short(psyqo::FixedPoint<>(z, 0) * tileScale - camera.position.z)},
-    };
-
-    const auto v2 = Vec3Pad{
-        .pos =
-            psyqo::GTE::PackedVec3{
-                psyqo::GTE::Short(psyqo::FixedPoint<>(x, 0) * tileScale - camera.position.x),
-                psyqo::GTE::Short(tileHeight - camera.position.y),
-                psyqo::GTE::Short(psyqo::FixedPoint<>(z + 1, 0) * tileScale - camera.position.z),
-            },
-    };
-
-    const auto v3 = Vec3Pad{
-        .pos =
-            psyqo::GTE::PackedVec3{
-                psyqo::GTE::Short(psyqo::FixedPoint<>(x + 1, 0) * tileScale - camera.position.x),
-                psyqo::GTE::Short(tileHeight - camera.position.y),
-                psyqo::GTE::Short(psyqo::FixedPoint<>(z + 1, 0) * tileScale - camera.position.z),
-            },
-    };
-
-    auto& quadFragT = primBuffer.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
-    auto& quadT = quadFragT.primitive;
-    // TODO: set this for a given chunk/map?
-    quadT.tpage.setPageX(5)
-        .setPageY(0)
-        .set(psyqo::Prim::TPageAttr::ColorMode::Tex8Bits)
-        .set(psyqo::Prim::TPageAttr::SemiTrans::FullBackAndFullFront);
-#define getClut(x, y) (((y) << 6) | (((x) >> 4) & 0x3f))
-    quadT.clutIndex = psyqo::PrimPieces::ClutIndex(0, 240);
-
-    // TODO: compute from tileId somehow?
-    const auto& tileInfo = tileset.getTileInfo(tileId);
-    quadT.uvA.u = tileInfo.u0;
-    quadT.uvA.v = tileInfo.v0;
-    quadT.uvB.u = tileInfo.u1;
-    quadT.uvB.v = tileInfo.v0;
-    quadT.uvC.u = tileInfo.u0;
-    quadT.uvC.v = tileInfo.v1;
-    quadT.uvD.u = tileInfo.u1;
-    quadT.uvD.v = tileInfo.v1;
-
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
     psyqo::GTE::Kernels::rtpt();
 
     // do while rtpt is doing this
-    quadT.setColorA(white);
-    quadT.setColorB(white);
-    quadT.setColorC(white);
-    quadT.setColorD(white);
+    quadT.setColorA(textureNeutral);
+    quadT.setColorB(textureNeutral);
+    quadT.setColorC(textureNeutral);
+    quadT.setColorD(textureNeutral);
 
     psyqo::GTE::Kernels::nclip();
     const auto dot = (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
@@ -1273,7 +1250,7 @@ void Renderer::drawTileNoFog(
     ot.insert(quadFragT, avgZ);
 }
 
-void Renderer::drawTileMesh(
+void Renderer::drawTileMeshFog(
     TileIndex tileIndex,
     const Tile& tileInfo,
     const MeshData& meshData,
@@ -1334,6 +1311,12 @@ void Renderer::drawTileMesh(
 
         auto& quadFragT = primBuffer.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
         auto& quadT = quadFragT.primitive;
+        quadT.setSemiTrans();
+
+        auto& quadFragFog = primBuffer.allocateFragment<psyqo::Prim::GouraudQuad>();
+        auto& quadFog = quadFragFog.primitive;
+        quadFog.setOpaque();
+
         quadT.tpage = prim.tpage;
         quadT.clutIndex = prim.clutIndex;
         quadT.uvA = prim.uvA;
@@ -1341,35 +1324,29 @@ void Renderer::drawTileMesh(
         quadT.uvC = prim.uvC;
         quadT.uvD = prim.uvD;
 
-        auto& quadFragFog = primBuffer.allocateFragment<psyqo::Prim::GouraudQuad>();
-        auto& quadFog = quadFragFog.primitive;
-        quadFog.setOpaque();
-
-        quadT.setSemiTrans();
-
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
         psyqo::GTE::Kernels::rtps();
 
-        quadT.setColorA(interpColorImm(white));
+        quadT.setColorA(interpColorImm(textureNeutral));
 
         uint32_t pa = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-        quadFog.setColorA(interpColorImmBack(fogColor, pa));
+        quadFog.setColorA(interpColorBack(fogColor, pa));
 
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
         psyqo::GTE::Kernels::rtps();
 
-        quadT.setColorB(interpColorImm(white));
+        quadT.setColorB(interpColorImm(textureNeutral));
 
         uint32_t pb = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-        quadFog.setColorB(interpColorImmBack(fogColor, pb));
+        quadFog.setColorB(interpColorBack(fogColor, pb));
 
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v2.pos);
         psyqo::GTE::Kernels::rtps();
 
-        quadT.setColorC(interpColorImm(white));
+        quadT.setColorC(interpColorImm(textureNeutral));
 
         uint32_t pc = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-        quadFog.setColorC(interpColorImmBack(fogColor, pc));
+        quadFog.setColorC(interpColorBack(fogColor, pc));
 
         psyqo::GTE::Kernels::nclip();
         const auto dot =
@@ -1383,10 +1360,10 @@ void Renderer::drawTileMesh(
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v3.pos);
         psyqo::GTE::Kernels::rtps();
 
-        quadT.setColorD(interpColorImm(white));
+        quadT.setColorD(interpColorImm(textureNeutral));
 
         uint32_t pd = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-        quadFog.setColorD(interpColorImmBack(fogColor, pd));
+        quadFog.setColorD(interpColorBack(fogColor, pd));
 
         psyqo::GTE::Kernels::avsz4();
 
@@ -1411,7 +1388,7 @@ void Renderer::drawTileMesh(
     }
 }
 
-void Renderer::drawTileMeshNoFog(
+void Renderer::drawTileMesh(
     TileIndex tileIndex,
     const Tile& tileInfo,
     const MeshData& meshData,
@@ -1485,10 +1462,10 @@ void Renderer::drawTileMeshNoFog(
         psyqo::GTE::Kernels::rtpt();
 
         // do while rtpt is doing this
-        quadT.setColorA(white);
-        quadT.setColorB(white);
-        quadT.setColorC(white);
-        quadT.setColorD(white);
+        quadT.setColorA(textureNeutral);
+        quadT.setColorB(textureNeutral);
+        quadT.setColorC(textureNeutral);
+        quadT.setColorD(textureNeutral);
 
         psyqo::GTE::Kernels::nclip();
         const auto dot =

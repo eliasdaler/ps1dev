@@ -118,6 +118,7 @@ void GameplayScene::start(StartReason reason)
         // game.renderer.setFogNearFar(0.8, 16.125);
         // static constexpr auto farColor = psyqo::Color{.r = 108, .g = 100, .b = 116};
         static const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
+        // static constexpr auto farColor = psyqo::Color{.r = 108, .g = 100, .b = 116};
         game.renderer.setFarColor(farColor);
 
         static constexpr auto shFogColor = psyqo::Color{.r = 108, .g = 100, .b = 116};
@@ -231,8 +232,6 @@ void GameplayScene::start(StartReason reason)
         camera.rotation = {0.0, 0.0};
 
         followCamera = true;
-
-        makeTestLevel();
     }
 
     canTalk = false;
@@ -1190,50 +1189,6 @@ void GameplayScene::draw(Renderer& renderer)
     game.debugMenu.draw(renderer);
 }
 
-void GameplayScene::makeTestLevel()
-{
-#if 0
-    MeshObject object;
-    auto& levelModel = levelObj.model;
-    auto& meshA = eastl::get<Mesh>(levelModel.meshes[0]);
-    auto& meshB = eastl::get<Mesh>(levelModel.meshes[1]);
-
-    for (int x = 0; x < 10; ++x) {
-        for (int z = -3; z < 3; ++z) {
-            if (z == 0) {
-                object.mesh = meshA;
-            } else {
-                object.mesh = meshB;
-            }
-            object.setPosition(psyqo::FixedPoint(x, 0), 0.0, psyqo::FixedPoint(z, 0));
-            object.calculateWorldMatrix();
-            staticObjects.push_back(object);
-        }
-    }
-
-    auto& tree = eastl::get<Mesh>(levelModel.meshes[4]);
-    object.mesh = tree;
-    for (int i = 0; i < 10; ++i) {
-        object.setPosition(psyqo::FixedPoint(i, 0), 0.0, ToWorldCoords(8.0));
-        object.calculateWorldMatrix();
-        staticObjects.push_back(object);
-    }
-
-    auto& lamp = eastl::get<Mesh>(levelModel.meshes[2]);
-    for (int i = 0; i < 10; ++i) {
-        object.mesh = lamp;
-        object.setPosition(psyqo::FixedPoint(i, 0), 0.0, ToWorldCoords(-8.0));
-        object.calculateWorldMatrix();
-        staticObjects.push_back(object);
-    }
-
-    object.mesh = eastl::get<Mesh>(levelModel.meshes[5]);
-    object.setPosition(ToWorldCoords(8.0), 0.0, 0.0);
-    object.calculateWorldMatrix();
-    staticObjects.push_back(object);
-#endif
-}
-
 void GameplayScene::drawTiles(Renderer& renderer)
 {
     numTilesDrawn = 0;
@@ -1253,9 +1208,9 @@ void GameplayScene::drawTiles(Renderer& renderer)
                 const auto tileIndex = TileIndex{x, z};
                 const auto tile = tileMap.getTile(tileIndex);
                 if (renderer.isFogEnabled()) {
-                    renderer.drawTile(tileIndex, tile, tileMap.tileset, modelData, camera);
+                    renderer.drawTileFog(tileIndex, tile, tileMap.tileset, modelData, camera);
                 } else {
-                    renderer.drawTileNoFog(tileIndex, tile, tileMap.tileset, modelData, camera);
+                    renderer.drawTile(tileIndex, tile, tileMap.tileset, modelData, camera);
                 }
                 ++numTilesDrawn;
             }

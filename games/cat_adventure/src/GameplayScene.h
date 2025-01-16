@@ -38,8 +38,6 @@ private:
 
     void calculateTileVisibility();
 
-    void makeTestLevel();
-
     void draw(Renderer& renderer);
     void drawTiles(Renderer& renderer);
 
