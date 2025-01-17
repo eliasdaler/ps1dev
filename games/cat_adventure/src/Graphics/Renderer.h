@@ -46,8 +46,8 @@ public:
     void drawModelObject(ModelObject& object, const Camera& camera, bool setViewRot = true);
     void drawModel(const Model& model);
 
-    void drawMeshFog(const Mesh& mesh);
-    void drawMesh(const Mesh& mesh);
+    void drawMeshFog(const MeshData& meshData);
+    void drawMesh(const MeshData& meshData);
 
     void drawMeshStaticFog(const Mesh& mesh);
     void drawMeshStatic(const Mesh& mesh);

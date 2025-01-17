@@ -261,6 +261,9 @@ void GameplayScene::start(StartReason reason)
     player.setPosition({0.4665, 0.0000, 1.0087});
     player.rotation = {0.0000, 1.0771};
 
+    player.setPosition({-0.1875, 0.0000, -0.8986});
+    player.rotation = {0.0000, -1.0644};
+
     // pcsxRegisterSomeLocal();
     auto& tileset = tileMap.tileset;
     tileset.tiles.resize(255);
@@ -888,7 +891,7 @@ void GameplayScene::calculateTileVisibility()
     }
 
     if (camera.rotation.x > 0.15) {
-        // TODO: hande better - probably need to calculate
+        // TODO: hande better - probably need to calculate based on pitch somehow
         origin = camera.position - front * 0.5;
         viewDistSide = psyqo::FixedPoint(4.0);
     }
@@ -962,7 +965,7 @@ void GameplayScene::draw(Renderer& renderer)
     gp.getNextClear(fill.primitive, bg);
     gp.chain(fill);
 
-#if 0
+#if 0 // sunset sky bg
     {
 #ifdef NEW_CAM
         auto gradY1 = 60;
@@ -1067,14 +1070,10 @@ void GameplayScene::draw(Renderer& renderer)
 
     renderer.bias = 0;
     // draw dynamic objects
-#if 1
     {
-        // TODO: first draw objects without rotation
-        // (won't have to upload camera.viewRot and change PseudoRegister::Rotation then)
         renderer.drawAnimatedModelObject(player, camera);
         renderer.drawAnimatedModelObject(npc, camera);
     }
-#endif
 
     gp.pumpCallbacks();
 
@@ -1087,8 +1086,9 @@ void GameplayScene::draw(Renderer& renderer)
         tpage.primitive.attr.set(psyqo::Prim::TPageAttr::SemiTrans::FullBackSubFullFront);
         gpu.chain(tpage);
 
-#if 0
         for (int i = 0; i < 4; ++i) {
+            // draw 4 rects - for some reason PS1 can't handle blending the whole
+            // screen properly on real HW
             auto& rectFrag = primBuffer.allocateFragment<psyqo::Prim::Rectangle>();
             auto& rect = rectFrag.primitive;
             rect.position = {};
@@ -1111,19 +1111,7 @@ void GameplayScene::draw(Renderer& renderer)
             rect.setColor(black);
             rect.setSemiTrans();
             gpu.chain(rectFrag);
-#else
-        auto& rectFrag = primBuffer.allocateFragment<psyqo::Prim::Rectangle>();
-        auto& rect = rectFrag.primitive;
-        rect.position = {};
-        rect.size.x = SCREEN_WIDTH;
-        rect.size.y = SCREEN_HEIGHT;
-
-        const auto black =
-            psyqo::Color{{uint8_t(fadeLevel), uint8_t(fadeLevel), uint8_t(fadeLevel)}};
-        rect.setColor(black);
-        rect.setSemiTrans();
-        gpu.chain(rectFrag);
-#endif
+        }
     }
 
     {
@@ -1131,41 +1119,6 @@ void GameplayScene::draw(Renderer& renderer)
             psyqo::Prim::MaskControl::Set::FromSource, psyqo::Prim::MaskControl::Test::No);
         gp.chain(maskBit);
     }
-
-#if 0
-    if (debugInfoDrawn) {
-        const auto front = psyqo::Vec3{
-            .x = game.trig.sin(camera.rotation.y),
-            .y = 0.0,
-            .z = game.trig.cos(camera.rotation.y),
-        };
-        // auto front = player.getFront();
-        /* renderer.drawLineWorldSpace(
-            camera, origin, origin + front * 1.0, psyqo::Color{.r = 255, .g = 0, .b = 255}); */
-
-        renderer.drawLineWorldSpace(
-            camera, origin, frustumLeft, psyqo::Color{.r = 255, .g = 0, .b = 255});
-
-        renderer.drawLineWorldSpace(
-            camera, origin, frustumRight, psyqo::Color{.r = 255, .g = 0, .b = 255});
-
-        renderer.drawAABB(
-            camera,
-            AABB{
-                .min = {.x = minX, .y = 0, .z = minZ},
-                .max = {.x = maxX, .y = 0, .z = maxZ},
-            },
-            psyqo::Color{.r = 0, .g = 255, .b = 0});
-    }
-#endif
-
-    /* renderer.drawLineWorldSpace(
-        camera,
-        player.getPosition(),
-        player.getPosition() + psyqo::Vec3{0.0, 0.1, 0.0} * 1.0,
-        psyqo::Color{.r = 255, .g = 0, .b = 255}); */
-
-    // renderer.drawPointWorldSpace(camera, player.getPosition(), {.r = 255, .g = 0, .b = 255});
 
     {
         auto& tpage = primBuffer.allocateFragment<psyqo::Prim::TPage>();
@@ -1186,18 +1139,6 @@ void GameplayScene::draw(Renderer& renderer)
     if (gameState == GameState::Dialogue && dialogueBox.isOpen) {
         dialogueBox.draw(renderer, game.font, game.fontTexture, uiTexture);
     }
-
-    /* for (int y = -10; y < 10; ++y) {
-        for (int x = -10; x < 10; ++x) {
-            AABB aabb{.min = {0, 0, 0}, .max = {0.125, 0, 0.125}};
-            aabb.min.x += psyqo::FixedPoint<>(x, 0) * 0.125;
-            aabb.min.z += psyqo::FixedPoint<>(y, 0) * 0.125;
-            aabb.max.x += psyqo::FixedPoint<>(x, 0) * 0.125;
-            aabb.max.z += psyqo::FixedPoint<>(y, 0) * 0.125;
-            psyqo::Color c{.r = 255, .g = 0, .b = 255};
-            renderer.drawAABB(camera, aabb, c);
-        }
-    } */
 
     if (debugInfoDrawn) {
         drawDebugInfo(renderer);
