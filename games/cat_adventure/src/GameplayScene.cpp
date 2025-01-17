@@ -28,15 +28,14 @@ uint8_t fogR = 108;
 uint8_t fogG = 100;
 uint8_t fogB = 116;
 
-static uint32_t someLocal = 12;
-
-void pcsxRegisterSomeLocal()
+// This will be calling into the Lua script from execSlot 255,
+// where it will be able to modify the background color of the scene.
+void pcsxRegisterVariable(void* address, const char* name)
 {
-    register uint32_t* a0 asm("a0") = &someLocal;
-    __asm__ volatile("" : : "r"(a0));
-    ramsyscall_printf("hmmm %x\n", &someLocal);
-    *((volatile uint8_t* const)0x1f802081) = 42;
-    ramsyscall_printf("hmmm2\n");
+    register void* a0 asm("a0") = address;
+    register const char* a1 asm("a1") = name;
+    __asm__ volatile("" : : "r"(a0), "r"(a1));
+    *((volatile uint8_t* const)0x1f802081) = 255;
 }
 
 namespace
@@ -114,7 +113,9 @@ GameplayScene::GameplayScene(Game& game) : game(game)
 void GameplayScene::start(StartReason reason)
 {
     if (reason == StartReason::Create) {
-        game.renderer.setFogNearFar(0.25, 1.5);
+        pcsxRegisterVariable(&game.renderer.fogColor, "game.renderer.fogColor");
+
+        game.renderer.setFogNearFar(0.2, 1.2);
         // game.renderer.setFogNearFar(0.8, 16.125);
         static const auto farColor = psyqo::Color{.r = 0, .g = 0, .b = 0};
         game.renderer.setFarColor(farColor);
@@ -264,12 +265,12 @@ void GameplayScene::start(StartReason reason)
     auto& tileset = tileMap.tileset;
     tileset.tiles.resize(255);
 
-    // ???
+    // crossing
     tileset.tiles[0] = TileInfo{
-        .u0 = 0,
-        .v0 = 128,
-        .u1 = 127,
-        .v1 = 255,
+        .u0 = 32,
+        .v0 = 32,
+        .u1 = 63,
+        .v1 = 63,
     };
 
     // road with stripe
@@ -308,7 +309,7 @@ void GameplayScene::start(StartReason reason)
 void GameplayScene::frame()
 {
     // ramsyscall_printf("someLocal: %x, %d\n", &someLocal, (int)someLocal);
-    // game.renderer.setFogColor({.r = fogR, .g = fogG, .b = fogB});
+    // game.renderer.setFogColor(game.fogColor);
 
     game.handleDeltas();
 
@@ -551,9 +552,15 @@ void GameplayScene::processDebugInput(const PadManager& pad)
     }
 
     if (pad.wasButtonJustPressed(psyqo::SimplePad::Triangle)) {
-        player.setFaceAnimation(ANGRY_FACE_ANIMATION);
-        player.animator.setAnimation("ThinkStart"_sh);
-        cutscene = true;
+        if (!cutscene) {
+            player.setFaceAnimation(ANGRY_FACE_ANIMATION);
+            player.animator.setAnimation("ThinkStart"_sh);
+            cutscene = true;
+        } else {
+            player.setFaceAnimation(DEFAULT_FACE_ANIMATION);
+            player.animator.setAnimation("Idle"_sh);
+            cutscene = false;
+        }
     }
 
     if (pad.wasButtonJustPressed(psyqo::SimplePad::Circle)) {
@@ -571,7 +578,7 @@ void GameplayScene::updateCamera()
         static constexpr auto cameraOffset = psyqo::Vec3{
             .x = -0.1,
             .y = 0.32,
-            .z = -0.50,
+            .z = -0.40,
         };
         static constexpr auto cameraPitch = psyqo::FixedPoint<10>(0.12);
 #else
@@ -751,7 +758,7 @@ void GameplayScene::handleFloorCollision()
     const auto tileInfo = tileMap.getTile(playerTileIndex);
 
     const auto tileId = tileInfo.tileId;
-    if (tileId == 1 || tileId == 2) {
+    if (tileId == 0 || tileId == 1 || tileId == 2) {
         // on road tile
         player.transform.translation.y = -0.02;
     } else {
@@ -844,7 +851,7 @@ collidedWithSomething:
 
 void GameplayScene::calculateTileVisibility()
 {
-    auto fov = psyqo::Angle(0.25);
+    auto fov = psyqo::Angle(0.27);
     auto viewDistSide = psyqo::FixedPoint(3.5);
 
     // auto origin = player.getPosition();

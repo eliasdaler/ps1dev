@@ -112,7 +112,7 @@ def collect_materials(scene):
     material_list.sort(key=attrgetter("name"))
     return material_list
 
-def get_object_data_json(obj, meshes_idx_map, has_armature):
+def get_object_data_json(obj, meshes_idx_map, has_armature, armature_scale):
     object_data = {
         "name": obj.name,
         "position": [obj.location.x, obj.location.z, -obj.location.y],
@@ -124,6 +124,11 @@ def get_object_data_json(obj, meshes_idx_map, has_armature):
     quat = obj.matrix_local.to_quaternion()
     if quat != identity_quat:
         object_data["rotation"] = [quat.w, quat.x, quat.y, quat.z]
+
+    if has_armature: 
+        # if armature has scale, we change the object's by it so that scaling
+        # armature automatically scales the model as well
+        obj.scale = obj.scale * armature_scale
 
     if obj.scale != identity_scale:
         object_data["scale"] = [obj.scale.x, obj.scale.y, obj.scale.z]
@@ -510,9 +515,13 @@ def write_psxtools_json(context, filepath):
         bpy.ops.object.mode_set(mode='OBJECT') 
 
     has_armature = 'Armature' in scene.objects
+    armature_scale = None
+    if has_armature:
+        armature = scene.objects['Armature']
+        armature_scale = armature.scale
 
     data = {
-        "objects":   [get_object_data_json(obj, meshes_idx_map, has_armature)
+        "objects":   [get_object_data_json(obj, meshes_idx_map, has_armature, armature_scale)
                       for obj in obj_list],
         "materials": [get_material_json(mat)
                       for mat in material_list],

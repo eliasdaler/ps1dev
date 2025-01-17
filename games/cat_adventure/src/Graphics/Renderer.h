@@ -143,6 +143,8 @@ public:
     void setFogColor(psyqo::Color c) { fogColor = c; }
     psyqo::Color getFogColor() const { return fogColor; }
 
+    psyqo::Color fogColor = psyqo::Color{.r = 108, .g = 100, .b = 116};
+
 private:
     bool shouldCullObject(const Object& object, const Camera& camera) const;
 
@@ -160,8 +162,6 @@ private:
     std::uint32_t h{300};
 
     bool fogEnabled{true};
-
-    psyqo::Color fogColor = psyqo::Color{.r = 108, .g = 100, .b = 116};
 
     // used to draw a "fade rect" when doing fog for dynamic objects
     // calculated while drawing prims in drawMeshFog

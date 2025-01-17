@@ -35,6 +35,7 @@
       "input": "raw/cato_faces.png",
       "output": "cato_faces.tim",
       "bits": 4,
+      "never_set_stp": true,
       "clut": [0, 245],
       "pix": [448, 0]
     }

@@ -1003,8 +1003,9 @@ void Renderer::drawTileFog(
     const int z = tileIndex.z;
 
     // TODO: store in tileInfo
-    const auto tileHeight =
-        (tileId != 1 && tileId != 2) ? psyqo::FixedPoint<>(0.0) : psyqo::FixedPoint<>(-0.02);
+    const auto tileHeight = (tileId != 0 && tileId != 1 && tileId != 2) ?
+                                psyqo::FixedPoint<>(0.0) :
+                                psyqo::FixedPoint<>(-0.02);
 
     const auto v0 = Vec3Pad{
         .pos =
@@ -1156,8 +1157,9 @@ void Renderer::drawTile(
     const int z = tileIndex.z;
 
     // TODO: store in tileInfo
-    const auto tileHeight =
-        (tileId != 1 && tileId != 2) ? psyqo::FixedPoint<>(0.0) : psyqo::FixedPoint<>(-0.02);
+    const auto tileHeight = (tileId != 0 && tileId != 1 && tileId != 2) ?
+                                psyqo::FixedPoint<>(0.0) :
+                                psyqo::FixedPoint<>(-0.02);
 
     const auto v0 = Vec3Pad{
         .pos =

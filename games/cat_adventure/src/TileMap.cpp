@@ -21,18 +21,22 @@ Tile TileMap::getTile(TileIndex ti) const
         info.tileId = 4; // curb
     }
 
-    if (info.tileId == 3 && (x == -1 || x == -2)) {
-        info.tileId = 4;
+    if (x == -1 || x == -2) {
+        if (info.tileId == 3) {
+            info.tileId = 4; // sidewalk (parallel)
+        } else if (info.tileId == 1 || info.tileId == 2) {
+            info.tileId = 0; // crossing
+        }
     }
 
     if (z == 5) { // curb transition (near)
         info.tileId = 5;
-        info.modelId = 6;
+        info.modelId = 4;
     }
 
     if (z == -5) { // curb transition (far)
         info.tileId = 6;
-        info.modelId = 5;
+        info.modelId = 3;
     }
 
     return info;

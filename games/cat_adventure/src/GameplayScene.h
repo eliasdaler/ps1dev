@@ -103,4 +103,6 @@ private:
     int minTileZ, maxTileZ;
 
     TileMap tileMap;
+
+    psyqo::Color fogColor;
 };
