@@ -6,8 +6,6 @@ struct Vec3WithPadding {
 } [[sealed, format("format_vec3")]];
 
 struct GouraudTriangle {
-    u32 tag;
-
     u8 r0, g0, b0, code;
     s16 x0, y0;
 
@@ -19,8 +17,6 @@ struct GouraudTriangle {
 };
 
 struct GouraudQuad {
-    u32 tag;
-
     u8 r0, g0, b0, code;
     s16 x0, y0;
 
@@ -35,8 +31,6 @@ struct GouraudQuad {
 };
 
 struct GouraudTexturedTriangle {
-    u32 tag;
-
     u8 r0, g0, b0, code;
     s16 x0, y0;
 
@@ -55,8 +49,6 @@ struct GouraudTexturedTriangle {
 };
 
 struct GouraudTexturedQuad {
-    u32 tag;
-
     u8 r0, g0, b0, code;
     s16 x0, y0;
 

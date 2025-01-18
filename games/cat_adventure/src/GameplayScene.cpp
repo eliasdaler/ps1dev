@@ -1058,7 +1058,9 @@ void GameplayScene::draw(Renderer& renderer)
 
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
 
+#if 0
     drawTiles(renderer);
+#endif
 
     // renderer.bias = 300;
     // draw static objects
