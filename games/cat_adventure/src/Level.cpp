@@ -59,6 +59,7 @@ void Level::loadNewFormat(const eastl::vector<uint8_t>& data)
     usedModels.clear();
     collisionBoxes.clear();
     staticObjects.clear();
+    modelData.meshes.clear();
 
     util::FileReader fr{
         .bytes = data.data(),
@@ -83,6 +84,7 @@ void Level::loadNewFormat(const eastl::vector<uint8_t>& data)
     modelData.load(fr);
 
     const auto numStaticObjects = fr.GetUInt32();
+    ramsyscall_printf("num static objects: %d\n", numStaticObjects);
     staticObjects.resize(numStaticObjects);
 
     for (int i = 0; i < numStaticObjects; ++i) {
@@ -97,5 +99,27 @@ void Level::loadNewFormat(const eastl::vector<uint8_t>& data)
         fr.SkipBytes(2); // pad
 
         object.calculateWorldMatrix();
+    }
+
+    const auto numColliders = fr.GetUInt32();
+    collisionBoxes.reserve(numColliders);
+    ramsyscall_printf("num colliders: %d\n", numColliders);
+
+    for (int i = 0; i < numColliders; ++i) {
+        AABB aabb;
+
+        aabb.min = psyqo::Vec3{
+            .x = psyqo::FixedPoint<>(fr.GetInt16(), psyqo::FixedPoint<>::RAW),
+            .y = 0.0,
+            .z = psyqo::FixedPoint<>(fr.GetInt16(), psyqo::FixedPoint<>::RAW),
+        };
+
+        aabb.max = psyqo::Vec3{
+            .x = psyqo::FixedPoint<>(fr.GetInt16(), psyqo::FixedPoint<>::RAW),
+            .y = 0.1,
+            .z = psyqo::FixedPoint<>(fr.GetInt16(), psyqo::FixedPoint<>::RAW),
+        };
+
+        collisionBoxes.push_back(eastl::move(aabb));
     }
 }

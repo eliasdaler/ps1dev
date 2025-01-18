@@ -22,6 +22,12 @@ fn format_quat(auto quat) {
         fixed16_to_float(quat.z));
 };
 
+fn format_vec2(auto v) {
+    return std::format("({:.3f}, {:.3f})", 
+        fixed16_to_float(v.x),
+        fixed16_to_float(v.y));
+};
+
 fn format_vec3(auto v) {
     return std::format("({:.3f}, {:.3f}, {:.3f})", 
         fixed16_to_float(v.x),
@@ -40,6 +46,10 @@ fn format_color(auto c) {
 struct FixedPoint<T> {
     T value;
 } [[sealed, format("format_fixed16")]];
+
+struct Vec2 {
+    FixedPoint<s16> x, y;
+} [[sealed, format("format_vec2")]];
 
 struct Vec3 {
     FixedPoint<s16> x, y, z;

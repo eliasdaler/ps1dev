@@ -93,7 +93,7 @@ private:
     bool fadeOut{false}; // if false - fade in
     int destinationLevelId = 0;
 
-    bool collisionEnabled{false};
+    bool collisionEnabled{true};
 
     bool cutscene{false};
 

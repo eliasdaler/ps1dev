@@ -923,16 +923,13 @@ void Renderer::drawMeshStatic(const Mesh& mesh)
         quadT.uvC = prim.uvC;
         quadT.uvD = prim.uvD;
 
-        // load additional bias stored in padding
-        const auto addBias = getAddBias(prim);
-        if (addBias == 500) {
-            continue;
-        }
-
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
         psyqo::GTE::Kernels::rtpt();
+
+        // load additional bias stored in padding (while rtpt)
+        const auto addBias = getAddBias(prim);
 
         psyqo::GTE::Kernels::nclip();
         const auto dot =

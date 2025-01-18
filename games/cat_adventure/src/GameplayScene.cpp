@@ -184,9 +184,6 @@ void GameplayScene::start(StartReason reason)
         triggers.push_back(trigger);
     }
 
-    // levelObj.setPosition({});
-    // levelObj.rotation = {};
-
     npc.model = game.resourceCache.getResource<ModelData>(HUMAN_MODEL_HASH).makeInstance();
     npc.jointGlobalTransforms.resize(npc.model.armature.joints.size());
     npc.animator.animations = &game.humanAnimations;
@@ -195,12 +192,8 @@ void GameplayScene::start(StartReason reason)
     if (game.level.id == 0) {
         game.renderer.setFogEnabled(false);
 
-        /* levelObj.model =
-            game.resourceCache.getResource<ModelData>(LEVEL1_MODEL_HASH).makeInstanceUnique();
-         */
-
-        player.setPosition({0.0, 0.0, 0.25});
-        player.rotation = {0.0, -1.0};
+        player.setPosition({-0.0439, -0.0200, 0.2141});
+        player.rotation = {0.0000, -4.9492};
 
         npc.setPosition({0.0, 0.0, -0.11});
         npc.rotation = {0.0, 0.1};
@@ -224,16 +217,13 @@ void GameplayScene::start(StartReason reason)
         game.renderer.setFogEnabled(true);
         // game.renderer.setFogEnabled(false);
 
-        player.setPosition({0.5, 0.0, 0.5});
-        player.rotation = {0.0, 1.37};
+        player.setPosition({-0.1083, 0.0000, -1.2602});
+        player.rotation = {0.0000, -0.0117};
 
-        camera.position = {0.f, ToWorldCoords(1.5f), -1.f};
-        camera.rotation = {0.0, 0.0};
+        npc.setPosition({-0.3344, 0.0000, -1.2253});
+        npc.rotation = {0.0000, -3.7119};
 
         followCamera = true;
-
-        npc.setPosition({-0.1083, 0.0000, -1.2602});
-        npc.rotation = {0.0000, -0.0117};
     }
 
     canTalk = false;
@@ -248,21 +238,6 @@ void GameplayScene::start(StartReason reason)
     game.renderer.setFogNearFar(0.8, 50.125);
     debugInfoDrawn = true;
     */
-
-    player.setPosition({0.4641, 0.0000, 1.0766});
-    player.rotation = {0.0000, 1.9462};
-
-    player.setPosition({0.3803, 0.0000, 0.9570});
-    player.rotation = {0.0000, 1.0771};
-
-    player.setPosition({0.4438, 0.0000, 0.9104});
-    player.rotation = {0.0000, 1.0771};
-
-    player.setPosition({0.4665, 0.0000, 1.0087});
-    player.rotation = {0.0000, 1.0771};
-
-    player.setPosition({-0.1875, 0.0000, -0.8986});
-    player.rotation = {0.0000, -1.0644};
 
     // pcsxRegisterSomeLocal();
     auto& tileset = tileMap.tileset;
@@ -647,7 +622,11 @@ void GameplayScene::update()
         auto pos = player.getPosition();
         pos += player.velocity * game.frameDt;
         player.setPosition(pos);
-        handleFloorCollision();
+
+        if (game.level.id == 1) {
+            handleFloorCollision();
+        }
+
         player.updateCollision();
 
         canInteract = false;
@@ -958,12 +937,15 @@ void GameplayScene::draw(Renderer& renderer)
         gp.chain(maskBit);
     }
 
-    // clear
-    // psyqo::Color bg{{.r = 33, .g = 14, .b = 58}};
-    psyqo::Color bg{{.r = 0, .g = 0, .b = 0}};
-    auto& fill = primBuffer.allocateFragment<psyqo::Prim::FastFill>();
-    gp.getNextClear(fill.primitive, bg);
-    gp.chain(fill);
+    // clear (TODO: make a level property?)
+    // psyqo::Color bg{{.r = 0, .g = 0, .b = 0}};
+    psyqo::Color bg{{.r = 33, .g = 14, .b = 58}};
+
+    {
+        auto& fill = primBuffer.allocateFragment<psyqo::Prim::FastFill>();
+        gp.getNextClear(fill.primitive, bg);
+        gp.chain(fill);
+    }
 
 #if 0 // sunset sky bg
     {
@@ -1011,36 +993,33 @@ void GameplayScene::draw(Renderer& renderer)
     }
 #endif
 
-    {
-        auto& maskBit = primBuffer.allocateFragment<psyqo::Prim::MaskControl>(
-            psyqo::Prim::MaskControl::Set::ForceSet, psyqo::Prim::MaskControl::Test::No);
-        gp.chain(maskBit);
-    }
+    if (game.renderer.isFogEnabled()) {
+        {
+            auto& maskBit = primBuffer.allocateFragment<psyqo::Prim::MaskControl>(
+                psyqo::Prim::MaskControl::Set::ForceSet, psyqo::Prim::MaskControl::Test::No);
+            gp.chain(maskBit);
+        }
 
-    {
-        /* static constexpr auto fogColor = psyqo::Color{.r = 108, .g = 100, .b = 116};
-        auto& fill = primBuffer.allocateFragment<psyqo::Prim::FastFill>();
-        gp.getNextClear(fill.primitive, fogColor);
-        gp.chain(fill); */
+        {
+            auto fogColor = game.renderer.getFogColor();
 
-        auto fogColor = game.renderer.getFogColor();
+            auto& quadFrag = primBuffer.allocateFragment<psyqo::Prim::GouraudQuad>();
+            auto& q = quadFrag.primitive;
+            q.pointA.x = 0;
+            q.pointA.y = 0;
+            q.pointB.x = SCREEN_WIDTH;
+            q.pointB.y = 0;
+            q.pointC.x = 0;
+            q.pointC.y = SCREEN_HEIGHT;
+            q.pointD.x = SCREEN_WIDTH;
+            q.pointD.y = SCREEN_HEIGHT;
+            q.setColorA(fogColor);
+            q.colorB = fogColor;
+            q.colorC = fogColor;
+            q.colorD = fogColor;
 
-        auto& quadFrag = primBuffer.allocateFragment<psyqo::Prim::GouraudQuad>();
-        auto& q = quadFrag.primitive;
-        q.pointA.x = 0;
-        q.pointA.y = 0;
-        q.pointB.x = SCREEN_WIDTH;
-        q.pointB.y = 0;
-        q.pointC.x = 0;
-        q.pointC.y = SCREEN_HEIGHT;
-        q.pointD.x = SCREEN_WIDTH;
-        q.pointD.y = SCREEN_HEIGHT;
-        q.setColorA(fogColor);
-        q.colorB = fogColor;
-        q.colorC = fogColor;
-        q.colorD = fogColor;
-
-        gp.chain(quadFrag);
+            gp.chain(quadFrag);
+        }
     }
 
     {
@@ -1058,11 +1037,12 @@ void GameplayScene::draw(Renderer& renderer)
 
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
 
-#if 0
-    drawTiles(renderer);
-#endif
+    if (game.level.id == 1) {
+        drawTiles(renderer);
+    }
 
-    // renderer.bias = 300;
+    gp.pumpCallbacks(); // tile drawing takes a lot of time
+
     // draw static objects
     for (auto& staticObject : game.level.staticObjects) {
         renderer.drawMeshObject(staticObject, camera);
@@ -1070,7 +1050,6 @@ void GameplayScene::draw(Renderer& renderer)
 
     gp.pumpCallbacks();
 
-    renderer.bias = 0;
     // draw dynamic objects
     {
         renderer.drawAnimatedModelObject(player, camera);
@@ -1114,12 +1093,6 @@ void GameplayScene::draw(Renderer& renderer)
             rect.setSemiTrans();
             gpu.chain(rectFrag);
         }
-    }
-
-    {
-        auto& maskBit = primBuffer.allocateFragment<psyqo::Prim::MaskControl>(
-            psyqo::Prim::MaskControl::Set::FromSource, psyqo::Prim::MaskControl::Test::No);
-        gp.chain(maskBit);
     }
 
     {

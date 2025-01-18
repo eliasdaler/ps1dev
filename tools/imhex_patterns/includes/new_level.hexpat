@@ -10,14 +10,25 @@ struct Object {
     u16 pad [[hidden]];
 };
 
+struct AABB {
+    Vec2 min;
+    Vec2 max;
+};
+
 struct Level {
     u16 numUsedTextures;
     StringHash usedTextures[numUsedTextures];
+    
     u16 numUsedModels;
     StringHash usedModels[numUsedModels];
+    
     Model model;
+    
     u32 numObjects;
     Object objects[numObjects];
+    
+    u32 numColliders;
+    AABB colliders[numColliders];
 };
 
 Level level @ 0x0;
