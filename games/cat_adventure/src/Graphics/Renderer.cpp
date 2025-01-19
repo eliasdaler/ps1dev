@@ -1113,7 +1113,7 @@ void Renderer::drawTiles(const ModelData& tileModels, const TileMap& tileMap, co
                 tileSeen[xrel * MAX_TILES_DIM + zrel] == 1) {
                 const auto tileIndex = TileIndex{x, z};
                 const auto tile = tileMap.getTile(tileIndex);
-                if (tile.tileId == Tile::NULL_TILE_ID && tile.tileId == Tile::NULL_MODEL_ID) {
+                if (tile.tileId == Tile::NULL_TILE_ID) {
                     continue;
                 }
                 if (fog) {
@@ -1131,24 +1131,24 @@ void Renderer::drawTileFog(
     TileIndex tileIndex,
     const Tile& tile,
     const Tileset& tileset,
-    const ModelData& prefabs,
+    const ModelData& tileMeshes,
     const Camera& camera)
 {
     auto& ot = getOrderingTable();
     auto& primBuffer = getPrimBuffer();
 
-    const auto modelId = tile.modelId;
+    const auto tileId = tile.tileId;
+    const auto& tileInfo = tileset.getTileInfo(tileId);
+    const auto modelId = tileInfo.modelId;
 
-    if (modelId != Tile::NULL_MODEL_ID) { // "model" tiles
-        drawTileMeshFog(tileIndex, tile, tileset, prefabs.meshes[modelId], camera);
+    if (modelId != TileInfo::NULL_MODEL_ID) { // "model" tiles
+        drawTileMeshFog(tileIndex, tile, tileset, tileMeshes.meshes[modelId], camera);
         return;
     }
 
     const int x = tileIndex.x;
     const int z = tileIndex.z;
 
-    const auto tileId = tile.tileId;
-    const auto& tileInfo = tileset.getTileInfo(tileId);
     const auto tileHeight = psyqo::FixedPoint<>(tileInfo.height);
 
     const auto v0 = Vec3Pad{
@@ -1282,24 +1282,24 @@ void Renderer::drawTile(
     TileIndex tileIndex,
     const Tile& tile,
     const Tileset& tileset,
-    const ModelData& prefabs,
+    const ModelData& tileMeshes,
     const Camera& camera)
 {
     auto& ot = getOrderingTable();
     auto& primBuffer = getPrimBuffer();
 
     const auto tileId = tile.tileId;
-    const auto modelId = tile.modelId;
+    const auto& tileInfo = tileset.getTileInfo(tileId);
+    const auto modelId = tileInfo.modelId;
 
-    if (modelId != Tile::NULL_MODEL_ID) { // "model" tiles
-        drawTileMesh(tileIndex, tile, tileset, prefabs.meshes[modelId], camera);
+    if (modelId != TileInfo::NULL_MODEL_ID) { // "model" tiles
+        drawTileMesh(tileIndex, tile, tileset, tileMeshes.meshes[modelId], camera);
         return;
     }
 
     const int x = tileIndex.x;
     const int z = tileIndex.z;
 
-    const auto& tileInfo = tileset.getTileInfo(tileId);
     const auto tileHeight = psyqo::FixedPoint<>(tileInfo.height);
 
     const auto v0 = Vec3Pad{

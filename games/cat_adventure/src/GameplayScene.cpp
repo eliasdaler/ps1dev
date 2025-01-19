@@ -226,6 +226,16 @@ void GameplayScene::initTileset()
         .u1 = 31,
         .v1 = 95,
     };
+
+    // curb (down)
+    tileset.tiles[5] = TileInfo{
+        .modelId = 10,
+    };
+
+    // curb (up)
+    tileset.tiles[6] = TileInfo{
+        .modelId = 9,
+    };
 }
 
 void GameplayScene::frame()

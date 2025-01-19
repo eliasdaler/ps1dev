@@ -31,12 +31,10 @@ Tile TileMap::getTile(TileIndex ti) const
 
     if (z == 5) { // curb transition (near)
         info.tileId = 5;
-        info.modelId = 4;
     }
 
     if (z == -5) { // curb transition (far)
         info.tileId = 6;
-        info.modelId = 3;
     }
 
     if (z < -21) {

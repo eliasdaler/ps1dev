@@ -64,14 +64,14 @@ public:
         TileIndex tileIndex,
         const Tile& tile,
         const Tileset& tileset,
-        const ModelData& prefabs,
+        const ModelData& tileMeshes,
         const Camera& camera);
 
     void drawTile(
         TileIndex tileIndex,
         const Tile& tile,
         const Tileset& tileset,
-        const ModelData& prefabs,
+        const ModelData& tileMeshes,
         const Camera& camera);
 
     void drawTileMeshFog(

@@ -40,7 +40,9 @@ def apply_modifiers(obj):
     ctx = bpy.context.copy()
     ctx['object'] = obj
     for _, m in enumerate(obj.modifiers):
-        if m.name == 'Armature':
+        if m.type == 'ARRAY': # tiles
+            continue
+        if m.type == 'ARMATURE':
             continue
         try:
             ctx['modifier'] = m
@@ -67,9 +69,18 @@ def material_has_texture(mat):
 
 def collect_meshes(obj_list):
     meshes_set = set(o.data for o in obj_list)
+
+    # Add meshes from prefabs even if they're not used in obj_list
+    # E.g. for tiles/tile meshes
+    prefab_collection = bpy.data.collections.get("Prefabs")
+    if prefab_collection:
+        for o in collect_objects(prefab_collection.objects):
+            meshes_set.add(o.data)
+
     mesh_list = list(meshes_set)
     mesh_list.sort(key=attrgetter("name"))
     print([mesh.name for mesh in mesh_list])
+
     return mesh_list
 
 def collect_objects(collection_objects):
