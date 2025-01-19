@@ -16,8 +16,6 @@
 #include <Math/gte-math.h>
 #include <UI/TextLabel.h>
 
-#include <EASTL/bitset.h>
-
 #include "Resources.h"
 
 #define DEV_TOOLS
@@ -44,53 +42,6 @@ constexpr auto worldScale = 8.0;
 consteval long double ToWorldCoords(long double d)
 {
     return d / worldScale;
-}
-
-static constexpr auto TILE_SIZE = 8;
-static constexpr psyqo::FixedPoint TILE_SCALE = 0.125; // 1 / TILE_SIZE
-
-// Tiles which can be seen by the camera
-// Stored in relative coordinates to the minimum point of frustum's AABB in XZ plane
-static constexpr auto MAX_TILES_DIM = 32;
-static eastl::bitset<MAX_TILES_DIM * MAX_TILES_DIM> tileSeen;
-
-/* Adopted from https://fgiesen.wordpress.com/2013/02/08/triangle-rasterization-in-practice/ */
-int orient2d(int ax, int ay, int bx, int by, int cx, int cy)
-{
-    return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
-}
-
-void rasterizeTriangle(int x1, int y1, int x2, int y2, int x3, int y3)
-{
-    int minX = eastl::min({x1, x2, x3});
-    int maxX = eastl::max({x1, x2, x3});
-    int minY = eastl::min({y1, y2, y3});
-    int maxY = eastl::max({y1, y2, y3});
-
-    minX = eastl::max(0, minX);
-    maxX = eastl::min(MAX_TILES_DIM - 1, maxX);
-    minY = eastl::max(0, minY);
-    maxY = eastl::min(MAX_TILES_DIM - 1, maxY);
-
-    for (int y = minY; y <= maxY; ++y) {
-        for (int x = minX; x <= maxX; ++x) {
-            int w0 = orient2d(x2, y2, x3, y3, x, y);
-            int w1 = orient2d(x3, y3, x1, y1, x, y);
-            int w2 = orient2d(x1, y1, x2, y2, x, y);
-
-            if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
-                tileSeen[y * MAX_TILES_DIM + x] = 1;
-            }
-        }
-    }
-}
-
-TileIndex getTileIndex(const psyqo::Vec3& pos)
-{
-    return TileIndex{
-        .x = (int16_t)(pos.x * TILE_SIZE).floor(),
-        .z = (int16_t)(pos.z * TILE_SIZE).floor(),
-    };
 }
 
 namespace
@@ -125,14 +76,6 @@ void GameplayScene::start(StartReason reason)
 
         // game.renderer.setFogColor({.r = 188, .g = 180, .b = 116});
 
-        uiTexture = game.resourceCache.getResource<TextureInfo>(CATO_TEXTURE_HASH);
-
-        interactionDialogueBox.displayBorders = false;
-        interactionDialogueBox.textOffset.x = 48;
-        interactionDialogueBox.position.y = 180;
-        interactionDialogueBox.size.y = 32;
-        interactionDialogueBox.displayMoreTextArrow = false;
-
         player.model = game.resourceCache.getResource<ModelData>(CATO_MODEL_HASH).makeInstance();
 
         // FIXME: somehow mark face mesh in Blender
@@ -154,15 +97,12 @@ void GameplayScene::start(StartReason reason)
 
         game.songPlayer.init(game.midi, game.vab);
 
-        game.debugMenu.menuItems[DebugMenu::COLLISION_ITEM_ID].valuePtr = &collisionEnabled;
-        game.debugMenu.menuItems[DebugMenu::FOLLOW_CAMERA_ITEM_ID].valuePtr = &followCamera;
-        game.debugMenu.menuItems[DebugMenu::MUTE_MUSIC_ITEM_ID].valuePtr =
-            &game.songPlayer.musicMuted;
-        game.debugMenu.menuItems[DebugMenu::DRAW_COLLISION_ITEM_ID].valuePtr = &collisionDrawn;
+        initTileset();
+        initUI();
+        initDebugMenu();
     }
 
     triggers.clear();
-    // staticObjects.clear();
 
     if (game.level.id == 0) { // TODO: load from level
         Trigger trigger;
@@ -198,20 +138,9 @@ void GameplayScene::start(StartReason reason)
         npc.setPosition({0.0, 0.0, -0.11});
         npc.rotation = {0.0, 0.1};
 
-        camera.position = {0.12, ToWorldCoords(1.5f), 0.81};
-        camera.rotation = {0.0, 1.0};
-
-        // debug
         camera.position = {0.2900, 0.4501, 0.5192};
         camera.rotation = {0.1621, -0.7753};
-        // freeCamera = true;
-        // followCamera = true;
 
-        // camera.position = {0.1318, 0.1899, 0.1994};
-        // camera.rotation = {0.0156, -0.8828};
-
-        // player.setPosition({-0.2033, 0.0000, 0.0827});
-        // player.setPosition({-0.5, 0.0, -0.11});
         followCamera = false;
     } else if (game.level.id == 1) {
         game.renderer.setFogEnabled(true);
@@ -229,12 +158,31 @@ void GameplayScene::start(StartReason reason)
     canTalk = false;
     canInteract = false;
     player.animator.setAnimation("Idle"_sh);
+}
 
+void GameplayScene::initUI()
+{
+    uiTexture = game.resourceCache.getResource<TextureInfo>(CATO_TEXTURE_HASH);
+
+    interactionDialogueBox.displayBorders = false;
+    interactionDialogueBox.textOffset.x = 48;
+    interactionDialogueBox.position.y = 180;
+    interactionDialogueBox.size.y = 32;
+    interactionDialogueBox.displayMoreTextArrow = false;
+}
+
+void GameplayScene::initDebugMenu()
+{
+    game.debugMenu.menuItems[DebugMenu::COLLISION_ITEM_ID].valuePtr = &collisionEnabled;
+    game.debugMenu.menuItems[DebugMenu::FOLLOW_CAMERA_ITEM_ID].valuePtr = &followCamera;
+    game.debugMenu.menuItems[DebugMenu::MUTE_MUSIC_ITEM_ID].valuePtr = &game.songPlayer.musicMuted;
+    game.debugMenu.menuItems[DebugMenu::DRAW_COLLISION_ITEM_ID].valuePtr = &collisionDrawn;
+}
+
+void GameplayScene::initTileset()
+{
     auto& tileset = tileMap.tileset;
     tileset.tiles.resize(255);
-
-    player.setPosition({-0.1093, 0.0000, -0.7329});
-    player.rotation = {0.0000, -0.9267};
 
     // crossing
     tileset.tiles[0] = TileInfo{
@@ -417,13 +365,12 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
         player.animator.setAnimation("Think"_sh);
     }
 
-    const auto playerTileIndex = getTileIndex(player.getPosition());
-
+    // handle walking sounds
     if (isMoving || isRotating) {
         if (player.animator.frameJustChanged()) {
             const auto animFrame = player.animator.getAnimationFrame();
-
-            // TODO: optimize
+            // TODO: write better code
+            const auto playerTileIndex = TileMap::getTileIndex(player.getPosition());
             const auto tileInfo = tileMap.getTile(playerTileIndex);
             bool onGrass = (tileInfo.tileId == 3);
 
@@ -474,18 +421,18 @@ void GameplayScene::processFreeCameraInput(const PadManager& pad)
 
     // yaw
     if (pad.isButtonPressed(psyqo::SimplePad::Left)) {
-        camera.rotation.y += psyqo::FixedPoint<10, std::int32_t>(rotateSpeed * dt);
+        camera.rotation.y += psyqo::Angle(rotateSpeed * dt);
     }
     if (pad.isButtonPressed(psyqo::SimplePad::Right)) {
-        camera.rotation.y -= psyqo::FixedPoint<10, std::int32_t>(rotateSpeed * dt);
+        camera.rotation.y -= psyqo::Angle(rotateSpeed * dt);
     }
 
     // pitch
     if (pad.isButtonPressed(psyqo::SimplePad::L2)) {
-        camera.rotation.x += psyqo::FixedPoint<10, std::int32_t>(rotateSpeed * dt * 0.6);
+        camera.rotation.x += psyqo::Angle(rotateSpeed * dt * 0.6);
     }
     if (pad.isButtonPressed(psyqo::SimplePad::R2)) {
-        camera.rotation.x -= psyqo::FixedPoint<10, std::int32_t>(rotateSpeed * dt * 0.6);
+        camera.rotation.x -= psyqo::Angle(rotateSpeed * dt * 0.6);
     }
 
     // go up/down
@@ -515,11 +462,6 @@ void GameplayScene::processDebugInput(const PadManager& pad)
 
     if (pad.wasButtonJustPressed(psyqo::SimplePad::Start)) {
         debugInfoDrawn = !debugInfoDrawn;
-    }
-
-    if (pad.wasButtonJustPressed(psyqo::SimplePad::Cross)) {
-        fadeFinished = false;
-        fadeLevel = 0;
     }
 
     if (pad.wasButtonJustPressed(psyqo::SimplePad::Triangle)) {
@@ -569,6 +511,7 @@ void GameplayScene::updateCamera()
         camera.rotation.x = cameraPitch;
         camera.rotation.y = player.rotation.y;
 
+        // for now set the camera at constant height so that the curbs feel better
 #ifdef NEW_CAM
         camera.position.y = 0.32;
 #else
@@ -651,7 +594,6 @@ void GameplayScene::update()
     npc.update();
 
     updateCamera();
-    calculateTileVisibility();
 
     if (gameState == GameState::Normal) {
         canTalk = circlesIntersect(player.interactionCircle, npc.interactionCircle);
@@ -724,7 +666,7 @@ void GameplayScene::updateLevelSwitch()
 
 void GameplayScene::handleFloorCollision()
 {
-    const auto playerTileIndex = getTileIndex(player.getPosition());
+    const auto playerTileIndex = TileMap::getTileIndex(player.getPosition());
     const auto tileInfo = tileMap.getTile(playerTileIndex);
 
     const auto tileId = tileInfo.tileId;
@@ -735,9 +677,8 @@ void GameplayScene::handleFloorCollision()
         player.transform.translation.y = 0.0;
     }
 
+    // on curb transition tile
     if (tileId == 5 || tileId == 6) {
-        // on transition tile
-
         psyqo::FixedPoint lerpF = 0.0;
         // 0.02 / 0.125 = 0.16 (16% of curb width is where we reach the max height)
         static constexpr auto curbMaxHeightPoint = 0.02;
@@ -747,13 +688,13 @@ void GameplayScene::handleFloorCollision()
         static constexpr auto curbMaxHeightPointScale = 50; // 1 / 0.02
 
         if (playerTileIndex.z > 0) {
-            lerpF = (psyqo::FixedPoint<>(playerTileIndex.z, 0) * TILE_SCALE + curbMaxHeightPoint -
+            lerpF = (psyqo::FixedPoint<>(playerTileIndex.z, 0) * Tile::SCALE + curbMaxHeightPoint -
                      player.transform.translation.z) *
                     curbMaxHeightPointScale;
         } else {
             lerpF =
                 (player.transform.translation.z -
-                 (psyqo::FixedPoint(playerTileIndex.z + 1, 0) * TILE_SCALE - curbMaxHeightPoint)) *
+                 (psyqo::FixedPoint(playerTileIndex.z + 1, 0) * Tile::SCALE - curbMaxHeightPoint)) *
                 curbMaxHeightPointScale;
         }
 
@@ -761,7 +702,7 @@ void GameplayScene::handleFloorCollision()
         static constexpr auto one = psyqo::FixedPoint<>(1.0);
         lerpF = eastl::clamp(lerpF, zero, one);
 
-        static constexpr auto roadHeight = psyqo::FixedPoint<>(-0.02);
+        static constexpr auto roadHeight = psyqo::FixedPoint<>(-0.02); // TODO: get from tile info
         player.transform.translation.y = lerp(roadHeight, 0.0, lerpF);
     }
 }
@@ -817,93 +758,6 @@ collidedWithSomething:
 
     // Restore the old position (velocity will be applied later)
     player.setPosition(oldPos);
-}
-
-void GameplayScene::calculateTileVisibility()
-{
-    auto fov = psyqo::Angle(0.27);
-    auto viewDistSide = psyqo::FixedPoint(3.5);
-
-    // auto origin = player.getPosition();
-    static psyqo::Vec3 origin;
-    static auto yaw = camera.rotation.y;
-
-    // ramsyscall_printf("yaw: %d\n", yaw.value);
-    /* yaw.value = 1801;
-    if (!freeCamera) {
-        player.rotation.y.value = 1801;
-    } */
-
-#if 1
-
-    // test
-    // origin = {1.0905, 0.4199, 0.6447};
-
-    // static psyqo::Angle testYaw = 1.3701;
-    // testYaw += 0.005;
-    // yaw = testYaw;
-
-    // testYaw.value = 1678;
-
-#endif
-    const auto front = psyqo::Vec3{
-        .x = game.trig.sin(camera.rotation.y),
-        .y = 0.0,
-        .z = game.trig.cos(camera.rotation.y),
-    };
-    if (!freeCamera || true) {
-        origin = camera.position - front * 0.1;
-        yaw = camera.rotation.y;
-        // ramsyscall_printf("yaw: %d\n", yaw.value);
-    }
-
-    if (camera.rotation.x > 0.15) {
-        // TODO: hande better - probably need to calculate based on pitch somehow
-        origin = camera.position - front * 0.5;
-        viewDistSide = psyqo::FixedPoint(4.0);
-    }
-
-    // yaw.value = 1924;
-    // yaw.value = 1483;
-    //  player.rotation.y = yaw;
-
-    auto frustumLeft = origin + psyqo::Vec3{
-                                    .x = viewDistSide * game.trig.sin(yaw - fov),
-                                    .y = 0,
-                                    .z = viewDistSide * game.trig.cos(yaw - fov)};
-    auto frustumRight = origin + psyqo::Vec3{
-                                     .x = viewDistSide * game.trig.sin(yaw + fov),
-                                     .y = 0,
-                                     .z = viewDistSide * game.trig.cos(yaw + fov)};
-
-    const auto minX = eastl::min({origin.x, frustumLeft.x, frustumRight.x});
-    const auto minZ = eastl::min({origin.z, frustumLeft.z, frustumRight.z});
-    const auto maxX = eastl::max({origin.x, frustumLeft.x, frustumRight.x});
-    const auto maxZ = eastl::max({origin.z, frustumLeft.z, frustumRight.z});
-
-    minTileX = (minX * TILE_SIZE).floor();
-    minTileZ = (minZ * TILE_SIZE).floor();
-    maxTileX = (maxX * TILE_SIZE).ceil();
-    maxTileZ = (maxZ * TILE_SIZE).ceil();
-
-    const auto originTileX = (origin.x * TILE_SIZE).floor();
-    const auto originTileZ = (origin.z * TILE_SIZE).floor();
-
-    const auto pLeftTileX = (frustumLeft.x * TILE_SIZE).floor();
-    const auto pLeftTiLeZ = (frustumLeft.z * TILE_SIZE).floor();
-
-    const auto pRightTileX = (frustumRight.x * TILE_SIZE).floor();
-    const auto pRightTileZ = (frustumRight.z * TILE_SIZE).floor();
-
-    tileSeen.reset();
-
-    rasterizeTriangle(
-        maxTileZ - originTileZ,
-        maxTileX - originTileX,
-        maxTileZ - pLeftTiLeZ,
-        maxTileX - pLeftTileX,
-        maxTileZ - pRightTileZ,
-        maxTileX - pRightTileX);
 }
 
 void GameplayScene::draw(Renderer& renderer)
@@ -982,32 +836,27 @@ void GameplayScene::draw(Renderer& renderer)
 #endif
 
     if (game.renderer.isFogEnabled()) {
-        {
-            auto& maskBit = primBuffer.allocateFragment<psyqo::Prim::MaskControl>(
-                psyqo::Prim::MaskControl::Set::ForceSet, psyqo::Prim::MaskControl::Test::No);
-            gp.chain(maskBit);
-        }
+        auto& maskBit = primBuffer.allocateFragment<psyqo::Prim::MaskControl>(
+            psyqo::Prim::MaskControl::Set::ForceSet, psyqo::Prim::MaskControl::Test::No);
+        gp.chain(maskBit);
 
-        {
-            auto fogColor = game.renderer.getFogColor();
+        const auto fogColor = game.renderer.getFogColor();
+        auto& quadFrag = primBuffer.allocateFragment<psyqo::Prim::GouraudQuad>();
+        auto& q = quadFrag.primitive;
+        q.pointA.x = 0;
+        q.pointA.y = 0;
+        q.pointB.x = SCREEN_WIDTH;
+        q.pointB.y = 0;
+        q.pointC.x = 0;
+        q.pointC.y = SCREEN_HEIGHT;
+        q.pointD.x = SCREEN_WIDTH;
+        q.pointD.y = SCREEN_HEIGHT;
+        q.setColorA(fogColor);
+        q.colorB = fogColor;
+        q.colorC = fogColor;
+        q.colorD = fogColor;
 
-            auto& quadFrag = primBuffer.allocateFragment<psyqo::Prim::GouraudQuad>();
-            auto& q = quadFrag.primitive;
-            q.pointA.x = 0;
-            q.pointA.y = 0;
-            q.pointB.x = SCREEN_WIDTH;
-            q.pointB.y = 0;
-            q.pointC.x = 0;
-            q.pointC.y = SCREEN_HEIGHT;
-            q.pointD.x = SCREEN_WIDTH;
-            q.pointD.y = SCREEN_HEIGHT;
-            q.setColorA(fogColor);
-            q.colorB = fogColor;
-            q.colorC = fogColor;
-            q.colorD = fogColor;
-
-            gp.chain(quadFrag);
-        }
+        gp.chain(quadFrag);
     }
 
     {
@@ -1026,10 +875,10 @@ void GameplayScene::draw(Renderer& renderer)
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
 
     if (game.level.id == 1) {
-        drawTiles(renderer);
+        renderer.drawTiles(game.level.modelData, tileMap, camera);
     }
 
-    gp.pumpCallbacks(); // tile drawing takes a lot of time
+    gp.pumpCallbacks();
 
     // draw static objects
     for (auto& staticObject : game.level.staticObjects) {
@@ -1048,7 +897,7 @@ void GameplayScene::draw(Renderer& renderer)
 
     gp.chain(ot);
 
-    if (fadeLevel != 0) {
+    if (fadeLevel != 0) { // draw fade in/out
         auto& gpu = renderer.getGPU();
 
         auto& tpage = primBuffer.allocateFragment<psyqo::Prim::TPage>();
@@ -1108,39 +957,6 @@ void GameplayScene::draw(Renderer& renderer)
     }
 
     game.debugMenu.draw(renderer);
-}
-
-void GameplayScene::drawTiles(Renderer& renderer)
-{
-    numTilesDrawn = 0;
-
-    // all translation is handled by us moving tiles into camera space manually
-    static constexpr psyqo::Vec3 v{};
-    psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Translation>(v);
-
-    const auto& modelData = game.level.modelData;
-
-    bool fogEnabled = renderer.isFogEnabled();
-    for (int16_t z = minTileZ; z <= maxTileZ; ++z) {
-        for (int16_t x = minTileX; x <= maxTileX; ++x) {
-            const int xrel = maxTileX - x;
-            const int zrel = maxTileZ - z;
-            if (xrel >= 0 && xrel < MAX_TILES_DIM && zrel >= 0 && zrel < MAX_TILES_DIM &&
-                tileSeen[xrel * MAX_TILES_DIM + zrel] == 1) {
-                const auto tileIndex = TileIndex{x, z};
-                const auto tile = tileMap.getTile(tileIndex);
-                if (tile.tileId == Tile::NULL_TILE_ID && tile.tileId == Tile::NULL_MODEL_ID) {
-                    continue;
-                }
-                if (fogEnabled) {
-                    renderer.drawTileFog(tileIndex, tile, tileMap.tileset, modelData, camera);
-                } else {
-                    renderer.drawTile(tileIndex, tile, tileMap.tileset, modelData, camera);
-                }
-                ++numTilesDrawn;
-            }
-        }
-    }
 }
 
 void GameplayScene::drawDebugInfo(Renderer& renderer)
@@ -1203,7 +1019,7 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
             return "";
         }();
 
-        const auto playerTileIndex = getTileIndex(player.getPosition());
+        const auto playerTileIndex = TileMap::getTileIndex(player.getPosition());
 
         game.romFont.chainprintf(
             game.gpu(),
@@ -1243,7 +1059,7 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
             textCol,
             "pb used: %d, tiles drawn: %d",
             (int)renderer.getPrimBuffer().used(),
-            numTilesDrawn);
+            renderer.numTilesDrawn);
 
         game.romFont.chainprintf(
             game.gpu(),

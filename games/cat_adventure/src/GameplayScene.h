@@ -23,6 +23,9 @@ public:
 
 private:
     void start(StartReason reason) override;
+    void initTileset();
+    void initUI();
+    void initDebugMenu();
 
     void frame() override;
 
@@ -39,7 +42,6 @@ private:
     void calculateTileVisibility();
 
     void draw(Renderer& renderer);
-    void drawTiles(Renderer& renderer);
 
     void drawDebugInfo(Renderer& renderer);
     void dumpDebugInfoToTTY();
@@ -94,13 +96,7 @@ private:
     int destinationLevelId = 0;
 
     bool collisionEnabled{true};
-
     bool cutscene{false};
-
-    int numTilesDrawn{0};
-
-    int minTileX, maxTileX;
-    int minTileZ, maxTileZ;
 
     TileMap tileMap;
 

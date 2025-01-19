@@ -3,6 +3,7 @@
 #define PSYQO_RELEASE
 
 #include <EASTL/array.h>
+#include <EASTL/bitset.h>
 
 #include <psyqo/bump-allocator.h>
 #include <psyqo/gpu.hh>
@@ -25,6 +26,7 @@ struct TimFile;
 struct TileIndex;
 struct Tile;
 struct Tileset;
+struct TileMap;
 
 class Renderer {
 public:
@@ -55,6 +57,8 @@ public:
     void drawMeshStatic(const Mesh& mesh);
 
     void drawQuadSubdiv(const psyqo::Prim::GouraudTexturedQuad& quad2d, int avgZ, int addBias);
+
+    void drawTiles(const ModelData& tileModels, const TileMap& tileMap, const Camera& camera);
 
     void drawTileFog(
         TileIndex tileIndex,
@@ -149,8 +153,14 @@ public:
 
     psyqo::Color fogColor = psyqo::Color{.r = 108, .g = 100, .b = 116};
 
+    int numTilesDrawn{0};
+
+    // size of the tile visibility bitfield (MAX_TILES_DIM * MAX_TILES_DIM)
+    static constexpr auto MAX_TILES_DIM = 32;
+
 private:
     bool shouldCullObject(const Object& object, const Camera& camera) const;
+    void calculateTileVisibility(const Camera& camera);
 
     psyqo::GPU& gpu;
     psyqo::Trig<> trig;
@@ -175,4 +185,12 @@ private:
     int16_t minSY;
     int16_t maxSX;
     int16_t maxSY;
+
+    // min/max tile visible in the current frame
+    int minTileX, maxTileX;
+    int minTileZ, maxTileZ;
+
+    // Tiles which can be seen by the camera
+    // Stored in relative coordinates to the minimum point of frustum's AABB in XZ plane
+    eastl::bitset<MAX_TILES_DIM * MAX_TILES_DIM> tileSeen;
 };

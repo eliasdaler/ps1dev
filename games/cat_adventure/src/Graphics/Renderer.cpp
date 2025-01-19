@@ -17,8 +17,6 @@
 
 #include "Subdivision.h"
 
-static constexpr psyqo::FixedPoint tileScale = 0.125; // 1 / TILE_SIZE
-
 static constexpr auto textureNeutral = psyqo::Color{.r = 128, .g = 128, .b = 128};
 static constexpr auto floorBias = 500;
 
@@ -32,7 +30,7 @@ int16_t getAddBias(const T& prim)
 
 static constexpr psyqo::FixedPoint<> toWorldCoords(std::uint16_t idx)
 {
-    // only for TILE_SIZE == 8!!!
+    // only for Tile::SIZE == 8!!!
     // 12 - 3 == 9 (same as doing psyqo::FixedPoint<>(idx, 0) * tileScale
     return psyqo::FixedPoint<>(idx << 9, psyqo::FixedPoint<>::RAW);
 }
@@ -63,6 +61,44 @@ psyqo::Color interpColorBack(psyqo::Color input, uint32_t p)
     psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(input.packed);
     psyqo::GTE::Kernels::dpcs();
     return {.packed = psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2>()};
+}
+
+/* Adopted from https://fgiesen.wordpress.com/2013/02/08/triangle-rasterization-in-practice/ */
+int orient2d(int ax, int ay, int bx, int by, int cx, int cy)
+{
+    return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+}
+
+void rasterizeTriangle(
+    eastl::bitset<Renderer::MAX_TILES_DIM * Renderer::MAX_TILES_DIM>& tileSeen,
+    int x1,
+    int y1,
+    int x2,
+    int y2,
+    int x3,
+    int y3)
+{
+    int minX = eastl::min({x1, x2, x3});
+    int maxX = eastl::max({x1, x2, x3});
+    int minY = eastl::min({y1, y2, y3});
+    int maxY = eastl::max({y1, y2, y3});
+
+    minX = eastl::max(0, minX);
+    maxX = eastl::min(Renderer::MAX_TILES_DIM - 1, maxX);
+    minY = eastl::max(0, minY);
+    maxY = eastl::min(Renderer::MAX_TILES_DIM - 1, maxY);
+
+    for (int y = minY; y <= maxY; ++y) {
+        for (int x = minX; x <= maxX; ++x) {
+            int w0 = orient2d(x2, y2, x3, y3, x, y);
+            int w1 = orient2d(x3, y3, x1, y1, x, y);
+            int w2 = orient2d(x1, y1, x2, y2, x, y);
+
+            if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
+                tileSeen[y * Renderer::MAX_TILES_DIM + x] = 1;
+            }
+        }
+    }
 }
 
 }
@@ -998,6 +1034,99 @@ void Renderer::drawMeshStatic(const Mesh& mesh)
     }
 }
 
+void Renderer::calculateTileVisibility(const Camera& camera)
+{
+    const auto front = psyqo::Vec3{
+        .x = trig.sin(camera.rotation.y),
+        .y = 0.0,
+        .z = trig.cos(camera.rotation.y),
+    };
+
+    const auto fov = psyqo::Angle(0.27);
+    auto viewDistSide = psyqo::FixedPoint(3.5);
+
+    const auto yaw = camera.rotation.y;
+    psyqo::Vec3 origin = camera.position - front * 0.1;
+
+    if (camera.rotation.x > 0.15) {
+        // TODO: hande better - probably need to calculate based on pitch somehow
+        origin = camera.position - front * 0.5;
+        viewDistSide = psyqo::FixedPoint(4.0);
+    }
+
+    auto frustumLeft = origin + psyqo::Vec3{
+                                    .x = viewDistSide * trig.sin(yaw - fov),
+                                    .y = 0,
+                                    .z = viewDistSide * trig.cos(yaw - fov)};
+    auto frustumRight = origin + psyqo::Vec3{
+                                     .x = viewDistSide * trig.sin(yaw + fov),
+                                     .y = 0,
+                                     .z = viewDistSide * trig.cos(yaw + fov)};
+
+    const auto minX = eastl::min({origin.x, frustumLeft.x, frustumRight.x});
+    const auto minZ = eastl::min({origin.z, frustumLeft.z, frustumRight.z});
+    const auto maxX = eastl::max({origin.x, frustumLeft.x, frustumRight.x});
+    const auto maxZ = eastl::max({origin.z, frustumLeft.z, frustumRight.z});
+
+    minTileX = (minX * Tile::SIZE).floor();
+    minTileZ = (minZ * Tile::SIZE).floor();
+    maxTileX = (maxX * Tile::SIZE).ceil();
+    maxTileZ = (maxZ * Tile::SIZE).ceil();
+
+    const auto originTileX = (origin.x * Tile::SIZE).floor();
+    const auto originTileZ = (origin.z * Tile::SIZE).floor();
+
+    const auto pLeftTileX = (frustumLeft.x * Tile::SIZE).floor();
+    const auto pLeftTiLeZ = (frustumLeft.z * Tile::SIZE).floor();
+
+    const auto pRightTileX = (frustumRight.x * Tile::SIZE).floor();
+    const auto pRightTileZ = (frustumRight.z * Tile::SIZE).floor();
+
+    tileSeen.reset();
+
+    rasterizeTriangle(
+        tileSeen,
+        maxTileZ - originTileZ,
+        maxTileX - originTileX,
+        maxTileZ - pLeftTiLeZ,
+        maxTileX - pLeftTileX,
+        maxTileZ - pRightTileZ,
+        maxTileX - pRightTileX);
+}
+
+void Renderer::drawTiles(const ModelData& tileModels, const TileMap& tileMap, const Camera& camera)
+{
+    calculateTileVisibility(camera);
+
+    numTilesDrawn = 0;
+
+    // all translation is handled by us moving tiles into camera space manually
+    static constexpr psyqo::Vec3 v{};
+    psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Translation>(v);
+
+    const auto fog = fogEnabled;
+    for (int16_t z = minTileZ; z <= maxTileZ; ++z) {
+        for (int16_t x = minTileX; x <= maxTileX; ++x) {
+            const int xrel = maxTileX - x;
+            const int zrel = maxTileZ - z;
+            if (xrel >= 0 && xrel < MAX_TILES_DIM && zrel >= 0 && zrel < MAX_TILES_DIM &&
+                tileSeen[xrel * MAX_TILES_DIM + zrel] == 1) {
+                const auto tileIndex = TileIndex{x, z};
+                const auto tile = tileMap.getTile(tileIndex);
+                if (tile.tileId == Tile::NULL_TILE_ID && tile.tileId == Tile::NULL_MODEL_ID) {
+                    continue;
+                }
+                if (fog) {
+                    drawTileFog(tileIndex, tile, tileMap.tileset, tileModels, camera);
+                } else {
+                    drawTile(tileIndex, tile, tileMap.tileset, tileModels, camera);
+                }
+                ++numTilesDrawn;
+            }
+        }
+    }
+}
+
 void Renderer::drawTileFog(
     TileIndex tileIndex,
     const Tile& tile,
@@ -1297,10 +1426,10 @@ void Renderer::drawTileMeshFog(
     const auto tileHeight = psyqo::FixedPoint<>(tileInfo.height);
 
     const auto originX =
-        psyqo::GTE::Short(psyqo::FixedPoint<>(x, 0) * tileScale - camera.position.x);
+        psyqo::GTE::Short(psyqo::FixedPoint<>(x, 0) * Tile::SCALE - camera.position.x);
     const auto originY = psyqo::GTE::Short(tileHeight - camera.position.y);
     const auto originZ =
-        psyqo::GTE::Short(psyqo::FixedPoint<>(z, 0) * tileScale - camera.position.z);
+        psyqo::GTE::Short(psyqo::FixedPoint<>(z, 0) * Tile::SCALE - camera.position.z);
 
     // FIXME: draw gt3s too!
 
@@ -1440,10 +1569,10 @@ void Renderer::drawTileMesh(
     const auto tileHeight = psyqo::FixedPoint<>(tileInfo.height);
 
     const auto originX =
-        psyqo::GTE::Short(psyqo::FixedPoint<>(x, 0) * tileScale - camera.position.x);
+        psyqo::GTE::Short(psyqo::FixedPoint<>(x, 0) * Tile::SCALE - camera.position.x);
     const auto originY = psyqo::GTE::Short(tileHeight - camera.position.y);
     const auto originZ =
-        psyqo::GTE::Short(psyqo::FixedPoint<>(z, 0) * tileScale - camera.position.z);
+        psyqo::GTE::Short(psyqo::FixedPoint<>(z, 0) * Tile::SCALE - camera.position.z);
 
     // FIXME: draw gt3s too!
 
