@@ -233,6 +233,9 @@ void GameplayScene::start(StartReason reason)
     auto& tileset = tileMap.tileset;
     tileset.tiles.resize(255);
 
+    player.setPosition({-0.1093, 0.0000, -0.7329});
+    player.rotation = {0.0000, -0.9267};
+
     // crossing
     tileset.tiles[0] = TileInfo{
         .u0 = 32,
