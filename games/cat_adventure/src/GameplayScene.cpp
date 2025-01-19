@@ -230,16 +230,6 @@ void GameplayScene::start(StartReason reason)
     canInteract = false;
     player.animator.setAnimation("Idle"_sh);
 
-    // tile cull test
-    /*
-    freeCamera = true;
-    camera.position = {2.2587, 3.1545, 1.1418};
-    camera.rotation = {0.3007, 1.3701};
-    game.renderer.setFogNearFar(0.8, 50.125);
-    debugInfoDrawn = true;
-    */
-
-    // pcsxRegisterSomeLocal();
     auto& tileset = tileMap.tileset;
     tileset.tiles.resize(255);
 
@@ -249,6 +239,7 @@ void GameplayScene::start(StartReason reason)
         .v0 = 32,
         .u1 = 63,
         .v1 = 63,
+        .height = -0.02,
     };
 
     // road with stripe
@@ -257,6 +248,7 @@ void GameplayScene::start(StartReason reason)
         .v0 = 0,
         .u1 = 63,
         .v1 = 31,
+        .height = -0.02,
     };
 
     // road
@@ -265,6 +257,7 @@ void GameplayScene::start(StartReason reason)
         .v0 = 0,
         .u1 = 31,
         .v1 = 31,
+        .height = -0.02,
     };
 
     // grass
@@ -286,9 +279,6 @@ void GameplayScene::start(StartReason reason)
 
 void GameplayScene::frame()
 {
-    // ramsyscall_printf("someLocal: %x, %d\n", &someLocal, (int)someLocal);
-    // game.renderer.setFogColor(game.fogColor);
-
     game.handleDeltas();
 
     fpsCounter.update(game.gpu());
@@ -539,11 +529,6 @@ void GameplayScene::processDebugInput(const PadManager& pad)
             player.animator.setAnimation("Idle"_sh);
             cutscene = false;
         }
-    }
-
-    if (pad.wasButtonJustPressed(psyqo::SimplePad::Circle)) {
-        // switchLevel(1);
-        fadeLevel++;
     }
 }
 
@@ -1132,6 +1117,7 @@ void GameplayScene::drawTiles(Renderer& renderer)
 
     const auto& modelData = game.level.modelData;
 
+    bool fogEnabled = renderer.isFogEnabled();
     for (int16_t z = minTileZ; z <= maxTileZ; ++z) {
         for (int16_t x = minTileX; x <= maxTileX; ++x) {
             const int xrel = maxTileX - x;
@@ -1140,7 +1126,10 @@ void GameplayScene::drawTiles(Renderer& renderer)
                 tileSeen[xrel * MAX_TILES_DIM + zrel] == 1) {
                 const auto tileIndex = TileIndex{x, z};
                 const auto tile = tileMap.getTile(tileIndex);
-                if (renderer.isFogEnabled()) {
+                if (tile.tileId == Tile::NULL_TILE_ID && tile.tileId == Tile::NULL_MODEL_ID) {
+                    continue;
+                }
+                if (fogEnabled) {
                     renderer.drawTileFog(tileIndex, tile, tileMap.tileset, modelData, camera);
                 } else {
                     renderer.drawTile(tileIndex, tile, tileMap.tileset, modelData, camera);
@@ -1196,18 +1185,6 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
         }
     }
 
-    /* {
-        static const psyqo::Color textCol = {{.r = 255, .g = 255, .b = 255}};
-        game.romFont.chainprintf(
-            game.gpu(),
-            {{.x = 16, .y = 32}},
-            textCol,
-            "pb used: %d, tiles drawn: %d",
-            (int)renderer.getPrimBuffer().used(),
-            numTilesDrawn);
-    }
-    return; */
-
     if (!game.debugMenu.open) {
         static const psyqo::Color textCol = {{.r = 255, .g = 255, .b = 255}};
 
@@ -1250,32 +1227,6 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
             psyqo::FixedPoint<>(player.rotation.x),
             psyqo::FixedPoint<>(player.rotation.y)); */
 
-        /* game.romFont.chainprintf(
-            game.gpu(),
-            {{.x = 16, .y = 64}},
-            textCol,
-            "%d, anim=%s",
-            animIndex,
-            player.animator.currentAnimation->name.getStr()); */
-
-        /* game.romFont.chainprintf(
-            game.gpu(),
-            {{.x = 16, .y = 80}},
-            textCol,
-            "q = (%.3f, %.3f, %.3f, %.3f)",
-            psyqo::FixedPoint<>(rot.w),
-            psyqo::FixedPoint<>(rot.x),
-            psyqo::FixedPoint<>(rot.y),
-            psyqo::FixedPoint<>(rot.z)); */
-
-        /* game.romFont.chainprintf(
-            game.gpu(),
-            {{.x = 16, .y = 80}},
-            textCol,
-            "t = (%.3f), f = %d",
-            player.animator.normalizedAnimTime,
-            player.animator.getAnimationFrame()); */
-
         game.romFont.chainprintf(
             game.gpu(),
             {{.x = 16, .y = 64}},
@@ -1290,33 +1241,6 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
             "pb used: %d, tiles drawn: %d",
             (int)renderer.getPrimBuffer().used(),
             numTilesDrawn);
-
-        if (!freeCamera) {
-            /* game.romFont.chainprintf(
-                game.gpu(),
-                {{.x = 16, .y = 64}},
-                textCol,
-                "bpm=%d, t=%d, reverb = %d",
-                (int)game.songPlayer.bpm,
-                (int)game.songPlayer.musicTime,
-                (int)SoundPlayer::reverbEnabled); */
-        }
-        /* if (!freeCamera) {
-            game.romFont.chainprintf(
-                game.gpu(),
-                {{.x = 16, .y = 64}},
-                textCol,
-                "%d, %d",
-                game.levelModelFast.meshes[0].numTris,
-                game.levelModelFast.meshes[0].numQuads);
-        } */
-
-        /* game.romFont.chainprintf(
-            game.gpu(),
-            {{.x = 16, .y = 64}},
-            textCol,
-            "%.2f",
-            psyqo::FixedPoint<>(player.animator.normalizedAnimTime)); */
 
         game.romFont.chainprintf(
             game.gpu(),

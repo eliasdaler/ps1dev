@@ -18,6 +18,7 @@
 #include "Subdivision.h"
 
 static constexpr psyqo::FixedPoint tileScale = 0.125; // 1 / TILE_SIZE
+
 static constexpr auto textureNeutral = psyqo::Color{.r = 128, .g = 128, .b = 128};
 static constexpr auto floorBias = 500;
 
@@ -27,6 +28,13 @@ template<psyqo::Primitive T>
 int16_t getAddBias(const T& prim)
 {
     return prim.uvC.user;
+}
+
+static constexpr psyqo::FixedPoint<> toWorldCoords(std::uint16_t idx)
+{
+    // only for TILE_SIZE == 8!!!
+    // 12 - 3 == 9 (same as doing psyqo::FixedPoint<>(idx, 0) * tileScale
+    return psyqo::FixedPoint<>(idx << 9, psyqo::FixedPoint<>::RAW);
 }
 
 // Interpolate color immediately after doing rtps (IR0 has "p" in it already)
@@ -333,16 +341,10 @@ void Renderer::drawMeshFog(const MeshData& meshData)
     const auto& verts = meshData.vertices;
 
     uint32_t pa = 0;
-    for (std::size_t i = 0; i < gt3s.size(); ++i) {
+    const auto gt3ss = gt3s.size();
+    for (std::size_t i = 0; i < gt3ss; ++i) {
         auto& triFrag = primBuffer.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
         auto& triT = triFrag.primitive;
-
-        const auto& prim = gt3s[i];
-        triT.tpage = prim.tpage;
-        triT.clutIndex = prim.clutIndex;
-        triT.uvA = prim.uvA;
-        triT.uvB = prim.uvB;
-        triT.uvC = prim.uvC;
 
         const auto& v0 = verts[gt3Offset + i * 3 + 0];
         const auto& v1 = verts[gt3Offset + i * 3 + 1];
@@ -350,16 +352,31 @@ void Renderer::drawMeshFog(const MeshData& meshData)
 
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
         psyqo::GTE::Kernels::rtps();
+
+        // do while rtps
+        const auto& prim = gt3s[i];
+        triT.tpage = prim.tpage;
+
         pa = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
         triT.setColorA(interpColorImm(prim.getColorA()));
 
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
         psyqo::GTE::Kernels::rtps();
+
+        // do while rtps
+        triT.clutIndex = prim.clutIndex;
+        triT.uvA = prim.uvA;
+
         const auto p1 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
         triT.colorB = interpColorImm(prim.colorB);
 
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v2.pos);
         psyqo::GTE::Kernels::rtps();
+
+        // do while rtps
+        triT.uvB = prim.uvB;
+        triT.uvC = prim.uvC;
+
         const auto p2 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
         triT.colorC = interpColorImm(prim.colorC);
 
@@ -404,7 +421,8 @@ void Renderer::drawMeshFog(const MeshData& meshData)
         maxSY = eastl::max({maxSY, triT.pointA.y, triT.pointB.y, triT.pointC.y});
     }
 
-    for (std::size_t i = 0; i < gt4s.size(); ++i) {
+    const auto gt4ss = gt4s.size();
+    for (std::size_t i = 0; i < gt4ss; ++i) {
         const auto& v0 = verts[gt4Offset + i * 4 + 0];
         const auto& v1 = verts[gt4Offset + i * 4 + 1];
         const auto& v2 = verts[gt4Offset + i * 4 + 2];
@@ -413,31 +431,38 @@ void Renderer::drawMeshFog(const MeshData& meshData)
         auto& quadFrag = primBuffer.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
         auto& quadT = quadFrag.primitive;
 
-        const auto& prim = gt4s[i];
-        quadT.tpage = prim.tpage;
-        quadT.clutIndex = prim.clutIndex;
-        quadT.uvA = prim.uvA;
-        quadT.uvB = prim.uvB;
-        quadT.uvC = prim.uvC;
-        quadT.uvD = prim.uvD;
-
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
         psyqo::GTE::Kernels::rtps();
+
+        // do while rtps
+        const auto& prim = gt4s[i];
+        quadT.tpage = prim.tpage;
+
         pa = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
         quadT.setColorA(interpColorImm(prim.getColorA()));
 
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v1.pos);
         psyqo::GTE::Kernels::rtps();
+
+        // do while rtps
+        quadT.clutIndex = prim.clutIndex;
+        quadT.uvA = prim.uvA;
+        quadT.uvB = prim.uvB;
+
         quadT.colorB = interpColorImm(prim.colorB);
 
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v2.pos);
         psyqo::GTE::Kernels::rtps();
+
+        // do while rtps
+        quadT.uvC = prim.uvC;
+        quadT.uvD = prim.uvD;
+
         quadT.colorC = interpColorImm(prim.colorC);
 
-        // load additional bias stored in padding
+        psyqo::GTE::Kernels::nclip();
         const auto addBias = getAddBias(prim);
 
-        psyqo::GTE::Kernels::nclip();
         const auto dot =
             (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
         if (dot < 0) {
@@ -450,9 +475,8 @@ void Renderer::drawMeshFog(const MeshData& meshData)
 
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v3.pos);
         psyqo::GTE::Kernels::rtps();
-        if (fogEnabled) {
-            quadT.colorD = interpColorImm(prim.colorD);
-        }
+
+        quadT.colorD = interpColorImm(prim.colorD);
 
         psyqo::GTE::Kernels::avsz4();
 
@@ -477,6 +501,7 @@ void Renderer::drawMeshFog(const MeshData& meshData)
             minAvgZ = (uint32_t)avgZ;
             minAvgP = pa;
         }
+
         minSX = eastl::min({minSX, quadT.pointA.x, quadT.pointB.x, quadT.pointC.x, quadT.pointD.x});
         maxSX = eastl::max({maxSX, quadT.pointA.x, quadT.pointB.x, quadT.pointC.x, quadT.pointD.x});
         minSY = eastl::min({minSY, quadT.pointA.y, quadT.pointB.y, quadT.pointC.y, quadT.pointD.y});
@@ -636,7 +661,8 @@ void Renderer::drawMeshStaticFog(const Mesh& mesh)
 
     const auto& verts = meshData.vertices;
 
-    for (std::size_t i = 0; i < gt3s.size(); ++i) {
+    const auto gt3ss = gt3s.size();
+    for (std::size_t i = 0; i < gt3ss; ++i) {
         auto& triFragT = primBuffer.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
         auto& triT = triFragT.primitive;
         triT.setSemiTrans();
@@ -719,7 +745,8 @@ void Renderer::drawMeshStaticFog(const Mesh& mesh)
         ot.insert(triFragFog, avgZ);
     }
 
-    for (std::size_t i = 0; i < gt4s.size(); ++i) {
+    const auto gt4ss = gt4s.size();
+    for (std::size_t i = 0; i < gt4ss; ++i) {
         const auto& v0 = verts[gt4Offset + i * 4 + 0];
         const auto& v1 = verts[gt4Offset + i * 4 + 1];
         const auto& v2 = verts[gt4Offset + i * 4 + 2];
@@ -759,9 +786,8 @@ void Renderer::drawMeshStaticFog(const Mesh& mesh)
         uint32_t pc = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
 
         psyqo::GTE::Kernels::nclip();
-
-        // load additional bias stored in padding
         const auto addBias = getAddBias(prim);
+
         const auto dot =
             (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
         if (dot < 0) {
@@ -801,6 +827,7 @@ void Renderer::drawMeshStaticFog(const Mesh& mesh)
 
         auto& quadFragFog = primBuffer.allocateFragment<psyqo::Prim::GouraudQuad>();
         auto& quadFog = quadFragFog.primitive;
+
         quadFog.setColorA(interpColorBack(fogColor, pa));
         quadFog.colorB = interpColorBack(fogColor, pb);
         quadFog.colorC = interpColorBack(fogColor, pc);
@@ -981,54 +1008,53 @@ void Renderer::drawTileFog(
     auto& ot = getOrderingTable();
     auto& primBuffer = getPrimBuffer();
 
-    const auto tileId = tile.tileId;
     const auto modelId = tile.modelId;
 
-    if (modelId != 0xFF) { // "model" tiles
-        drawTileMeshFog(tileIndex, tile, prefabs.meshes[modelId], camera);
+    if (modelId != Tile::NULL_MODEL_ID) { // "model" tiles
+        drawTileMeshFog(tileIndex, tile, tileset, prefabs.meshes[modelId], camera);
         return;
     }
 
     const int x = tileIndex.x;
     const int z = tileIndex.z;
 
-    // TODO: store in tileInfo
-    const auto tileHeight = (tileId != 0 && tileId != 1 && tileId != 2) ?
-                                psyqo::FixedPoint<>(0.0) :
-                                psyqo::FixedPoint<>(-0.02);
+    const auto tileId = tile.tileId;
+    const auto& tileInfo = tileset.getTileInfo(tileId);
+    const auto tileHeight = psyqo::FixedPoint<>(tileInfo.height);
 
     const auto v0 = Vec3Pad{
         .pos =
             psyqo::GTE::PackedVec3{
-                psyqo::GTE::Short(psyqo::FixedPoint<>(x, 0) * tileScale - camera.position.x),
+                psyqo::GTE::Short(toWorldCoords(x) - camera.position.x),
                 psyqo::GTE::Short(tileHeight - camera.position.y),
-                psyqo::GTE::Short(psyqo::FixedPoint<>(z, 0) * tileScale - camera.position.z),
+                psyqo::GTE::Short(toWorldCoords(z) - camera.position.z),
             },
     };
 
     const auto v1 = Vec3Pad{
         .pos =
             psyqo::GTE::PackedVec3{
-                psyqo::GTE::Short(psyqo::FixedPoint<>(x + 1, 0) * tileScale - camera.position.x),
+                psyqo::GTE::Short(toWorldCoords(x + 1) - camera.position.x),
                 psyqo::GTE::Short(tileHeight - camera.position.y),
-                psyqo::GTE::Short(psyqo::FixedPoint<>(z, 0) * tileScale - camera.position.z)},
+                psyqo::GTE::Short(toWorldCoords(z) - camera.position.z),
+            },
     };
 
     const auto v2 = Vec3Pad{
         .pos =
             psyqo::GTE::PackedVec3{
-                psyqo::GTE::Short(psyqo::FixedPoint<>(x, 0) * tileScale - camera.position.x),
+                psyqo::GTE::Short(toWorldCoords(x) - camera.position.x),
                 psyqo::GTE::Short(tileHeight - camera.position.y),
-                psyqo::GTE::Short(psyqo::FixedPoint<>(z + 1, 0) * tileScale - camera.position.z),
+                psyqo::GTE::Short(toWorldCoords(z + 1) - camera.position.z),
             },
     };
 
     const auto v3 = Vec3Pad{
         .pos =
             psyqo::GTE::PackedVec3{
-                psyqo::GTE::Short(psyqo::FixedPoint<>(x + 1, 0) * tileScale - camera.position.x),
+                psyqo::GTE::Short(toWorldCoords(x + 1) - camera.position.x),
                 psyqo::GTE::Short(tileHeight - camera.position.y),
-                psyqo::GTE::Short(psyqo::FixedPoint<>(z + 1, 0) * tileScale - camera.position.z),
+                psyqo::GTE::Short(toWorldCoords(z + 1) - camera.position.z),
             },
     };
 
@@ -1053,8 +1079,6 @@ void Renderer::drawTileFog(
     psyqo::GTE::Kernels::rtps();
 
     // do while rtps does work
-    // TODO: compute from tileId somehow?
-    const auto& tileInfo = tileset.getTileInfo(tileId);
     quadT.uvA.u = tileInfo.u0;
     quadT.uvA.v = tileInfo.v0;
 
@@ -1138,51 +1162,50 @@ void Renderer::drawTile(
     const auto tileId = tile.tileId;
     const auto modelId = tile.modelId;
 
-    if (modelId != 0xFF) { // "model" tiles
-        drawTileMesh(tileIndex, tile, prefabs.meshes[modelId], camera);
+    if (modelId != Tile::NULL_MODEL_ID) { // "model" tiles
+        drawTileMesh(tileIndex, tile, tileset, prefabs.meshes[modelId], camera);
         return;
     }
 
     const int x = tileIndex.x;
     const int z = tileIndex.z;
 
-    // TODO: store in tileInfo
-    const auto tileHeight = (tileId != 0 && tileId != 1 && tileId != 2) ?
-                                psyqo::FixedPoint<>(0.0) :
-                                psyqo::FixedPoint<>(-0.02);
+    const auto& tileInfo = tileset.getTileInfo(tileId);
+    const auto tileHeight = psyqo::FixedPoint<>(tileInfo.height);
 
     const auto v0 = Vec3Pad{
         .pos =
             psyqo::GTE::PackedVec3{
-                psyqo::GTE::Short(psyqo::FixedPoint<>(x, 0) * tileScale - camera.position.x),
+                psyqo::GTE::Short(toWorldCoords(x) - camera.position.x),
                 psyqo::GTE::Short(tileHeight - camera.position.y),
-                psyqo::GTE::Short(psyqo::FixedPoint<>(z, 0) * tileScale - camera.position.z),
+                psyqo::GTE::Short(toWorldCoords(z) - camera.position.z),
             },
     };
 
     const auto v1 = Vec3Pad{
         .pos =
             psyqo::GTE::PackedVec3{
-                psyqo::GTE::Short(psyqo::FixedPoint<>(x + 1, 0) * tileScale - camera.position.x),
+                psyqo::GTE::Short(toWorldCoords(x + 1) - camera.position.x),
                 psyqo::GTE::Short(tileHeight - camera.position.y),
-                psyqo::GTE::Short(psyqo::FixedPoint<>(z, 0) * tileScale - camera.position.z)},
+                psyqo::GTE::Short(toWorldCoords(z) - camera.position.z),
+            },
     };
 
     const auto v2 = Vec3Pad{
         .pos =
             psyqo::GTE::PackedVec3{
-                psyqo::GTE::Short(psyqo::FixedPoint<>(x, 0) * tileScale - camera.position.x),
+                psyqo::GTE::Short(toWorldCoords(x) - camera.position.x),
                 psyqo::GTE::Short(tileHeight - camera.position.y),
-                psyqo::GTE::Short(psyqo::FixedPoint<>(z + 1, 0) * tileScale - camera.position.z),
+                psyqo::GTE::Short(toWorldCoords(z + 1) - camera.position.z),
             },
     };
 
     const auto v3 = Vec3Pad{
         .pos =
             psyqo::GTE::PackedVec3{
-                psyqo::GTE::Short(psyqo::FixedPoint<>(x + 1, 0) * tileScale - camera.position.x),
+                psyqo::GTE::Short(toWorldCoords(x + 1) - camera.position.x),
                 psyqo::GTE::Short(tileHeight - camera.position.y),
-                psyqo::GTE::Short(psyqo::FixedPoint<>(z + 1, 0) * tileScale - camera.position.z),
+                psyqo::GTE::Short(toWorldCoords(z + 1) - camera.position.z),
             },
     };
 
@@ -1196,8 +1219,12 @@ void Renderer::drawTile(
 #define getClut(x, y) (((y) << 6) | (((x) >> 4) & 0x3f))
     quadT.clutIndex = psyqo::PrimPieces::ClutIndex(0, 240);
 
-    // TODO: compute from tileId somehow?
-    const auto& tileInfo = tileset.getTileInfo(tileId);
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
+    psyqo::GTE::Kernels::rtpt();
+
+    // do while rtpt
     quadT.uvA.u = tileInfo.u0;
     quadT.uvA.v = tileInfo.v0;
     quadT.uvB.u = tileInfo.u1;
@@ -1206,17 +1233,6 @@ void Renderer::drawTile(
     quadT.uvC.v = tileInfo.v1;
     quadT.uvD.u = tileInfo.u1;
     quadT.uvD.v = tileInfo.v1;
-
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v0.pos);
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(v1.pos);
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(v2.pos);
-    psyqo::GTE::Kernels::rtpt();
-
-    // do while rtpt is doing this
-    quadT.setColorA(textureNeutral);
-    quadT.setColorB(textureNeutral);
-    quadT.setColorC(textureNeutral);
-    quadT.setColorD(textureNeutral);
 
     psyqo::GTE::Kernels::nclip();
     const auto dot = (int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0, psyqo::GTE::Safe>();
@@ -1228,6 +1244,12 @@ void Renderer::drawTile(
 
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(v3.pos);
     psyqo::GTE::Kernels::rtps();
+
+    // do while rtps is doing this
+    quadT.setColorA(textureNeutral);
+    quadT.setColorB(textureNeutral);
+    quadT.setColorC(textureNeutral);
+    quadT.setColorD(textureNeutral);
 
     psyqo::GTE::Kernels::avsz4();
 
@@ -1247,7 +1269,8 @@ void Renderer::drawTile(
 
 void Renderer::drawTileMeshFog(
     TileIndex tileIndex,
-    const Tile& tileInfo,
+    const Tile& tile,
+    const Tileset& tileset,
     const MeshData& meshData,
     const Camera& camera)
 {
@@ -1270,8 +1293,8 @@ void Renderer::drawTileMeshFog(
     const auto gt3Offset = g4Offset + g4s.size() * 4;
     const auto gt4Offset = gt3Offset + gt3s.size() * 3;
 
-    // TODO: store in tileInfo
-    const auto tileHeight = psyqo::FixedPoint<>(0.0);
+    const auto& tileInfo = tileset.getTileInfo(tile.tileId);
+    const auto tileHeight = psyqo::FixedPoint<>(tileInfo.height);
 
     const auto originX =
         psyqo::GTE::Short(psyqo::FixedPoint<>(x, 0) * tileScale - camera.position.x);
@@ -1389,7 +1412,8 @@ void Renderer::drawTileMeshFog(
 
 void Renderer::drawTileMesh(
     TileIndex tileIndex,
-    const Tile& tileInfo,
+    const Tile& tile,
+    const Tileset& tileset,
     const MeshData& meshData,
     const Camera& camera)
 {
@@ -1412,8 +1436,8 @@ void Renderer::drawTileMesh(
     const auto gt3Offset = g4Offset + g4s.size() * 4;
     const auto gt4Offset = gt3Offset + gt3s.size() * 3;
 
-    // TODO: store in tileInfo
-    const auto tileHeight = psyqo::FixedPoint<>(0.0);
+    const auto& tileInfo = tileset.getTileInfo(tile.tileId);
+    const auto tileHeight = psyqo::FixedPoint<>(tileInfo.height);
 
     const auto originX =
         psyqo::GTE::Short(psyqo::FixedPoint<>(x, 0) * tileScale - camera.position.x);

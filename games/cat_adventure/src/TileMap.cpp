@@ -39,5 +39,9 @@ Tile TileMap::getTile(TileIndex ti) const
         info.modelId = 3;
     }
 
+    if (z < -21) {
+        info.tileId = Tile::NULL_TILE_ID;
+    }
+
     return info;
 }

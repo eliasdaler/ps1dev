@@ -1,5 +1,7 @@
 #pragma once
 
+#define PSYQO_RELEASE
+
 #include <EASTL/array.h>
 
 #include <psyqo/bump-allocator.h>
@@ -70,13 +72,15 @@ public:
 
     void drawTileMeshFog(
         TileIndex tileIndex,
-        const Tile& tileInfo,
+        const Tile& tile,
+        const Tileset& tileset,
         const MeshData& mesh,
         const Camera& camera);
 
     void drawTileMesh(
         TileIndex tileIndex,
-        const Tile& tileInfo,
+        const Tile& tile,
+        const Tileset& tileset,
         const MeshData& mesh,
         const Camera& camera);
 
