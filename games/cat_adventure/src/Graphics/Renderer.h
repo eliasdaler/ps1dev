@@ -1,5 +1,7 @@
 #pragma once
 
+#define PSYQO_RELEASE
+
 #include <EASTL/array.h>
 
 #include <psyqo/bump-allocator.h>
@@ -20,6 +22,10 @@ struct Circle;
 struct AABB;
 struct TimFile;
 
+struct TileIndex;
+struct Tile;
+struct Tileset;
+
 class Renderer {
 public:
     Renderer(psyqo::GPU& gpu);
@@ -32,27 +38,58 @@ public:
         AnimatedModelObject& object,
         const Camera& camera,
         bool setViewRot = true);
-
-    void drawMeshObject(MeshObject& object, const Camera& camera);
-    void drawModelObject(ModelObject& object, const Camera& camera, bool setViewRot = true);
-    void drawModel(Model& model);
-
-    template<RenderableMesh T>
-    void drawMesh(T& mesh);
-
-    template<RenderableMesh T>
     void drawMeshArmature(
         const AnimatedModelObject& object,
         const Camera& camera,
         const Armature& armature,
-        T& mesh);
+        const Mesh& mesh);
+
+    void drawMeshObject(MeshObject& object, const Camera& camera);
+    void drawModelObject(ModelObject& object, const Camera& camera, bool setViewRot = true);
+    void drawModel(const Model& model);
+
+    void drawMeshFog(const MeshData& meshData);
+    void drawMesh(const MeshData& meshData);
+
+    void drawMeshStaticFog(const Mesh& mesh);
+    void drawMeshStatic(const Mesh& mesh);
+
+    void drawQuadSubdiv(const psyqo::Prim::GouraudTexturedQuad& quad2d, int avgZ, int addBias);
+
+    void drawTileFog(
+        TileIndex tileIndex,
+        const Tile& tile,
+        const Tileset& tileset,
+        const ModelData& prefabs,
+        const Camera& camera);
+
+    void drawTile(
+        TileIndex tileIndex,
+        const Tile& tile,
+        const Tileset& tileset,
+        const ModelData& prefabs,
+        const Camera& camera);
+
+    void drawTileMeshFog(
+        TileIndex tileIndex,
+        const Tile& tile,
+        const Tileset& tileset,
+        const MeshData& mesh,
+        const Camera& camera);
+
+    void drawTileMesh(
+        TileIndex tileIndex,
+        const Tile& tile,
+        const Tileset& tileset,
+        const MeshData& mesh,
+        const Camera& camera);
 
     static constexpr auto OT_SIZE = 4096 * 2;
     using OrderingTableType = psyqo::OrderingTable<OT_SIZE>;
     eastl::array<OrderingTableType, 2> ots;
 
     // TODO: can make much smaller once static geometry stores primitives on heap
-    static constexpr int PRIMBUFFLEN = 32768 * 2;
+    static constexpr int PRIMBUFFLEN = 32768 * 10;
     using PrimBufferAllocatorType = psyqo::BumpAllocator<PRIMBUFFLEN>;
     eastl::array<PrimBufferAllocatorType, 2> primBuffers;
 
@@ -86,6 +123,12 @@ public:
         const psyqo::Color& c,
         bool cameraViewLoaded = false);
 
+    void drawPointWorldSpace(
+        const Camera& camera,
+        const psyqo::Vec3& p,
+        const psyqo::Color& c,
+        bool cameraViewLoaded = false);
+
     void drawAABB(const Camera& camera, const AABB& aabb, const psyqo::Color& c);
 
     void drawCircle(const Camera& camera, const Circle& circle, const psyqo::Color& c);
@@ -99,6 +142,12 @@ public:
     void setFOV(uint32_t nh);
 
     void setFogEnabled(bool b) { fogEnabled = b; };
+    bool isFogEnabled() const { return fogEnabled; }
+
+    void setFogColor(psyqo::Color c) { fogColor = c; }
+    psyqo::Color getFogColor() const { return fogColor; }
+
+    psyqo::Color fogColor = psyqo::Color{.r = 108, .g = 100, .b = 116};
 
 private:
     bool shouldCullObject(const Object& object, const Camera& camera) const;
@@ -117,4 +166,13 @@ private:
     std::uint32_t h{300};
 
     bool fogEnabled{true};
+
+    // used to draw a "fade rect" when doing fog for dynamic objects
+    // calculated while drawing prims in drawMeshFog
+    uint32_t minAvgZ;
+    uint32_t minAvgP;
+    int16_t minSX;
+    int16_t minSY;
+    int16_t maxSX;
+    int16_t maxSY;
 };

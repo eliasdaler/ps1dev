@@ -32,8 +32,18 @@ Color16 to16BitColor(const Color32& c, const TimCreateConfig& config)
         setSTP = true;
     }
 
+    setSTP = !setSTP;
+
     static const auto black = Color32{0, 0, 0, 255};
     if (c == black) {
+        if (!config.inputFont.empty()) {
+            return 0; // transparency in glyphs
+        }
+
+        if (c.a == 0) {
+            return (1 << 15);
+        }
+
         if (config.nonTransparentBlack) {
             return (config.setSTPOnBlack ? (1 << 15) : (0 << 15)) | 1;
         }
@@ -42,6 +52,16 @@ Color16 to16BitColor(const Color32& c, const TimCreateConfig& config)
         }
     } else if (config.setSTPOnNonBlack) {
         setSTP = true;
+    }
+
+    if (c.a < 255) {
+        setSTP = false;
+    } else {
+        setSTP = true;
+    }
+
+    if (config.neverSetSTP) {
+        setSTP = false;
     }
 
     return (setSTP ? (1 << 15) : (0 << 15)) | (from8BitTo5Bit(c.b) << 10) |

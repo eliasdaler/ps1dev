@@ -78,4 +78,13 @@ void writeLevelToFileNew(
         fsutil::binaryWrite(file, static_cast<std::uint16_t>(object.mesh));
         fsutil::binaryWrite(file, pad16);
     }
+
+    // write collision
+    fsutil::binaryWrite(file, static_cast<std::uint32_t>(model.collision.size()));
+    for (const auto& coll : model.collision) {
+        fsutil::binaryWrite(file, floatToFixed<std::int16_t>(coll.min.x, conversionParams.scale));
+        fsutil::binaryWrite(file, floatToFixed<std::int16_t>(coll.min.z, conversionParams.scale));
+        fsutil::binaryWrite(file, floatToFixed<std::int16_t>(coll.max.x, conversionParams.scale));
+        fsutil::binaryWrite(file, floatToFixed<std::int16_t>(coll.max.z, conversionParams.scale));
+    }
 }

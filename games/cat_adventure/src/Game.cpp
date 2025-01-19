@@ -80,6 +80,14 @@ psyqo::Coroutine<> loadCoroutine(Game& game)
         game.step2Sound = 0x3F00;
         game.cd.loadSound("STEP2.VAG;1", game.step2Sound);
         co_await awaiter;
+
+        game.gstep1Sound = 0x5300;
+        game.cd.loadSound("GSTEP1.VAG;1", game.gstep1Sound);
+        co_await awaiter;
+
+        game.gstep2Sound = 0x5F00;
+        game.cd.loadSound("GSTEP2.VAG;1", game.gstep2Sound);
+        co_await awaiter;
     }
 
     if (!game.firstLoad) {

@@ -119,4 +119,17 @@ psyqo::Angle atan2(psyqo::FixedPoint<> y, psyqo::FixedPoint<> x)
     return res;
 }
 
+psyqo::FixedPoint<> distanceSq(const psyqo::Vec3& a, const psyqo::Vec3& b)
+{
+    auto aMinusB = a - b;
+    psyqo::GTE::write<psyqo::GTE::Register::IR1, psyqo::GTE::Unsafe>(aMinusB.x.value);
+    psyqo::GTE::write<psyqo::GTE::Register::IR2, psyqo::GTE::Unsafe>(aMinusB.y.value);
+    psyqo::GTE::write<psyqo::GTE::Register::IR3, psyqo::GTE::Safe>(aMinusB.z.value);
+    psyqo::GTE::Kernels::sqr();
+
+    // Read (x*x, y*y, z*z) from LV
+    psyqo::GTE::read<psyqo::GTE::PseudoRegister::LV>(aMinusB);
+    return aMinusB.x + aMinusB.y + aMinusB.z;
+}
+
 }

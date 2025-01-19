@@ -79,7 +79,9 @@ ModelJson parseJsonFile(
     const auto& meshesObj = root.at("meshes");
     model.meshes.reserve(meshesObj.size());
     for (const auto& meshObj : meshesObj) {
-        Mesh mesh{};
+        Mesh mesh{
+            .name = meshObj.at("name"),
+        };
 
         if (meshObj.contains("joint_id")) {
             mesh.jointId = meshObj.at("joint_id");

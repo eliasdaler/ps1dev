@@ -10,6 +10,7 @@
     {
       "input": "raw/atlas2.png",
       "output": "atlas2.tim",
+      "set_stp_on_black": true,
       "bits": 8,
       "clut": [0, 240],
       "pix": [320, 0]
@@ -18,13 +19,23 @@
       "input": "raw/cato.png",
       "output": "cato.tim",
       "bits": 8,
+      "never_set_stp": true,
       "clut": [0, 241],
       "pix": [512, 0]
+    },
+    {
+      "input": "raw/ash.png",
+      "output": "ash.tim",
+      "bits": 8,
+      "never_set_stp": true,
+      "clut": [0, 246],
+      "pix": [512, 256]
     },
     {
       "input": "raw/cato_faces.png",
       "output": "cato_faces.tim",
       "bits": 4,
+      "never_set_stp": true,
       "clut": [0, 245],
       "pix": [448, 0]
     }

@@ -57,7 +57,7 @@ int main(int argc, char* argv[])
 
     const auto psxModel = jsonToPsxModel(modelJson, textures, conversionParams);
 
-    if (inputFilePath.stem() == "level") {
+    if (inputFilePath.stem() == "level" || inputFilePath.stem() == "house_psx") {
         // FIXME: add flag
         auto outLevelPath = outputFilePath;
         outLevelPath.replace_extension(".lvl");

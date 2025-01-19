@@ -27,6 +27,7 @@ add_executable(game
   ./src/Graphics/SkeletonAnimator.cpp
   ./src/Graphics/TimFile.cpp
 
+
   ./src/Math/Math.cpp
   ./src/Math/matrix_test.cpp
   ./src/Math/Quaternion.cpp
@@ -41,6 +42,7 @@ add_executable(game
   ./src/Collision.cpp
   ./src/Object.cpp
   ./src/Level.cpp
+  ./src/TileMap.cpp
 
   ./src/LoadingScene.cpp
   ./src/GameplayScene.cpp
@@ -106,9 +108,9 @@ add_custom_target(build_iso
 
 set(models
   "${ASSETS_DIR_RAW}/cato.blend"
+  "${ASSETS_DIR_RAW}/ash.blend"
   "${ASSETS_DIR_RAW}/house_psx.blend"
   "${ASSETS_DIR_RAW}/human2.blend"
-  "${ASSETS_DIR_RAW}/level_new.blend"
   "${ASSETS_DIR_RAW}/level.blend"
 )
 

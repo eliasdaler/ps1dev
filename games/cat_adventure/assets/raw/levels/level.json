@@ -5,6 +5,7 @@
     "ATLAS2.TIM;1"
   ],
   "used_models": [
+    "HUMAN.FM;1",
     "CATO.FM;1"
   ]
 }

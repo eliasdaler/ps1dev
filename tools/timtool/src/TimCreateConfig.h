@@ -58,6 +58,8 @@ struct TimCreateConfig {
     // (color gets converted to (r, g, b, 1))
     std::uint8_t stpThreshold{255};
 
+    bool neverSetSTP{false};
+
     // Font only
     int size{0}; // font size
     std::filesystem::path inputFont; // location of the font

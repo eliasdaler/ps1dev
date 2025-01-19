@@ -16,8 +16,6 @@ static const std::uint16_t pad16{0};
 void writeG3Prims(std::ofstream& file, const std::vector<PsxTriFace>& faces)
 {
     for (const auto& face : faces) {
-        fsutil::binaryWrite(file, static_cast<std::uint32_t>(0)); // head
-
         GouraudTriangle tri{
             // 0
             .r0 = face.vs[0].color.x,
@@ -40,8 +38,6 @@ void writeG3Prims(std::ofstream& file, const std::vector<PsxTriFace>& faces)
 void writeG4Prims(std::ofstream& file, const std::vector<PsxQuadFace>& faces)
 {
     for (const auto& face : faces) {
-        fsutil::binaryWrite(file, static_cast<std::uint32_t>(0)); // head
-
         GouraudQuad quad{
             // 0
             .r0 = face.vs[0].color.x,
@@ -68,8 +64,6 @@ void writeG4Prims(std::ofstream& file, const std::vector<PsxQuadFace>& faces)
 void writeGT3Prims(std::ofstream& file, const std::vector<PsxTriFace>& faces)
 {
     for (const auto& face : faces) {
-        fsutil::binaryWrite(file, static_cast<std::uint32_t>(0)); // head
-
         GouraudTexturedTriangle tri{
             // 0
             .r0 = face.vs[0].color.x,
@@ -102,8 +96,6 @@ void writeGT3Prims(std::ofstream& file, const std::vector<PsxTriFace>& faces)
 void writeGT4Prims(std::ofstream& file, const std::vector<PsxQuadFace>& faces)
 {
     for (const auto& face : faces) {
-        fsutil::binaryWrite(file, static_cast<std::uint32_t>(0)); // head
-
         GouraudTexturedQuad quad{
             // 0
             .r0 = face.vs[0].color.x,

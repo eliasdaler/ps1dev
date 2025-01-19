@@ -8,6 +8,7 @@
 #include <Graphics/SkeletonAnimator.h>
 #include <Math/Quaternion.h>
 #include <Object.h>
+#include <TileMap.h>
 #include <Trigger.h>
 #include <UI/DialogueBox.h>
 #include <Util/FPSCounter.h>
@@ -31,14 +32,15 @@ private:
     void processDebugInput(const PadManager& pad);
     void update();
     void updateLevelSwitch();
+    void handleFloorCollision();
     void handleCollision(psyqo::SoftMath::Axis axis);
     void updateCamera();
 
-    void makeTestLevel();
+    void calculateTileVisibility();
 
     void draw(Renderer& renderer);
+    void drawTiles(Renderer& renderer);
 
-    void drawTestLevel(Renderer& renderer);
     void drawDebugInfo(Renderer& renderer);
     void dumpDebugInfoToTTY();
 
@@ -61,8 +63,8 @@ private:
 
     FPSCounter fpsCounter;
 
-    bool debugInfoDrawn{true};
-    bool collisionDrawn{false};
+    bool debugInfoDrawn{false};
+    bool collisionDrawn{true};
     bool freeCamera{false};
     bool followCamera{false};
 
@@ -91,7 +93,16 @@ private:
     bool fadeOut{false}; // if false - fade in
     int destinationLevelId = 0;
 
-    bool collisionEnabled{false};
+    bool collisionEnabled{true};
 
     bool cutscene{false};
+
+    int numTilesDrawn{0};
+
+    int minTileX, maxTileX;
+    int minTileZ, maxTileZ;
+
+    TileMap tileMap;
+
+    psyqo::Color fogColor;
 };
