@@ -6,6 +6,7 @@
 
 #include "Collision.h"
 #include "Object.h"
+#include "TileMap.h"
 
 struct Level {
     int id{0};
@@ -19,4 +20,6 @@ struct Level {
 
     ModelData modelData;
     eastl::vector<MeshObject> staticObjects;
+
+    TileMap tileMap;
 };

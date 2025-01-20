@@ -97,7 +97,6 @@ void GameplayScene::start(StartReason reason)
 
         game.songPlayer.init(game.midi, game.vab);
 
-        initTileset();
         initUI();
         initDebugMenu();
     }
@@ -177,65 +176,6 @@ void GameplayScene::initDebugMenu()
     game.debugMenu.menuItems[DebugMenu::FOLLOW_CAMERA_ITEM_ID].valuePtr = &followCamera;
     game.debugMenu.menuItems[DebugMenu::MUTE_MUSIC_ITEM_ID].valuePtr = &game.songPlayer.musicMuted;
     game.debugMenu.menuItems[DebugMenu::DRAW_COLLISION_ITEM_ID].valuePtr = &collisionDrawn;
-}
-
-void GameplayScene::initTileset()
-{
-    auto& tileset = tileMap.tileset;
-    tileset.tiles.resize(255);
-
-    // crossing
-    tileset.tiles[0] = TileInfo{
-        .u0 = 32,
-        .v0 = 32,
-        .u1 = 63,
-        .v1 = 63,
-        .height = -0.02,
-    };
-
-    // road with stripe
-    tileset.tiles[1] = TileInfo{
-        .u0 = 32,
-        .v0 = 0,
-        .u1 = 63,
-        .v1 = 31,
-        .height = -0.02,
-    };
-
-    // road
-    tileset.tiles[2] = TileInfo{
-        .u0 = 0,
-        .v0 = 0,
-        .u1 = 31,
-        .v1 = 31,
-        .height = -0.02,
-    };
-
-    // grass
-    tileset.tiles[3] = TileInfo{
-        .u0 = 0,
-        .v0 = 96,
-        .u1 = 31,
-        .v1 = 127,
-    };
-
-    // curb
-    tileset.tiles[4] = TileInfo{
-        .u0 = 0,
-        .v0 = 80,
-        .u1 = 31,
-        .v1 = 95,
-    };
-
-    // curb (down)
-    tileset.tiles[5] = TileInfo{
-        .modelId = 10,
-    };
-
-    // curb (up)
-    tileset.tiles[6] = TileInfo{
-        .modelId = 9,
-    };
 }
 
 void GameplayScene::frame()
@@ -381,7 +321,7 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
             const auto animFrame = player.animator.getAnimationFrame();
             // TODO: write better code
             const auto playerTileIndex = TileMap::getTileIndex(player.getPosition());
-            const auto tileInfo = tileMap.getTile(playerTileIndex);
+            const auto tileInfo = game.level.tileMap.getTile(playerTileIndex);
             bool onGrass = (tileInfo.tileId == 3);
 
             if (player.animator.getCurrentAnimationName() == "Walk"_sh) {
@@ -677,7 +617,7 @@ void GameplayScene::updateLevelSwitch()
 void GameplayScene::handleFloorCollision()
 {
     const auto playerTileIndex = TileMap::getTileIndex(player.getPosition());
-    const auto tileInfo = tileMap.getTile(playerTileIndex);
+    const auto tileInfo = game.level.tileMap.getTile(playerTileIndex);
 
     const auto tileId = tileInfo.tileId;
     if (tileId == 0 || tileId == 1 || tileId == 2) {
@@ -885,7 +825,7 @@ void GameplayScene::draw(Renderer& renderer)
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
 
     if (game.level.id == 1) {
-        renderer.drawTiles(game.level.modelData, tileMap, camera);
+        renderer.drawTiles(game.level.modelData, game.level.tileMap, camera);
     }
 
     gp.pumpCallbacks();

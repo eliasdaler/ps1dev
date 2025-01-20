@@ -60,6 +60,7 @@ void Level::loadNewFormat(const eastl::vector<uint8_t>& data)
     collisionBoxes.clear();
     staticObjects.clear();
     modelData.meshes.clear();
+    tileMap.tileset.tiles.clear();
 
     util::FileReader fr{
         .bytes = data.data(),
@@ -100,6 +101,26 @@ void Level::loadNewFormat(const eastl::vector<uint8_t>& data)
         object.rotation.y.value = fr.GetInt16() >> 2;
 
         object.calculateWorldMatrix();
+    }
+
+    const auto numTiles = fr.GetUInt32();
+    collisionBoxes.reserve(numTiles);
+    ramsyscall_printf("num tiles: %d\n", numTiles);
+
+    tileMap.tileset.tiles.resize(numTiles);
+    for (int i = 0; i < numTiles; ++i) {
+        auto flags = fr.GetInt8();
+        auto id = fr.GetInt8();
+        auto& ti = tileMap.tileset.tiles[id];
+        if (flags & 0x1 != 0) { // model
+            ti.modelId = fr.GetInt8();
+        } else {
+            ti.u0 = fr.GetInt8();
+            ti.v0 = fr.GetInt8();
+            ti.u1 = fr.GetInt8();
+            ti.v1 = fr.GetInt8();
+        }
+        ti.height.value = fr.GetInt16();
     }
 
     const auto numColliders = fr.GetUInt32();

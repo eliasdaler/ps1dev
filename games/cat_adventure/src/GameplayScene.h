@@ -23,7 +23,6 @@ public:
 
 private:
     void start(StartReason reason) override;
-    void initTileset();
     void initUI();
     void initDebugMenu();
 
@@ -97,8 +96,6 @@ private:
 
     bool collisionEnabled{true};
     bool cutscene{false};
-
-    TileMap tileMap;
 
     psyqo::Color fogColor;
 };

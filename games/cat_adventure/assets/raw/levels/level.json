@@ -7,5 +7,60 @@
   "used_models": [
     "HUMAN.FM;1",
     "CATO.FM;1"
+  ],
+  "tileset": [
+    {
+      "name": "crossing",
+      "id": 0,
+      "u0": 32,
+      "v0": 32,
+      "u1": 63,
+      "v1": 63,
+      "height": -0.02
+    },
+    {
+      "name": "road_with_stripe",
+      "id": 1,
+      "u0": 32,
+      "v0": 0,
+      "u1": 63,
+      "v1": 31,
+      "height": -0.02
+    },
+    {
+      "name": "road",
+      "id": 2,
+      "u0": 0,
+      "v0": 0,
+      "u1": 31,
+      "v1": 31,
+      "height": -0.02
+    },
+    {
+      "name": "grass",
+      "id": 3,
+      "u0": 0,
+      "v0": 96,
+      "u1": 31,
+      "v1": 127
+    },
+    {
+      "name": "curb",
+      "id": 4,
+      "u0": 0,
+      "v0": 80,
+      "u1": 31,
+      "v1": 95
+    },
+    {
+      "name": "curb_down",
+      "id": 5,
+      "model_id": 10
+    },
+    {
+      "name": "curb_up",
+      "id": 6,
+      "model_id": 9
+    }
   ]
 }

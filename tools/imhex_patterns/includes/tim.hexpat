@@ -68,7 +68,6 @@ bitfield Flag {
   reserved : 32-4;
 };
 
-
 bitfield Pixel4Bit {
    p0: 4;
    p1: 4;

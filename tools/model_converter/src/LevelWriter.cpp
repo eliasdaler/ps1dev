@@ -92,6 +92,27 @@ void writeLevelToFileNew(
         fsutil::binaryWrite(file, floatToFixed<std::int16_t>(euler.z / (M_PI)));
     }
 
+    // write tiles
+    fsutil::binaryWrite(file, static_cast<std::uint32_t>(level.tileset.size()));
+    for (const auto& tile : level.tileset) {
+        std::uint8_t tileFlags{};
+        tileFlags |= (tile.modelId != TileInfo::NULL_MODEL_ID);
+        fsutil::binaryWrite(file, tileFlags);
+
+        fsutil::binaryWrite(file, tile.id);
+
+        if (tile.modelId == TileInfo::NULL_MODEL_ID) {
+            fsutil::binaryWrite(file, tile.u0);
+            fsutil::binaryWrite(file, tile.v0);
+            fsutil::binaryWrite(file, tile.u1);
+            fsutil::binaryWrite(file, tile.v1);
+        } else {
+            fsutil::binaryWrite(file, tile.modelId);
+        }
+
+        fsutil::binaryWrite(file, floatToFixed<std::int16_t>(tile.height));
+    }
+
     // write collision
     fsutil::binaryWrite(file, static_cast<std::uint32_t>(model.collision.size()));
     for (const auto& coll : model.collision) {
