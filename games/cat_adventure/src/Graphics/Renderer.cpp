@@ -292,12 +292,12 @@ void Renderer::drawMeshArmature(
     }
 }
 
-void Renderer::drawMeshObject(MeshObject& object, const Camera& camera)
+void Renderer::drawMeshObject(MeshObject& object, const Camera& camera, bool setViewRot)
 {
     if (shouldCullObject(object, camera)) {
         return;
     }
-    calculateViewModelMatrix(object, camera, false);
+    calculateViewModelMatrix(object, camera, setViewRot);
     if (fogEnabled) {
         drawMeshStaticFog(object.mesh);
     } else {

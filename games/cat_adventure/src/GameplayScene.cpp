@@ -890,9 +890,18 @@ void GameplayScene::draw(Renderer& renderer)
 
     gp.pumpCallbacks();
 
-    // draw static objects
+    // draw static objects without rotation (R won't be changed)
     for (auto& staticObject : game.level.staticObjects) {
-        renderer.drawMeshObject(staticObject, camera);
+        if (!staticObject.hasRotation()) {
+            renderer.drawMeshObject(staticObject, camera, false);
+        }
+    }
+
+    // draw static objects without rotation (R will be changed)
+    for (auto& staticObject : game.level.staticObjects) {
+        if (staticObject.hasRotation()) {
+            renderer.drawMeshObject(staticObject, camera, true);
+        }
     }
 
     gp.pumpCallbacks();
@@ -1040,21 +1049,21 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
             player.getPosition().y,
             player.getPosition().z);
 
-        game.romFont.chainprintf(
+        /* game.romFont.chainprintf(
             game.gpu(),
             {{.x = 16, .y = 32}},
             textCol,
             "(%d, %d)",
             playerTileIndex.x,
-            playerTileIndex.z);
+            playerTileIndex.z); */
 
-        /* game.romFont.chainprintf(
+        game.romFont.chainprintf(
             game.gpu(),
             {{.x = 16, .y = 32}},
             textCol,
             "p rot=(%.2f, %.2f)",
             psyqo::FixedPoint<>(player.rotation.x),
-            psyqo::FixedPoint<>(player.rotation.y)); */
+            psyqo::FixedPoint<>(player.rotation.y));
 
         game.romFont.chainprintf(
             game.gpu(),

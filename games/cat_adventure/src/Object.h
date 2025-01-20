@@ -16,6 +16,8 @@
 struct Object {
     void calculateWorldMatrix(); // trashes R
 
+    bool hasRotation() const { return rotation.y.value != 0 || rotation.x.value != 0; }
+
     psyqo::Vec3 getFront() const
     {
         // assume no pitch

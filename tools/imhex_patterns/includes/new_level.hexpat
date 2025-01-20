@@ -7,7 +7,7 @@ using StringHash = u32;
 struct Object {
     FixedPoint<s32> x, y, z;
     u16 mesh;
-    u16 pad [[hidden]];
+    FixedPoint<s16> yaw;
 };
 
 struct AABB {

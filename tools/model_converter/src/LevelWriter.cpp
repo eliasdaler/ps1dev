@@ -76,7 +76,20 @@ void writeLevelToFileNew(
         fsutil::binaryWrite(
             file, floatToFixed<std::int32_t>(object.transform.position.z, conversionParams.scale));
         fsutil::binaryWrite(file, static_cast<std::uint16_t>(object.mesh));
-        fsutil::binaryWrite(file, pad16);
+
+        const auto euler = glm::eulerAngles(object.transform.rotation);
+
+        if (euler.x != 0.0 || euler.y != 0.f) {
+            printf(
+                "[WARNING] object has non-yaw rotation, name: %s, x: %.2f, y: %.2f, z: %.2f\n",
+                object.name.c_str(),
+                glm::degrees(euler.x),
+                glm::degrees(euler.y),
+                glm::degrees(euler.z));
+        }
+
+        // write yaw in "half turns", the format which psyqo uses
+        fsutil::binaryWrite(file, floatToFixed<std::int16_t>(euler.z / (M_PI)));
     }
 
     // write collision

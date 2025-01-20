@@ -46,7 +46,7 @@ public:
         const Armature& armature,
         const Mesh& mesh);
 
-    void drawMeshObject(MeshObject& object, const Camera& camera);
+    void drawMeshObject(MeshObject& object, const Camera& camera, bool setViewRot = true);
     void drawModelObject(ModelObject& object, const Camera& camera, bool setViewRot = true);
     void drawModel(const Model& model);
 
