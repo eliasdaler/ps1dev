@@ -239,5 +239,20 @@ ModelJson parseJsonFile(
         }
     }
 
+    const auto triggersIt = root.find("triggers");
+    if (triggersIt != root.end()) {
+        const auto& triggersArr = *triggersIt;
+        model.triggers.reserve(triggersArr.size());
+        for (const auto& triggerObj : triggersArr) {
+            Trigger trigger{
+                .name = triggerObj.at("name"),
+            };
+            const auto& aabbObj = triggerObj.at("aabb");
+            trigger.aabb.min = getVec3(aabbObj, "min", {});
+            trigger.aabb.max = getVec3(aabbObj, "max", {});
+            model.triggers.push_back(std::move(trigger));
+        }
+    }
+
     return model;
 }

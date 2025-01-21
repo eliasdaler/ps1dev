@@ -58,6 +58,7 @@ void Level::loadNewFormat(const eastl::vector<uint8_t>& data)
     usedTextures.clear();
     usedModels.clear();
     collisionBoxes.clear();
+    triggers.clear();
     staticObjects.clear();
     modelData.meshes.clear();
     tileMap.tileset.tiles.clear();
@@ -143,5 +144,28 @@ void Level::loadNewFormat(const eastl::vector<uint8_t>& data)
         };
 
         collisionBoxes.push_back(eastl::move(aabb));
+    }
+
+    const auto numTriggers = fr.GetUInt32();
+    triggers.reserve(numTriggers);
+    ramsyscall_printf("num triggers: %d\n", numTriggers);
+    for (int i = 0; i < numTriggers; ++i) {
+        Trigger trigger;
+
+        trigger.name.value = fr.GetUInt32();
+
+        trigger.aabb.min = psyqo::Vec3{
+            .x = psyqo::FixedPoint<>(fr.GetInt16(), psyqo::FixedPoint<>::RAW),
+            .y = 0.0,
+            .z = psyqo::FixedPoint<>(fr.GetInt16(), psyqo::FixedPoint<>::RAW),
+        };
+
+        trigger.aabb.max = psyqo::Vec3{
+            .x = psyqo::FixedPoint<>(fr.GetInt16(), psyqo::FixedPoint<>::RAW),
+            .y = 0.1,
+            .z = psyqo::FixedPoint<>(fr.GetInt16(), psyqo::FixedPoint<>::RAW),
+        };
+
+        triggers.push_back(eastl::move(trigger));
     }
 }

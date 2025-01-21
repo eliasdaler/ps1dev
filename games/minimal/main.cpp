@@ -1,6 +1,6 @@
 #include <common/syscalls/syscalls.h>
 #include <psyqo/application.hh>
-#include <psyqo/bump-allocator.h>
+#include <psyqo/bump-allocator.hh>
 #include <psyqo/font.hh>
 #include <psyqo/gpu.hh>
 #include <psyqo/gte-kernels.hh>
@@ -73,11 +73,11 @@ public:
     void createScene() override;
 
     static constexpr auto OT_SIZE = 1024;
-    using OrderingTableType = psyqo::OrderingTable<OT_SIZE>;
+    using OrderingTableType = psyqo::OrderingTable<OT_SIZE, psyqo::Safe::No>;
     eastl::array<OrderingTableType, 2> ots;
 
     static constexpr int PRIMBUFFLEN = 32768 * 8;
-    using PrimBufferAllocatorType = psyqo::BumpAllocator<PRIMBUFFLEN>;
+    using PrimBufferAllocatorType = psyqo::BumpAllocator<PRIMBUFFLEN, psyqo::Safe::No>;
     eastl::array<PrimBufferAllocatorType, 2> primBuffers;
 
     OrderingTableType& getOrderingTable() { return ots[gpu().getParity()]; }

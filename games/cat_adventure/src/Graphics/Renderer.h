@@ -5,7 +5,7 @@
 #include <EASTL/array.h>
 #include <EASTL/bitset.h>
 
-#include <psyqo/bump-allocator.h>
+#include <psyqo/bump-allocator.hh>
 #include <psyqo/gpu.hh>
 #include <psyqo/gte-kernels.hh>
 #include <psyqo/primitives/quads.hh>

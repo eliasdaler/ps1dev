@@ -114,6 +114,17 @@ def get_collisions_json():
         cs.append({"type":"box", "aabb": get_aabb(o)})
     return cs
 
+def get_triggers_json():
+    collection = bpy.data.collections.get("Triggers")
+    if collection is None:
+        return
+
+    cs = []
+    for o in collection.objects:
+        assert_no_rotation(o)
+        cs.append({"name": o.name, "type":"box", "aabb": get_aabb(o)})
+    return cs
+
 def collect_materials(scene):
     material_set = set()
     for object in scene.objects:
@@ -541,6 +552,10 @@ def write_psxtools_json(context, filepath):
     collisions = get_collisions_json()
     if collisions:
         data["collision"] = collisions
+
+    triggers = get_triggers_json()
+    if triggers:
+        data["triggers"] = triggers
 
     # HACK: if no armature - each object gets a corresponding mesh
     # Otherwise, we assume that all meshes are submeshes of the only object in the file

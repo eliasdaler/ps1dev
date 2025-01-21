@@ -8,12 +8,15 @@
 #include "Object.h"
 #include "TileMap.h"
 
+#include <Trigger.h>
+
 struct Level {
     int id{0};
     eastl::vector<StringHash> usedTextures;
     eastl::vector<StringHash> usedModels;
 
     eastl::vector<AABB> collisionBoxes;
+    eastl::vector<Trigger> triggers;
 
     void load(const eastl::vector<uint8_t>& data);
     void loadNewFormat(const eastl::vector<uint8_t>& data);

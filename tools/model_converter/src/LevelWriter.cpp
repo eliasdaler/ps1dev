@@ -121,4 +121,18 @@ void writeLevelToFileNew(
         fsutil::binaryWrite(file, floatToFixed<std::int16_t>(coll.max.x, conversionParams.scale));
         fsutil::binaryWrite(file, floatToFixed<std::int16_t>(coll.max.z, conversionParams.scale));
     }
+
+    // write triggers
+    fsutil::binaryWrite(file, static_cast<std::uint32_t>(model.triggers.size()));
+    for (const auto& trigger : model.triggers) {
+        fsutil::binaryWrite(file, DJBHash::hash(trigger.name));
+        fsutil::binaryWrite(
+            file, floatToFixed<std::int16_t>(trigger.aabb.min.x, conversionParams.scale));
+        fsutil::binaryWrite(
+            file, floatToFixed<std::int16_t>(trigger.aabb.min.z, conversionParams.scale));
+        fsutil::binaryWrite(
+            file, floatToFixed<std::int16_t>(trigger.aabb.max.x, conversionParams.scale));
+        fsutil::binaryWrite(
+            file, floatToFixed<std::int16_t>(trigger.aabb.max.z, conversionParams.scale));
+    }
 }

@@ -3,10 +3,11 @@
 #include <cstdint>
 
 #include "Collision.h"
+#include "StringHashes.h"
 
 struct Trigger {
+    StringHash name;
     AABB aabb;
-    std::uint16_t id;
 
     bool wasJustEntered() const { return !wasEntered && isEntered; }
     bool wasJustExited() const { return wasEntered && !isEntered; }

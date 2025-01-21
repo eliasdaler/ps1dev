@@ -101,7 +101,7 @@ void GameplayScene::start(StartReason reason)
         initDebugMenu();
     }
 
-    triggers.clear();
+    /* triggers.clear();
 
     if (game.level.id == 0) { // TODO: load from level
         Trigger trigger;
@@ -121,7 +121,7 @@ void GameplayScene::start(StartReason reason)
         trigger.aabb.min = {-0.1145, 0.0000, 0.3488};
         trigger.aabb.max = {0.0698, 0.1000, 0.4375};
         triggers.push_back(trigger);
-    }
+    } */
 
     npc.model = game.resourceCache.getResource<ModelData>(HUMAN_MODEL_HASH).makeInstance();
     npc.jointGlobalTransforms.resize(npc.model.armature.joints.size());
@@ -512,7 +512,7 @@ void GameplayScene::update()
 
         canInteract = false;
         if (collisionEnabled) {
-            for (auto& trigger : triggers) {
+            for (auto& trigger : game.level.triggers) {
                 trigger.wasEntered = trigger.isEntered;
                 if (trigger.interaction) {
                     trigger.isEntered = circleAABBIntersect(player.interactionCircle, trigger.aabb);
@@ -521,8 +521,10 @@ void GameplayScene::update()
                 }
 
                 if (trigger.wasJustEntered()) {
-                    if (trigger.id == 0) {
+                    if (trigger.name == "HouseExit"_sh) {
                         switchLevel(1);
+                    } else if (trigger.name == "HouseEnter"_sh) {
+                        switchLevel(0);
                     }
                 }
 
@@ -733,7 +735,7 @@ void GameplayScene::draw(Renderer& renderer)
     // psyqo::Color bg{{.r = 0, .g = 0, .b = 0}};
     psyqo::Color bg{{.r = 33, .g = 14, .b = 58}};
 
-    {
+    if (!renderer.isFogEnabled()) {
         auto& fill = primBuffer.allocateFragment<psyqo::Prim::FastFill>();
         gp.getNextClear(fill.primitive, bg);
         gp.chain(fill);
@@ -943,7 +945,7 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
             renderer.drawCircle(camera, circle, colliderColor);
         }
 
-        for (const auto& trigger : triggers) {
+        for (const auto& trigger : game.level.triggers) {
             const auto& col = trigger.isEntered ?
                                   activeTriggerColor :
                                   ((trigger.interaction) ? interactionTriggerColor : triggerColor);

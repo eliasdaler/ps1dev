@@ -86,6 +86,11 @@ struct AABB {
     glm::vec3 max;
 };
 
+struct Trigger {
+    std::string name;
+    AABB aabb;
+};
+
 struct ModelJson {
     std::vector<Object> objects;
     std::vector<Mesh> meshes;
@@ -95,6 +100,7 @@ struct ModelJson {
 
     // level only
     std::vector<AABB> collision;
+    std::vector<Trigger> triggers;
 };
 
 ModelJson parseJsonFile(

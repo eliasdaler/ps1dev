@@ -9,7 +9,6 @@
 #include <Math/Quaternion.h>
 #include <Object.h>
 #include <TileMap.h>
-#include <Trigger.h>
 #include <UI/DialogueBox.h>
 #include <Util/FPSCounter.h>
 
@@ -86,7 +85,6 @@ private:
     bool npcRotatesTowardsPlayer{false};
 
     eastl::vector<Circle> collisionCircles;
-    eastl::vector<Trigger> triggers;
 
     int fadeLevel = 0;
 
