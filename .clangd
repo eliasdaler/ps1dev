@@ -6,8 +6,8 @@ CompileFlags:
   Add: [
     --target=mipsel-none-elf,
     -march=mips1,
-    -I/usr/mipsel-linux-gnu/include/c++/12/,
-    -I/usr/mipsel-linux-gnu/include/c++/12/mipsel-linux-gnu/,
+    -I/usr/mipsel-linux-gnu/include/c++/14/,
+    -I/usr/mipsel-linux-gnu/include/c++/14/mipsel-linux-gnu/,
     -I/usr/mipsel-linux-gnu/include/,
 
     # FIXME: for some reason clangd doesn't pick these up even though they're in compile_commands.json

@@ -18,6 +18,8 @@
 
 #include "Resources.h"
 
+#include <ranges>
+
 #define DEV_TOOLS
 
 #define NEW_CAM
@@ -155,7 +157,8 @@ void GameplayScene::start(StartReason reason)
     }
 
     canTalk = false;
-    canInteract = false;
+    game.activeInteractionTriggerIdx = -1;
+
     player.animator.setAnimation("Idle"_sh);
 }
 
@@ -352,11 +355,13 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
             interactRotationLerpSpeed =
                 math::calculateLerpDelta(interactStartAngle, interactEndAngle, 0.04);
             npcRotatesTowardsPlayer = true;
-        } else if (canInteract) {
-            gameState = GameState::Dialogue;
-            player.animator.setAnimation("Idle"_sh);
-
-            dialogueBox.setText("You see a \3\6gleeby-\ndeeby\1\3 on the\nscreen...");
+        } else if (game.activeInteractionTriggerIdx != -1) {
+            const auto& trigger = game.level.triggers[game.activeInteractionTriggerIdx];
+            if (trigger.name == "TV"_sh) {
+                gameState = GameState::Dialogue;
+                player.animator.setAnimation("Idle"_sh);
+                dialogueBox.setText("You see a \3\6gleeby-\ndeeby\1\3 on the\nscreen...");
+            }
         }
     }
 }
@@ -509,30 +514,7 @@ void GameplayScene::update()
         }
 
         player.updateCollision();
-
-        canInteract = false;
-        if (collisionEnabled) {
-            for (auto& trigger : game.level.triggers) {
-                trigger.wasEntered = trigger.isEntered;
-                if (trigger.interaction) {
-                    trigger.isEntered = circleAABBIntersect(player.interactionCircle, trigger.aabb);
-                } else {
-                    trigger.isEntered = pointInAABB(trigger.aabb, player.getPosition());
-                }
-
-                if (trigger.wasJustEntered()) {
-                    if (trigger.name == "HouseExit"_sh) {
-                        switchLevel(1);
-                    } else if (trigger.name == "HouseEnter"_sh) {
-                        switchLevel(0);
-                    }
-                }
-
-                if (trigger.isEntered) {
-                    canInteract = true;
-                }
-            }
-        }
+        updateTriggers();
     }
 
     if (gameState == GameState::SwitchLevel) {
@@ -548,7 +530,7 @@ void GameplayScene::update()
     updateCamera();
 
     if (gameState == GameState::Normal) {
-        canTalk = circlesIntersect(player.interactionCircle, npc.interactionCircle);
+        canTalk = circlesIntersect(player.interactionCircle, npc.collisionCircle);
     } else if (gameState == GameState::Dialogue) {
         if (npcRotatesTowardsPlayer) {
             interactRotationLerpFactor += interactRotationLerpSpeed;
@@ -566,6 +548,37 @@ void GameplayScene::update()
 
         if (dialogueBox.isOpen) {
             dialogueBox.update();
+        }
+    }
+}
+
+void GameplayScene::updateTriggers()
+{
+    if (!collisionEnabled) {
+        return;
+    }
+
+    game.activeInteractionTriggerIdx = -1;
+
+    auto& triggers = game.level.triggers;
+    for (auto [idx, trigger] : std::views::enumerate(triggers)) {
+        trigger.wasEntered = trigger.isEntered;
+
+        if (trigger.interaction) {
+            trigger.isEntered = circleAABBIntersect(player.interactionCircle, trigger.aabb);
+            if (trigger.isEntered) {
+                game.activeInteractionTriggerIdx = idx;
+            }
+        } else {
+            trigger.isEntered = pointInAABB(trigger.aabb, player.getPosition());
+        }
+
+        if (trigger.wasJustEntered()) {
+            if (trigger.name == "HouseExit"_sh) {
+                switchLevel(1);
+            } else if (trigger.name == "HouseEnter"_sh) {
+                switchLevel(0);
+            }
         }
     }
 }
@@ -903,7 +916,7 @@ void GameplayScene::draw(Renderer& renderer)
         if (canTalk) {
             interactionDialogueBox.setText("\5(X)\1 Talk", true);
             interactionDialogueBox.draw(renderer, game.font, game.fontTexture, uiTexture);
-        } else if (canInteract) {
+        } else if (game.activeInteractionTriggerIdx != -1) {
             interactionDialogueBox.setText("\5(X)\1 Interact", true);
             interactionDialogueBox.draw(renderer, game.font, game.fontTexture, uiTexture);
         }
@@ -956,7 +969,7 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
             .drawCircle(camera, player.collisionCircle, psyqo::Color{.r = 255, .g = 0, .b = 255});
         renderer.drawCircle(camera, npc.collisionCircle, psyqo::Color{.r = 0, .g = 255, .b = 255});
 
-        if (canTalk || canInteract) {
+        if (canTalk || game.activeInteractionTriggerIdx != -1) {
             renderer.drawCircle(
                 camera, player.interactionCircle, psyqo::Color{.r = 255, .g = 255, .b = 0});
         } else {

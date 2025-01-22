@@ -32,6 +32,7 @@ private:
     void processFreeCameraInput(const PadManager& pad);
     void processDebugInput(const PadManager& pad);
     void update();
+    void updateTriggers();
     void updateLevelSwitch();
     void handleFloorCollision();
     void handleCollision(psyqo::SoftMath::Axis axis);
@@ -69,7 +70,6 @@ private:
     bool followCamera{false};
 
     bool canTalk{false};
-    bool canInteract{false};
 
     enum class GameState { Normal, Dialogue, SwitchLevel };
     GameState gameState;

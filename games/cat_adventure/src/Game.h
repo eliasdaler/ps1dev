@@ -83,6 +83,8 @@ public:
 
     uint32_t prevVSyncs{0};
     uint32_t currVSyncs{0};
+
+    int activeInteractionTriggerIdx{-1};
 };
 
 extern Game g_game;
