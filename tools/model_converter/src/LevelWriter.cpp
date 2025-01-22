@@ -125,7 +125,15 @@ void writeLevelToFileNew(
     // write triggers
     fsutil::binaryWrite(file, static_cast<std::uint32_t>(model.triggers.size()));
     for (const auto& trigger : model.triggers) {
+        // flags
+        std::uint8_t triggerFlags{};
+        triggerFlags |= (trigger.interaction);
+        fsutil::binaryWrite(file, triggerFlags);
+
+        // name
         fsutil::binaryWrite(file, DJBHash::hash(trigger.name));
+
+        // aabb
         fsutil::binaryWrite(
             file, floatToFixed<std::int16_t>(trigger.aabb.min.x, conversionParams.scale));
         fsutil::binaryWrite(

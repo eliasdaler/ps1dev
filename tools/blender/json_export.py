@@ -114,6 +114,8 @@ def get_collisions_json():
         cs.append({"type":"box", "aabb": get_aabb(o)})
     return cs
 
+interaction_prefix = "Interact."
+
 def get_triggers_json():
     collection = bpy.data.collections.get("Triggers")
     if collection is None:
@@ -122,7 +124,24 @@ def get_triggers_json():
     cs = []
     for o in collection.objects:
         assert_no_rotation(o)
-        cs.append({"name": o.name, "type":"box", "aabb": get_aabb(o)})
+        name = o.name
+
+        interaction = False
+        if name.startswith(interaction_prefix):
+            interaction = True
+            name = name[len(interaction_prefix):]
+
+        obj = { 
+            "name": name, 
+            "interaction": interaction,
+            "collider": {
+                "type": "box", 
+                "aabb": get_aabb(o),
+            },
+        }
+
+        cs.append(obj)
+
     return cs
 
 def collect_materials(scene):

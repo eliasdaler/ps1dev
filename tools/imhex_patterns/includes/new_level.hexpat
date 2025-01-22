@@ -15,6 +15,17 @@ struct AABB {
     Vec2 max;
 };
 
+bitfield TriggerFlags {
+  bool interaction : 1;
+  reserved : 7;
+};
+
+struct Trigger {
+    TriggerFlags flags;
+    StringHash name;
+    AABB aabb;
+};
+
 bitfield TileFlags {
   bool isModel : 1;
   reserved : 7;
@@ -51,6 +62,9 @@ struct Level {
     
     u32 numColliders;
     AABB colliders[numColliders];
+    
+    u32 numTriggers;
+    Trigger triggers[numTriggers];
 };
 
 Level level @ 0x0;

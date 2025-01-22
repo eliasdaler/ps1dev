@@ -88,6 +88,7 @@ struct AABB {
 
 struct Trigger {
     std::string name;
+    bool interaction{false};
     AABB aabb;
 };
 

@@ -152,6 +152,9 @@ void Level::loadNewFormat(const eastl::vector<uint8_t>& data)
     for (int i = 0; i < numTriggers; ++i) {
         Trigger trigger;
 
+        const auto triggerFlags = fr.GetUInt8();
+        trigger.interaction = (triggerFlags & 0x1 != 0);
+
         trigger.name.value = fr.GetUInt32();
 
         trigger.aabb.min = psyqo::Vec3{
