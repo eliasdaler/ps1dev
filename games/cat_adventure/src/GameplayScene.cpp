@@ -196,6 +196,8 @@ void GameplayScene::frame()
 
     gpu().pumpCallbacks();
 
+    game.actionListManager.update(game.frameDtMcs, false);
+
     draw(game.renderer);
 
     game.onFrameEnd();
@@ -420,6 +422,8 @@ void GameplayScene::processDebugInput(const PadManager& pad)
     }
 
     if (pad.wasButtonJustPressed(psyqo::SimplePad::Triangle)) {
+        game.actionListManager.addActionList(game.testList);
+
         if (!cutscene) {
             player.setFaceAnimation(ANGRY_FACE_ANIMATION);
             player.animator.setAnimation("ThinkStart"_sh);

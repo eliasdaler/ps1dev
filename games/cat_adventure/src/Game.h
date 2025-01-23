@@ -23,6 +23,9 @@
 #include <Level.h>
 #include <ResourceCache.h>
 
+#include <ActionList/ActionList.h>
+#include <ActionList/ActionListManager.h>
+
 class Game : public psyqo::Application {
     void prepare() override;
     void createScene() override;
@@ -85,6 +88,9 @@ public:
     uint32_t currVSyncs{0};
 
     int activeInteractionTriggerIdx{-1};
+
+    ActionList testList;
+    ActionListManager actionListManager;
 };
 
 extern Game g_game;

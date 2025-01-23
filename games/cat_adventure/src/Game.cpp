@@ -2,6 +2,8 @@
 
 #include <common/syscalls/syscalls.h>
 
+#include <ActionList/ActionWrappers.h>
+
 #include "StringHashes.h"
 
 namespace
@@ -43,6 +45,13 @@ void Game::prepare()
 
     soundPlayer.init();
     renderer.init();
+
+    testList = ActionList{
+        "test",
+        []() { ramsyscall_printf("hello\n"); },
+        actions::delay(2),
+        []() { ramsyscall_printf("world\n"); },
+    };
 }
 
 namespace

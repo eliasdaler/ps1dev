@@ -27,6 +27,13 @@ add_executable(game
   ./src/Graphics/SkeletonAnimator.cpp
   ./src/Graphics/TimFile.cpp
 
+  ./src/ActionList/ActionList.cpp
+  ./src/ActionList/ActionListManager.cpp
+  ./src/ActionList/ActionWrappers.cpp
+
+  ./src/ActionList/Actions/ActionListFinishAction.cpp
+  ./src/ActionList/Actions/DoAction.cpp
+  ./src/ActionList/Actions/DelayAction.cpp
 
   ./src/Math/Math.cpp
   ./src/Math/matrix_test.cpp
