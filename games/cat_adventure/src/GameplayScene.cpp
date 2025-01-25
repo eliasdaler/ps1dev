@@ -425,93 +425,82 @@ void GameplayScene::processDebugInput(const PadManager& pad)
 
     if (pad.wasButtonJustPressed(psyqo::SimplePad::Circle)) {
         if (!game.actionListManager.isActionListPlaying("test")) {
-            static const auto camPosNPC = psyqo::Vec3{0.1376, 0.1318, 0.0236};
-            static const auto camRotNPC = psyqo::Vector<2, 10>{-0.0410, -0.7060};
+            static const auto camNPC = CameraTransform{
+                .position = {0.1376, 0.1318, 0.0236},
+                .rotation = {-0.0410, -0.7060},
+            };
 
-            static const auto camPosNPC2 = psyqo::Vec3{0.0292, 0.1381, 0.0100};
-            static const auto camRotNPC2 = psyqo::Vector<2, 10>{-0.1650, -0.9492};
+            static const auto camNPC2 = CameraTransform{
+                .position = {0.0292, 0.1381, 0.0100},
+                .rotation = {-0.1650, -0.9492},
+            };
 
-            static const auto camPosPlayer = psyqo::Vec3{0.0754, 0.0390, -0.0578};
-            static const auto camRotPlayer = psyqo::Vector<2, 10>{-0.0390, -0.2050};
+            static const auto camPlayer = CameraTransform{
+                .position = {0.0754, 0.0390, -0.0578},
+                .rotation = {-0.0390, -0.2050},
+            };
 
-            static const auto camPosPlayer2 = psyqo::Vec3{-0.0478, 0.0341, 0.0556};
-            static const auto camRotPlayer2 = psyqo::Vector<2, 10>{-0.1269, -0.0244};
+            static const auto camPlayer2 = CameraTransform{
+                .position = {-0.0478, 0.0341, 0.0556},
+                .rotation = {-0.1269, -0.0244},
+            };
 
-            static const auto camPosTV = psyqo::Vec3{-0.0441, 0.1835, 0.1213};
-            static const auto camRotTV = psyqo::Vector<2, 10>{0.0566, -0.3779};
+            static const auto camTV = CameraTransform{
+                .position = {-0.0441, 0.1835, 0.1213},
+                .rotation{0.0566, -0.3779},
+            };
 
-            static const auto camPosStart = camera.position;
-            static const auto camRotStart = camera.rotation;
+            static const auto camTVStart = CameraTransform{
+                .position = camera.position,
+                .rotation = camera.rotation,
+            };
 
             auto testList = ActionList{
                 "test",
 
                 [this]() {
-                    camera.position = camPosNPC;
-                    camera.rotation = camRotNPC;
+                    camera.setTransform(camNPC);
 
                     game.songPlayer.musicTime = 0;
                     game.songPlayer.musicMuted = false;
 
                     gameState = GameState::Dialogue;
-                    dialogueBox.setText("Hello!");
 
                     cutsceneBorderHeight = 0;
                     cutsceneStart = true;
                 },
-                actions::waitWhile([this](std::uint32_t dt) { return !dialogueBox.wantClose; }),
-                // [this]() { dialogueBox.isOpen = false; },
-                // actions::delay(1),
+                actions::say(dialogueBox, "Hello!"),
+
+                [this]() { camera.setTransform(camPlayer); },
+                actions::say(dialogueBox, "Hi..."),
+
+                [this]() { camera.setTransform(camNPC); },
+                actions::say(dialogueBox, "How's cutscene\ndevevelopment\ngoing?"),
 
                 [this]() {
-                    camera.position = camPosPlayer;
-                    camera.rotation = camRotPlayer;
-
-                    dialogueBox.setText("Hi...");
-                },
-                actions::waitWhile([this](std::uint32_t dt) { return !dialogueBox.wantClose; }),
-
-                [this]() {
-                    camera.position = camPosNPC;
-                    camera.rotation = camRotNPC;
-
-                    dialogueBox.setText("How's cutscene\ndevevelopment\ngoing?");
-                },
-                actions::waitWhile([this](std::uint32_t dt) { return !dialogueBox.wantClose; }),
-
-                [this]() {
-                    camera.position = camPosPlayer;
-                    camera.rotation = camRotPlayer;
+                    camera.setTransform(camPlayer);
 
                     player.setFaceAnimation(ANGRY_FACE_ANIMATION);
                     player.animator.setAnimation("ThinkStart"_sh);
                 },
                 actions::waitWhile(
                     [this](std::uint32_t dt) { return !player.animator.animationJustEnded(); }),
-                [this]() {
-                    dialogueBox.setText("Hmm...");
-                    player.animator.setAnimation("Think"_sh);
-                },
-                actions::waitWhile([this](std::uint32_t dt) { return !dialogueBox.wantClose; }),
-                [this]() {
-                    player.setFaceAnimation(DEFAULT_BLINK_FACE_ANIMATION);
-                    dialogueBox.setText("I think it's going...\n\3\4Pretty well\3\4\1...");
-                },
-                actions::waitWhile([this](std::uint32_t dt) { return !dialogueBox.wantClose; }),
+                [this]() { player.animator.setAnimation("Think"_sh); },
+                actions::say(dialogueBox, "Hmm..."),
+                [this]() { player.setFaceAnimation(DEFAULT_BLINK_FACE_ANIMATION); },
+                actions::say(dialogueBox, "I think it's going...\n\3\4Pretty well\3\4\1..."),
 
                 [this]() {
                     game.songPlayer.pauseMusic();
 
-                    camera.position = camPosTV;
-                    camera.rotation = camRotTV;
+                    camera.setTransform(camTV);
                     game.soundPlayer.playSound(22, game.newsSound);
                     dialogueBox.setText("\2BREAKING NEWS!\1\nGleeby deeby\nhas escaped!");
                 },
-                actions::waitWhile([this](std::uint32_t dt) { return !dialogueBox.wantClose; }),
+                actions::say(dialogueBox, "\2BREAKING NEWS!\1\nGleeby deeby\nhas escaped!"),
 
                 [this]() {
-                    camera.position = camPosPlayer;
-                    camera.rotation = camRotPlayer;
+                    camera.setTransform(camPlayer);
                     game.songPlayer.musicMuted = false;
                     game.songPlayer.restartMusic();
                 },
@@ -525,23 +514,15 @@ void GameplayScene::processDebugInput(const PadManager& pad)
                 actions::delay(2),
 
                 [this]() {
-                    camera.position = camPosNPC2;
-                    camera.rotation = camRotNPC2;
+                    camera.setTransform(camNPC2);
                     npc.animator.setAnimation("Shocked"_sh);
-                    dialogueBox.setText("\3\2W-W-WHAT???\3\1");
                 },
-                actions::waitWhile([this](std::uint32_t dt) { return !dialogueBox.wantClose; }),
+                actions::say(dialogueBox, "\3\2W-W-WHAT???\3\1"),
 
+                [this]() { camera.setTransform(camPlayer); },
+                actions::say(dialogueBox, "..."),
                 [this]() {
-                    camera.position = camPosPlayer;
-                    camera.rotation = camRotPlayer;
-                },
-                actions::delay(1),
-                [this]() { dialogueBox.setText("..."); },
-                actions::waitWhile([this](std::uint32_t dt) { return !dialogueBox.wantClose; }),
-                [this]() {
-                    camera.position = camPosStart;
-                    camera.rotation = camRotStart;
+                    camera.setTransform(camTVStart);
                     gameState = GameState::Normal;
 
                     cutsceneStart = false;
@@ -1067,13 +1048,7 @@ void GameplayScene::draw(Renderer& renderer)
         }
 
         static constexpr int maxCutsceneBorderHeight = 24;
-        if (cutsceneBorderHeight >= maxCutsceneBorderHeight) {
-            cutsceneBorderHeight = maxCutsceneBorderHeight;
-        }
-        if (cutsceneBorderHeight <= -1) {
-            cutsceneBorderHeight = -1;
-        }
-
+        cutsceneBorderHeight = eastl::clamp(cutsceneBorderHeight, -1, maxCutsceneBorderHeight);
         if (cutsceneBorderHeight != -1) {
             { // top
                 auto& rectFrag = primBuffer.allocateFragment<psyqo::Prim::Rectangle>();
