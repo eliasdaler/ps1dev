@@ -31,7 +31,7 @@ struct StringHashMap {
 #endif
 
 struct StringHash {
-    std::uint32_t value;
+    std::uint32_t value{0};
     const char* str{nullptr}; // set when created using _sh string literal
 
     const char* getStr() const
@@ -41,6 +41,8 @@ struct StringHash {
         }
         return FROM_HASH(*this);
     }
+
+    operator bool() const { return value != 0; }
 
     bool operator==(const StringHash& o) const { return value == o.value; }
     bool operator<(const StringHash& o) const { return value < o.value; }

@@ -218,6 +218,7 @@ void SongPlayer::updateMusic()
 
 void SongPlayer::restartMusic()
 {
+    musicMuted = false;
     musicTime = 0;
 
     for (int i = 0; i < lastEventIdx.size(); ++i) {

@@ -31,6 +31,7 @@ public:
     void addAction(eastl::unique_ptr<Action> action);
     void addAction(eastl::function<void()> action);
     void addAction(ActionList actionList);
+    void addActionFront(eastl::unique_ptr<Action> action);
 
     void play(); // starts playback of an action list from the beginning
 

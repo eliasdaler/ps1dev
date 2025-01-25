@@ -28,6 +28,11 @@ void ActionList::addAction(ActionList actionList)
     actions.push_back(eastl::make_unique<ActionListFinishAction>(eastl::move(actionList)));
 }
 
+void ActionList::addActionFront(eastl::unique_ptr<Action> action)
+{
+    actions.insert(actions.begin(), eastl::move(action));
+}
+
 bool ActionList::isFinished() const
 {
     if (looping) {

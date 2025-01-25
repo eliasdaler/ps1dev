@@ -50,8 +50,7 @@ consteval long double ToWorldCoords(long double d)
 
 namespace
 {
-    psyqo::FixedPoint<> lerp(
-        psyqo::FixedPoint<> a,
+    psyqo::FixedPoint<> lerp(psyqo::FixedPoint<> a,
         psyqo::FixedPoint<> b,
         psyqo::FixedPoint<> factor)
     {
@@ -209,9 +208,9 @@ void GameplayScene::processInput(const PadManager& pad)
 {
 #ifdef DEV_TOOLS
     if ((pad.isButtonHeld(psyqo::SimplePad::Square) &&
-         pad.wasButtonJustPressed(psyqo::SimplePad::Triangle)) ||
+            pad.wasButtonJustPressed(psyqo::SimplePad::Triangle)) ||
         (pad.wasButtonJustPressed(psyqo::SimplePad::Square) &&
-         pad.isButtonHeld(psyqo::SimplePad::Triangle))) {
+            pad.isButtonHeld(psyqo::SimplePad::Triangle))) {
         game.debugMenu.open = !game.debugMenu.open;
     }
 
@@ -425,100 +424,7 @@ void GameplayScene::processDebugInput(const PadManager& pad)
 
     if (pad.wasButtonJustPressed(psyqo::SimplePad::Circle)) {
         if (!game.actionListManager.isActionListPlaying("test")) {
-            static const auto camNPC = CameraTransform{
-                .position = {0.1376, 0.1318, 0.0236},
-                .rotation = {-0.0410, -0.7060},
-            };
-
-            static const auto camNPC2 = CameraTransform{
-                .position = {0.0292, 0.1381, 0.0100},
-                .rotation = {-0.1650, -0.9492},
-            };
-
-            static const auto camPlayer = CameraTransform{
-                .position = {0.0754, 0.0390, -0.0578},
-                .rotation = {-0.0390, -0.2050},
-            };
-
-            static const auto camPlayer2 = CameraTransform{
-                .position = {-0.0478, 0.0341, 0.0556},
-                .rotation = {-0.1269, -0.0244},
-            };
-
-            static const auto camTV = CameraTransform{
-                .position = {-0.0441, 0.1835, 0.1213},
-                .rotation{0.0566, -0.3779},
-            };
-
-            static const auto camTVStart = CameraTransform{
-                .position = camera.position,
-                .rotation = camera.rotation,
-            };
-
-            auto testList = ActionList{"test"};
-
-            actions::ActionListBuilder builder{
-                .actionList = testList,
-                .camera = camera,
-                .dialogueBox = dialogueBox,
-            };
-
-            builder
-                .doFunc([this]() {
-                    game.songPlayer.musicTime = 0;
-                    game.songPlayer.musicMuted = false;
-
-                    gameState = GameState::Dialogue;
-
-                    cutsceneBorderHeight = 0;
-                    cutsceneStart = true;
-                })
-                .say("Hello!", camNPC)
-                .say("Hi...", camPlayer)
-                .say("How's cutscene\ndevevelopment\ngoing?", camNPC)
-                .doFunc([this]() {
-                    camera.setTransform(camPlayer);
-                    player.setFaceAnimation(ANGRY_FACE_ANIMATION);
-                    player.animator.setAnimation("ThinkStart"_sh);
-                })
-                .waitWhile(
-                    [this](std::uint32_t dt) { return !player.animator.animationJustEnded(); })
-                .doFunc([this]() { player.animator.setAnimation("Think"_sh); })
-                .say("Hmm...")
-                .doFunc([this]() { player.setFaceAnimation(DEFAULT_BLINK_FACE_ANIMATION); })
-                .say("I think it's going...\n\3\4Pretty well\3\4\1...")
-                .doFunc([this]() {
-                    game.songPlayer.pauseMusic();
-                    game.soundPlayer.playSound(22, game.newsSound);
-                })
-                .say("\2BREAKING NEWS!\1\nGleeby deeby\nhas escaped!", camTV)
-                .doFunc([this]() {
-                    camera.setTransform(camPlayer);
-                    game.songPlayer.musicMuted = false;
-                    game.songPlayer.restartMusic();
-                })
-                .delay(2)
-                .doFunc([this]() {
-                    player.animator.pauseAnimation();
-                    player.setFaceAnimation(SHOCKED_FACE_ANIMATION);
-                    game.songPlayer.pauseMusic();
-                })
-                .delay(2)
-                .doFunc([this]() { npc.animator.setAnimation("Shocked"_sh); })
-                .say("\3\2W-W-WHAT???\3\1", camNPC2)
-                .say("...", camPlayer)
-                .doFunc([this]() {
-                    camera.setTransform(camTVStart);
-                    gameState = GameState::Normal;
-
-                    cutsceneStart = false;
-
-                    player.setFaceAnimation(DEFAULT_FACE_ANIMATION);
-                    player.animator.setAnimation("Idle"_sh);
-
-                    npc.animator.setAnimation("Idle"_sh);
-                });
-            game.actionListManager.addActionList(eastl::move(testList));
+            playTestCutscene();
         }
 
         /* if (!cutscene) {
@@ -581,8 +487,7 @@ void GameplayScene::updateCamera()
     psyqo::Matrix33 viewRotX;
     getRotationMatrix33RH(&viewRotX, -camera.rotation.x, psyqo::SoftMath::Axis::X, trig);
 
-    psyqo::GTE::Math::multiplyMatrix33<
-        psyqo::GTE::PseudoRegister::Rotation,
+    psyqo::GTE::Math::multiplyMatrix33<psyqo::GTE::PseudoRegister::Rotation,
         psyqo::GTE::PseudoRegister::V0>(viewRotX, camera.view.rotation, &camera.view.rotation);
 
     // PS1 has Y-down, so here's a fix for that
@@ -592,8 +497,8 @@ void GameplayScene::updateCamera()
 
     camera.view.translation = -camera.position;
     // We do this on CPU because -camera.position can be outside of 4.12 fixed point range
-    psyqo::SoftMath::
-        matrixVecMul3(camera.view.rotation, camera.view.translation, &camera.view.translation);
+    psyqo::SoftMath::matrixVecMul3(
+        camera.view.rotation, camera.view.translation, &camera.view.translation);
 }
 
 void GameplayScene::update()
@@ -755,13 +660,13 @@ void GameplayScene::handleFloorCollision()
 
         if (playerTileIndex.z > 0) {
             lerpF = (psyqo::FixedPoint<>(playerTileIndex.z, 0) * Tile::SCALE + curbMaxHeightPoint -
-                     player.transform.translation.z) *
+                        player.transform.translation.z) *
                     curbMaxHeightPointScale;
         } else {
-            lerpF =
-                (player.transform.translation.z -
-                 (psyqo::FixedPoint(playerTileIndex.z + 1, 0) * Tile::SCALE - curbMaxHeightPoint)) *
-                curbMaxHeightPointScale;
+            lerpF = (player.transform.translation.z -
+                        (psyqo::FixedPoint(playerTileIndex.z + 1, 0) * Tile::SCALE -
+                            curbMaxHeightPoint)) *
+                    curbMaxHeightPointScale;
         }
 
         static constexpr auto zero = psyqo::FixedPoint<>(0.0);
@@ -1102,8 +1007,8 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
             renderer.drawAABB(camera, trigger.aabb, col);
         }
 
-        renderer
-            .drawCircle(camera, player.collisionCircle, psyqo::Color{.r = 255, .g = 0, .b = 255});
+        renderer.drawCircle(
+            camera, player.collisionCircle, psyqo::Color{.r = 255, .g = 0, .b = 255});
         renderer.drawCircle(camera, npc.collisionCircle, psyqo::Color{.r = 0, .g = 255, .b = 255});
 
         if (canTalk || game.activeInteractionTriggerIdx != -1) {
@@ -1132,8 +1037,7 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
 
         const auto playerTileIndex = TileMap::getTileIndex(player.getPosition());
 
-        game.romFont.chainprintf(
-            game.gpu(),
+        game.romFont.chainprintf(game.gpu(),
             {{.x = 16, .y = 16}},
             textCol,
             "pos = (%.2f, %.4f, %.2f)",
@@ -1149,31 +1053,27 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
             playerTileIndex.x,
             playerTileIndex.z); */
 
-        game.romFont.chainprintf(
-            game.gpu(),
+        game.romFont.chainprintf(game.gpu(),
             {{.x = 16, .y = 32}},
             textCol,
             "p rot=(%.2f, %.2f)",
             psyqo::FixedPoint<>(player.rotation.x),
             psyqo::FixedPoint<>(player.rotation.y));
 
-        game.romFont.chainprintf(
-            game.gpu(),
+        game.romFont.chainprintf(game.gpu(),
             {{.x = 16, .y = 64}},
             textCol,
             "heap used: %d",
             (int)((uint8_t*)psyqo_heap_end() - (uint8_t*)psyqo_heap_start()));
 
-        game.romFont.chainprintf(
-            game.gpu(),
+        game.romFont.chainprintf(game.gpu(),
             {{.x = 16, .y = 80}},
             textCol,
             "pb used: %d, tiles drawn: %d",
             (int)renderer.getPrimBuffer().used(),
             renderer.numTilesDrawn);
 
-        game.romFont.chainprintf(
-            game.gpu(),
+        game.romFont.chainprintf(game.gpu(),
             {{.x = 16, .y = 48}},
             textCol,
             "FPS: %.2f, fd: %d",
@@ -1187,8 +1087,7 @@ void GameplayScene::dumpDebugInfoToTTY()
     static eastl::fixed_string<char, 512> str;
 
     // dump camera position/rotation
-    fsprintf(
-        str,
+    fsprintf(str,
         "camera.position = {%.4f, %.4f, %.4f};\ncamera.rotation = {%.4f, %.4f};",
         camera.position.x,
         camera.position.y,
@@ -1198,8 +1097,7 @@ void GameplayScene::dumpDebugInfoToTTY()
     ramsyscall_printf("%s\n", str.c_str());
 
     // dump player position/rotation
-    fsprintf(
-        str,
+    fsprintf(str,
         "player.setPosition({%.4f, %.4f, %.4f});\nplayer.rotation = {%.4f, %.4f};",
         player.transform.translation.x,
         player.transform.translation.y,
@@ -1221,4 +1119,107 @@ void GameplayScene::switchLevel(int levelId)
     if (game.level.id == 1) {
         destinationLevelId = 0;
     }
+}
+
+void GameplayScene::playTestCutscene()
+{
+    static const auto camNPC = CameraTransform{
+        .position = {0.1376, 0.1318, 0.0236},
+        .rotation = {-0.0410, -0.7060},
+    };
+
+    static const auto camNPC2 = CameraTransform{
+        .position = {0.0292, 0.1381, 0.0100},
+        .rotation = {-0.1650, -0.9492},
+    };
+
+    static const auto camPlayer = CameraTransform{
+        .position = {0.0754, 0.0390, -0.0578},
+        .rotation = {-0.0390, -0.2050},
+    };
+
+    static const auto camPlayer2 = CameraTransform{
+        .position = {-0.0478, 0.0341, 0.0556},
+        .rotation = {-0.1269, -0.0244},
+    };
+
+    static const auto camTV = CameraTransform{
+        .position = {-0.0441, 0.1835, 0.1213},
+        .rotation{0.0566, -0.3779},
+    };
+
+    auto cutscene = ActionList{"GleebyEscape"};
+    auto builder = actions::ActionListBuilder{
+        .actionList = cutscene,
+        .camera = camera,
+        .dialogueBox = dialogueBox,
+    };
+
+    beginCutscene(cutscene);
+    builder //
+        .doFunc([this]() { game.songPlayer.restartMusic(); })
+        .say("Hello!", camNPC)
+        .say("Hi...", camPlayer)
+        .say("How's cutscene\ndevelopment\ngoing?", camNPC)
+        .setCamera(camPlayer)
+        .setAnimAndWait(player, "ThinkStart"_sh, ANGRY_FACE_ANIMATION)
+        .say("Hmm...",
+            {
+                .object = &player,
+                .anim = "Think"_sh,
+            })
+        .say("I think it's going...\n\3\4Pretty well\3\4\1...",
+            player,
+            {}, // don't change anim
+            DEFAULT_BLINK_FACE_ANIMATION)
+        .doFunc([this]() {
+            game.songPlayer.pauseMusic();
+            game.soundPlayer.playSound(22, game.newsSound);
+        })
+        .say("\2BREAKING NEWS!\1\nGleeby deeby\nhas escaped!", camTV)
+        .doFunc([this]() {
+            camera.setTransform(camPlayer);
+            game.songPlayer.restartMusic();
+        })
+        .delay(2)
+        .doFunc([this]() {
+            game.songPlayer.pauseMusic();
+            player.animator.pauseAnimation();
+            player.setFaceAnimation(SHOCKED_FACE_ANIMATION);
+        })
+        .delay(2)
+        .say("\3\2W-W-WHAT???\3\1", camNPC2, npc, "Shocked"_sh)
+        .say("...", camPlayer)
+        .doFunc([this]() {
+            player.setFaceAnimation(DEFAULT_FACE_ANIMATION);
+            player.animator.setAnimation("Idle"_sh);
+
+            npc.animator.setAnimation("Idle"_sh);
+        });
+    endCutscene(cutscene);
+
+    game.actionListManager.addActionList(eastl::move(cutscene));
+}
+
+void GameplayScene::beginCutscene(ActionList& list)
+{
+    list.addAction([this]() {
+        gameState = GameState::Dialogue;
+        cutsceneBorderHeight = 0;
+        cutsceneStart = true;
+    });
+}
+
+void GameplayScene::endCutscene(ActionList& list)
+{
+    oldTransformCutscene = CameraTransform{
+        .position = camera.position,
+        .rotation = camera.rotation,
+    };
+    list.addAction([this]() {
+        camera.setTransform(oldTransformCutscene);
+        gameState = GameState::Normal;
+
+        cutsceneStart = false;
+    });
 }

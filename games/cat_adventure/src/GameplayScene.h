@@ -15,6 +15,7 @@
 class Game;
 class Renderer;
 class PadManager;
+class ActionList;
 
 class GameplayScene : public psyqo::Scene {
 public:
@@ -46,6 +47,10 @@ private:
     void dumpDebugInfoToTTY();
 
     void switchLevel(int levelId);
+
+    void playTestCutscene();
+    void beginCutscene(ActionList& list);
+    void endCutscene(ActionList& list);
 
     Game& game;
 
@@ -99,4 +104,6 @@ private:
 
     int cutsceneBorderHeight{-1};
     bool cutsceneStart{false};
+
+    CameraTransform oldTransformCutscene;
 };

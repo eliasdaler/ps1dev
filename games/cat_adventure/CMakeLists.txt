@@ -35,6 +35,7 @@ add_executable(game
   ./src/ActionList/Actions/DoAction.cpp
   ./src/ActionList/Actions/DelayAction.cpp
   ./src/ActionList/Actions/SayAction.cpp
+  ./src/ActionList/Actions/SetAnimAndWaitAction.cpp
   ./src/ActionList/Actions/WaitWhileAction.cpp
 
   ./src/Math/Math.cpp
