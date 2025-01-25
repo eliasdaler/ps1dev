@@ -153,6 +153,9 @@ void AnimatedModelObject::setFaceAnimation(StringHash faceName, bool updateCurre
     case ANGRY_FACE_ANIMATION.value:
         setFaceAnimation(0, 64);
         break;
+    case SHOCKED_FACE_ANIMATION.value:
+        setFaceAnimation(0, 96);
+        break;
     }
 
     if (updateCurrent) {

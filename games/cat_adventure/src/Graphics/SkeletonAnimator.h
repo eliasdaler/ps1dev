@@ -37,6 +37,9 @@ struct SkeletonAnimator {
     const SkeletalAnimation* currentAnimation{nullptr};
     psyqo::FixedPoint<> normalizedAnimTime{0.0};
 
+    void pauseAnimation() { animationPaused = true; }
+    void resumeAnimation() { animationPaused = false; }
+
 private:
     psyqo::FixedPoint<> prevNormalizedAnimTime{0.0};
 
@@ -51,4 +54,6 @@ private:
 
     bool animationEnded{false};
     bool prevAnimationEnded{false};
+
+    bool animationPaused{false};
 };

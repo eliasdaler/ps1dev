@@ -2,8 +2,6 @@
 
 #include <common/syscalls/syscalls.h>
 
-#include <ActionList/ActionWrappers.h>
-
 #include "StringHashes.h"
 
 namespace
@@ -45,13 +43,6 @@ void Game::prepare()
 
     soundPlayer.init();
     renderer.init();
-
-    testList = ActionList{
-        "test",
-        []() { ramsyscall_printf("hello\n"); },
-        actions::delay(2),
-        []() { ramsyscall_printf("world\n"); },
-    };
 }
 
 namespace
@@ -96,6 +87,10 @@ psyqo::Coroutine<> loadCoroutine(Game& game)
 
         game.gstep2Sound = 0x5F00;
         game.cd.loadSound("GSTEP2.VAG;1", game.gstep2Sound);
+        co_await awaiter;
+
+        game.newsSound = 0x6300;
+        game.cd.loadSound("NEWS.VAG;1", game.newsSound);
         co_await awaiter;
     }
 

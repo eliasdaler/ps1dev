@@ -73,6 +73,7 @@ inline constexpr StringHash DEFAULT_BLINK_FACE_ANIMATION = "Blink"_sh;
 inline constexpr StringHash THINK_FACE_ANIMATION = "Think"_sh;
 inline constexpr StringHash ANGRY_BLINK_FACE_ANIMATION = "AngryBlink"_sh;
 inline constexpr StringHash ANGRY_FACE_ANIMATION = "Angry"_sh;
+inline constexpr StringHash SHOCKED_FACE_ANIMATION = "Shocked"_sh;
 
 struct AnimatedModelObject : ModelObject {
     void updateCollision();

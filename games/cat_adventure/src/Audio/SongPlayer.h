@@ -19,6 +19,7 @@ struct SongPlayer {
     void init(MidiFile& song, VabFile& vab);
     void findBPM(MidiFile& song);
 
+    void restartMusic();
     void updateMusic();
     void pauseMusic();
 

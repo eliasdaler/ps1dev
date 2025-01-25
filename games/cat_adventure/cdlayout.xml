@@ -31,6 +31,7 @@
                 <file name="STEP2.VAG" type="data" source="assets/step2.vag"/>
                 <file name="GSTEP1.VAG" type="data" source="assets/gstep1.vag"/>
                 <file name="GSTEP2.VAG" type="data" source="assets/gstep2.vag"/>
+                <file name="NEWS.VAG" type="data" source="assets/news.vag"/>
                 <file name="CATO.TIM" type="data" source="assets/cato.tim"/>
                 <file name="CATOF.TIM" type="data" source="assets/cato_faces.tim"/>
                 <file name="FONT.TIM" type="data" source="assets/font.tim"/>

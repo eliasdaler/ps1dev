@@ -18,6 +18,8 @@
 
 #include "Resources.h"
 
+#include <ActionList/ActionWrappers.h>
+
 #include <ranges>
 
 #define DEV_TOOLS
@@ -185,6 +187,8 @@ void GameplayScene::frame()
 {
     game.handleDeltas();
 
+    game.actionListManager.update(game.frameDtMcs, false);
+
     fpsCounter.update(game.gpu());
     game.pad.update();
     processInput(game.pad);
@@ -195,8 +199,6 @@ void GameplayScene::frame()
     }
 
     gpu().pumpCallbacks();
-
-    game.actionListManager.update(game.frameDtMcs, false);
 
     draw(game.renderer);
 
@@ -244,7 +246,7 @@ void GameplayScene::processInput(const PadManager& pad)
         if (dialogueBox.isOpen) {
             dialogueBox.handleInput(pad);
             if (dialogueBox.wantClose) {
-                gameState = GameState::Normal;
+                // gameState = GameState::Normal;
             }
         }
     }
@@ -421,10 +423,139 @@ void GameplayScene::processDebugInput(const PadManager& pad)
         debugInfoDrawn = !debugInfoDrawn;
     }
 
-    if (pad.wasButtonJustPressed(psyqo::SimplePad::Triangle)) {
-        game.actionListManager.addActionList(game.testList);
+    if (pad.wasButtonJustPressed(psyqo::SimplePad::Circle)) {
+        if (!game.actionListManager.isActionListPlaying("test")) {
+            static const auto camPosNPC = psyqo::Vec3{0.1376, 0.1318, 0.0236};
+            static const auto camRotNPC = psyqo::Vector<2, 10>{-0.0410, -0.7060};
 
-        if (!cutscene) {
+            static const auto camPosNPC2 = psyqo::Vec3{0.0292, 0.1381, 0.0100};
+            static const auto camRotNPC2 = psyqo::Vector<2, 10>{-0.1650, -0.9492};
+
+            static const auto camPosPlayer = psyqo::Vec3{0.0754, 0.0390, -0.0578};
+            static const auto camRotPlayer = psyqo::Vector<2, 10>{-0.0390, -0.2050};
+
+            static const auto camPosPlayer2 = psyqo::Vec3{-0.0478, 0.0341, 0.0556};
+            static const auto camRotPlayer2 = psyqo::Vector<2, 10>{-0.1269, -0.0244};
+
+            static const auto camPosTV = psyqo::Vec3{-0.0441, 0.1835, 0.1213};
+            static const auto camRotTV = psyqo::Vector<2, 10>{0.0566, -0.3779};
+
+            static const auto camPosStart = camera.position;
+            static const auto camRotStart = camera.rotation;
+
+            auto testList = ActionList{
+                "test",
+
+                [this]() {
+                    camera.position = camPosNPC;
+                    camera.rotation = camRotNPC;
+
+                    game.songPlayer.musicTime = 0;
+                    game.songPlayer.musicMuted = false;
+
+                    gameState = GameState::Dialogue;
+                    dialogueBox.setText("Hello!");
+
+                    cutsceneBorderHeight = 0;
+                    cutsceneStart = true;
+                },
+                actions::waitWhile([this](std::uint32_t dt) { return !dialogueBox.wantClose; }),
+                // [this]() { dialogueBox.isOpen = false; },
+                // actions::delay(1),
+
+                [this]() {
+                    camera.position = camPosPlayer;
+                    camera.rotation = camRotPlayer;
+
+                    dialogueBox.setText("Hi...");
+                },
+                actions::waitWhile([this](std::uint32_t dt) { return !dialogueBox.wantClose; }),
+
+                [this]() {
+                    camera.position = camPosNPC;
+                    camera.rotation = camRotNPC;
+
+                    dialogueBox.setText("How's cutscene\ndevevelopment\ngoing?");
+                },
+                actions::waitWhile([this](std::uint32_t dt) { return !dialogueBox.wantClose; }),
+
+                [this]() {
+                    camera.position = camPosPlayer;
+                    camera.rotation = camRotPlayer;
+
+                    player.setFaceAnimation(ANGRY_FACE_ANIMATION);
+                    player.animator.setAnimation("ThinkStart"_sh);
+                },
+                actions::waitWhile(
+                    [this](std::uint32_t dt) { return !player.animator.animationJustEnded(); }),
+                [this]() {
+                    dialogueBox.setText("Hmm...");
+                    player.animator.setAnimation("Think"_sh);
+                },
+                actions::waitWhile([this](std::uint32_t dt) { return !dialogueBox.wantClose; }),
+                [this]() {
+                    player.setFaceAnimation(DEFAULT_BLINK_FACE_ANIMATION);
+                    dialogueBox.setText("I think it's going...\n\3\4Pretty well\3\4\1...");
+                },
+                actions::waitWhile([this](std::uint32_t dt) { return !dialogueBox.wantClose; }),
+
+                [this]() {
+                    game.songPlayer.pauseMusic();
+
+                    camera.position = camPosTV;
+                    camera.rotation = camRotTV;
+                    game.soundPlayer.playSound(22, game.newsSound);
+                    dialogueBox.setText("\2BREAKING NEWS!\1\nGleeby deeby\nhas escaped!");
+                },
+                actions::waitWhile([this](std::uint32_t dt) { return !dialogueBox.wantClose; }),
+
+                [this]() {
+                    camera.position = camPosPlayer;
+                    camera.rotation = camRotPlayer;
+                    game.songPlayer.musicMuted = false;
+                    game.songPlayer.restartMusic();
+                },
+                actions::delay(2),
+
+                [this]() {
+                    player.animator.pauseAnimation();
+                    player.setFaceAnimation(SHOCKED_FACE_ANIMATION);
+                    game.songPlayer.pauseMusic();
+                },
+                actions::delay(2),
+
+                [this]() {
+                    camera.position = camPosNPC2;
+                    camera.rotation = camRotNPC2;
+                    npc.animator.setAnimation("Shocked"_sh);
+                    dialogueBox.setText("\3\2W-W-WHAT???\3\1");
+                },
+                actions::waitWhile([this](std::uint32_t dt) { return !dialogueBox.wantClose; }),
+
+                [this]() {
+                    camera.position = camPosPlayer;
+                    camera.rotation = camRotPlayer;
+                },
+                actions::delay(1),
+                [this]() { dialogueBox.setText("..."); },
+                actions::waitWhile([this](std::uint32_t dt) { return !dialogueBox.wantClose; }),
+                [this]() {
+                    camera.position = camPosStart;
+                    camera.rotation = camRotStart;
+                    gameState = GameState::Normal;
+
+                    cutsceneStart = false;
+
+                    player.setFaceAnimation(DEFAULT_FACE_ANIMATION);
+                    player.animator.setAnimation("Idle"_sh);
+
+                    npc.animator.setAnimation("Idle"_sh);
+                },
+            };
+            game.actionListManager.addActionList(eastl::move(testList));
+        }
+
+        /* if (!cutscene) {
             player.setFaceAnimation(ANGRY_FACE_ANIMATION);
             player.animator.setAnimation("ThinkStart"_sh);
             cutscene = true;
@@ -432,7 +563,7 @@ void GameplayScene::processDebugInput(const PadManager& pad)
             player.setFaceAnimation(DEFAULT_FACE_ANIMATION);
             player.animator.setAnimation("Idle"_sh);
             cutscene = false;
-        }
+        } */
     }
 }
 
@@ -923,6 +1054,48 @@ void GameplayScene::draw(Renderer& renderer)
         } else if (game.activeInteractionTriggerIdx != -1) {
             interactionDialogueBox.setText("\5(X)\1 Interact", true);
             interactionDialogueBox.draw(renderer, game.font, game.fontTexture, uiTexture);
+        }
+    }
+
+    if (cutsceneBorderHeight != -1) { // draw dialogue screen borders
+        auto& gpu = renderer.getGPU();
+
+        if (cutsceneStart) {
+            cutsceneBorderHeight += 2;
+        } else {
+            cutsceneBorderHeight -= 2;
+        }
+
+        static constexpr int maxCutsceneBorderHeight = 24;
+        if (cutsceneBorderHeight >= maxCutsceneBorderHeight) {
+            cutsceneBorderHeight = maxCutsceneBorderHeight;
+        }
+        if (cutsceneBorderHeight <= -1) {
+            cutsceneBorderHeight = -1;
+        }
+
+        if (cutsceneBorderHeight != -1) {
+            { // top
+                auto& rectFrag = primBuffer.allocateFragment<psyqo::Prim::Rectangle>();
+                auto& rect = rectFrag.primitive;
+                rect.position = {};
+                rect.size.x = SCREEN_WIDTH;
+                rect.size.y = cutsceneBorderHeight;
+
+                rect.setColor({}); // black
+                gpu.chain(rectFrag);
+            }
+
+            { // bottom
+                auto& rectFrag = primBuffer.allocateFragment<psyqo::Prim::Rectangle>();
+                auto& rect = rectFrag.primitive;
+                rect.position = {.y = (std::int16_t)(SCREEN_HEIGHT - cutsceneBorderHeight)};
+                rect.size.x = SCREEN_WIDTH;
+                rect.size.y = cutsceneBorderHeight;
+
+                rect.setColor({}); // black
+                gpu.chain(rectFrag);
+            }
         }
     }
 

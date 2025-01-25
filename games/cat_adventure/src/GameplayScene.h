@@ -96,4 +96,7 @@ private:
     bool cutscene{false};
 
     psyqo::Color fogColor;
+
+    int cutsceneBorderHeight{-1};
+    bool cutsceneStart{false};
 };

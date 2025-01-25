@@ -108,7 +108,8 @@ Quaternion slerp(const Quaternion& q1, const Quaternion& q2, psyqo::FixedPoint<>
     res.z = lerp(psyqo::FixedPoint<>(q1.z), psyqo::FixedPoint<>(q2.z), factor);
     res.w = lerp(psyqo::FixedPoint<>(q1.w), psyqo::FixedPoint<>(q2.w), factor);
 
-    res.normalize();
+    // FIXME: it's kinda broken...
+    // res.normalize();
 
     return res;
 }

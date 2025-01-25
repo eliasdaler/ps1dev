@@ -5,16 +5,16 @@
 void ActionListManager::update(std::uint32_t dt, bool gamePaused)
 {
     for (auto& [name, al] : actionLists) {
-        if (gamePaused && !al->shouldRunWhenGameIsPaused()) {
+        if (gamePaused && !al.shouldRunWhenGameIsPaused()) {
             continue;
         }
-        al->update(dt);
+        al.update(dt);
     }
     // remove finished lists
-    eastl::erase_if(actionLists, [](const auto& p) { return p.second->isFinished(); });
+    eastl::erase_if(actionLists, [](const auto& p) { return p.second.isFinished(); });
 }
 
-void ActionListManager::addActionList(ActionList& actionList)
+void ActionListManager::addActionList(ActionList actionList)
 {
     actionList.play();
     if (!actionList.isFinished()) {
@@ -24,7 +24,7 @@ void ActionListManager::addActionList(ActionList& actionList)
                 "action list with name '{}' is already playing, call stopActionList first",
                 actionList.getName())); */
         }
-        actionLists.emplace(actionList.getName(), &actionList);
+        actionLists.emplace(actionList.getName(), eastl::move(actionList));
     }
 }
 

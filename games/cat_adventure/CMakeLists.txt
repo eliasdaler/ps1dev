@@ -34,6 +34,7 @@ add_executable(game
   ./src/ActionList/Actions/ActionListFinishAction.cpp
   ./src/ActionList/Actions/DoAction.cpp
   ./src/ActionList/Actions/DelayAction.cpp
+  ./src/ActionList/Actions/WaitWhileAction.cpp
 
   ./src/Math/Math.cpp
   ./src/Math/matrix_test.cpp

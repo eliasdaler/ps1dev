@@ -39,6 +39,7 @@ void SkeletonAnimator::setAnimation(
     animationEnded = false;
     prevNormalizedAnimTime = normalizedAnimTime;
     prevAnimationEnded = false;
+    animationPaused = false;
 
     animLengthMcs = currentAnimation->length * (1'000'000 / 30); // anim is at 30 FPS
     animLengthMs = psyqo::FixedPoint<>((animLengthMcs / 1000), 0);
@@ -59,7 +60,7 @@ const SkeletalAnimation* SkeletonAnimator::findAnimation(StringHash animationNam
 
 void SkeletonAnimator::update()
 {
-    if (!currentAnimation || animationEnded) {
+    if (!currentAnimation || animationEnded || animationPaused) {
         return;
     }
 

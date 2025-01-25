@@ -216,6 +216,24 @@ void SongPlayer::updateMusic()
     spu.setReverbChannels(reverbEnableMask);
 }
 
+void SongPlayer::restartMusic()
+{
+    musicTime = 0;
+
+    for (int i = 0; i < lastEventIdx.size(); ++i) {
+        lastEventIdx[i] = 0;
+    }
+
+    for (int i = 0; i < eventNum.size(); ++i) {
+        eventNum[i] = 0;
+    }
+
+    for (int i = 0; i < eventNum.size(); ++i) {
+        eventNum[i] = 0;
+        voiceUsers[i] = {};
+    }
+}
+
 void SongPlayer::pauseMusic()
 {
     spu.setKeyOnOff(0, ~0);
