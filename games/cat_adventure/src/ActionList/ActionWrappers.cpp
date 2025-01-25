@@ -26,28 +26,28 @@ eastl::unique_ptr<Action> say(DialogueBox& dialogueBox, eastl::string_view text)
     return eastl::make_unique<SayAction>(dialogueBox, text);
 }
 
-ActionListBuilder& ActionListBuilder::delay(std::uint32_t delayDurationSeconds)
+const ActionListBuilder& ActionListBuilder::delay(std::uint32_t delayDurationSeconds) const
 {
     actionList.addAction(eastl::make_unique<DelayAction>(delayDurationSeconds));
     return *this;
 }
 
-ActionListBuilder& ActionListBuilder::waitWhile(WaitWhileAction::ConditionFuncType f)
+const ActionListBuilder& ActionListBuilder::waitWhile(WaitWhileAction::ConditionFuncType f) const
 {
     actionList.addAction(eastl::make_unique<WaitWhileAction>(eastl::move(f)));
     return *this;
 }
 
-ActionListBuilder& ActionListBuilder::say(eastl::string_view text)
+const ActionListBuilder& ActionListBuilder::say(eastl::string_view text) const
 {
     actionList.addAction(eastl::make_unique<SayAction>(dialogueBox, text));
     return *this;
 }
 
-ActionListBuilder& ActionListBuilder::say(eastl::string_view text, const CameraTransform& transform)
+const ActionListBuilder& ActionListBuilder::say(eastl::string_view text,
+    const CameraTransform& transform) const
 {
-    actionList.addAction(eastl::make_unique<SayAction>(
-        dialogueBox,
+    actionList.addAction(eastl::make_unique<SayAction>(dialogueBox,
         text,
         SayParams{
             .cameraPtr = &camera,
@@ -56,19 +56,18 @@ ActionListBuilder& ActionListBuilder::say(eastl::string_view text, const CameraT
     return *this;
 }
 
-ActionListBuilder& ActionListBuilder::say(eastl::string_view text, const SayParams& params)
+const ActionListBuilder& ActionListBuilder::say(eastl::string_view text,
+    const SayParams& params) const
 {
     actionList.addAction(eastl::make_unique<SayAction>(dialogueBox, text, params));
     return *this;
 }
-ActionListBuilder& ActionListBuilder::say(
-    eastl::string_view text,
+const ActionListBuilder& ActionListBuilder::say(eastl::string_view text,
     const CameraTransform& transform,
     AnimatedModelObject& object,
-    StringHash animName)
+    StringHash animName) const
 {
-    return say(
-        text,
+    return say(text,
         SayParams{
             .cameraPtr = &camera,
             .cameraTransform = transform,
@@ -77,27 +76,23 @@ ActionListBuilder& ActionListBuilder::say(
         });
 }
 
-ActionListBuilder& ActionListBuilder::say(
-    eastl::string_view text,
+const ActionListBuilder& ActionListBuilder::say(eastl::string_view text,
     AnimatedModelObject& object,
-    StringHash animName)
+    StringHash animName) const
 {
-    return say(
-        text,
+    return say(text,
         SayParams{
             .object = &object,
             .anim = animName,
         });
 }
 
-ActionListBuilder& ActionListBuilder::say(
-    eastl::string_view text,
+const ActionListBuilder& ActionListBuilder::say(eastl::string_view text,
     AnimatedModelObject& object,
     StringHash animName,
-    StringHash faceAnimName)
+    StringHash faceAnimName) const
 {
-    return say(
-        text,
+    return say(text,
         SayParams{
             .object = &object,
             .anim = animName,
@@ -105,28 +100,28 @@ ActionListBuilder& ActionListBuilder::say(
         });
 }
 
-ActionListBuilder& ActionListBuilder::doFunc(eastl::function<void()> f)
+const ActionListBuilder& ActionListBuilder::doFunc(eastl::function<void()> f) const
 {
     actionList.addAction(eastl::move(f));
     return *this;
 }
 
-ActionListBuilder& ActionListBuilder::setCamera(const CameraTransform& transform)
+const ActionListBuilder& ActionListBuilder::setCamera(const CameraTransform& transform) const
 {
     actionList.addAction([camPtr = &camera, transform]() { camPtr->setTransform(transform); });
     return *this;
 }
 
-ActionListBuilder& ActionListBuilder::setAnim(AnimatedModelObject& object, StringHash animName)
+const ActionListBuilder& ActionListBuilder::setAnim(AnimatedModelObject& object,
+    StringHash animName) const
 {
     actionList.addAction([&object, animName]() { object.animator.setAnimation(animName); });
     return *this;
 }
 
-ActionListBuilder& ActionListBuilder::setAnim(
-    AnimatedModelObject& object,
+const ActionListBuilder& ActionListBuilder::setAnim(AnimatedModelObject& object,
     StringHash animName,
-    StringHash faceName)
+    StringHash faceName) const
 {
     actionList.addAction([&object, animName, faceName]() {
         object.animator.setAnimation(animName);
@@ -135,24 +130,23 @@ ActionListBuilder& ActionListBuilder::setAnim(
     return *this;
 }
 
-ActionListBuilder& ActionListBuilder::setAnimAndWait(
-    AnimatedModelObject& object,
-    StringHash animName)
+const ActionListBuilder& ActionListBuilder::setAnimAndWait(AnimatedModelObject& object,
+    StringHash animName) const
 {
     actionList.addAction(eastl::make_unique<SetAnimAndWaitAction>(object, animName));
     return *this;
 }
 
-ActionListBuilder& ActionListBuilder::setAnimAndWait(
-    AnimatedModelObject& object,
+const ActionListBuilder& ActionListBuilder::setAnimAndWait(AnimatedModelObject& object,
     StringHash animName,
-    StringHash faceName)
+    StringHash faceName) const
 {
     actionList.addAction(eastl::make_unique<SetAnimAndWaitAction>(object, animName, faceName));
     return *this;
 }
 
-ActionListBuilder& ActionListBuilder::setFaceAnim(AnimatedModelObject& object, StringHash faceName)
+const ActionListBuilder& ActionListBuilder::setFaceAnim(AnimatedModelObject& object,
+    StringHash faceName) const
 {
     actionList.addAction([&object, faceName]() { object.setFaceAnimation(faceName); });
     return *this;

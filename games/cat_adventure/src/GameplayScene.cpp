@@ -423,7 +423,7 @@ void GameplayScene::processDebugInput(const PadManager& pad)
     }
 
     if (pad.wasButtonJustPressed(psyqo::SimplePad::Circle)) {
-        if (!game.actionListManager.isActionListPlaying("test")) {
+        if (!game.actionListManager.isActionListPlaying("test"_sh)) {
             playTestCutscene();
         }
 
@@ -1123,33 +1123,33 @@ void GameplayScene::switchLevel(int levelId)
 
 void GameplayScene::playTestCutscene()
 {
-    static const auto camNPC = CameraTransform{
+    static constexpr auto camNPC = CameraTransform{
         .position = {0.1376, 0.1318, 0.0236},
         .rotation = {-0.0410, -0.7060},
     };
 
-    static const auto camNPC2 = CameraTransform{
+    static constexpr auto camNPC2 = CameraTransform{
         .position = {0.0292, 0.1381, 0.0100},
         .rotation = {-0.1650, -0.9492},
     };
 
-    static const auto camPlayer = CameraTransform{
+    static constexpr auto camPlayer = CameraTransform{
         .position = {0.0754, 0.0390, -0.0578},
         .rotation = {-0.0390, -0.2050},
     };
 
-    static const auto camPlayer2 = CameraTransform{
+    static constexpr auto camPlayer2 = CameraTransform{
         .position = {-0.0478, 0.0341, 0.0556},
         .rotation = {-0.1269, -0.0244},
     };
 
-    static const auto camTV = CameraTransform{
+    static constexpr auto camTV = CameraTransform{
         .position = {-0.0441, 0.1835, 0.1213},
-        .rotation{0.0566, -0.3779},
+        .rotation = {0.0566, -0.3779},
     };
 
-    auto cutscene = ActionList{"GleebyEscape"};
-    auto builder = actions::ActionListBuilder{
+    auto cutscene = ActionList{"test"_sh};
+    const auto builder = actions::ActionListBuilder{
         .actionList = cutscene,
         .camera = camera,
         .dialogueBox = dialogueBox,
@@ -1163,11 +1163,7 @@ void GameplayScene::playTestCutscene()
         .say("How's cutscene\ndevelopment\ngoing?", camNPC)
         .setCamera(camPlayer)
         .setAnimAndWait(player, "ThinkStart"_sh, ANGRY_FACE_ANIMATION)
-        .say("Hmm...",
-            {
-                .object = &player,
-                .anim = "Think"_sh,
-            })
+        .say("Hmm...", player, "Think"_sh)
         .say("I think it's going...\n\3\4Pretty well\3\4\1...",
             player,
             {}, // don't change anim

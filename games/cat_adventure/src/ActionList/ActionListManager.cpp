@@ -28,7 +28,7 @@ void ActionListManager::addActionList(ActionList actionList)
     }
 }
 
-void ActionListManager::stopActionList(const eastl::string& actionListName)
+void ActionListManager::stopActionList(StringHash actionListName)
 {
     auto it = actionLists.find(actionListName);
     if (it != actionLists.end()) {
@@ -37,7 +37,7 @@ void ActionListManager::stopActionList(const eastl::string& actionListName)
     actionLists.erase(it);
 };
 
-bool ActionListManager::isActionListPlaying(const eastl::string& actionListName) const
+bool ActionListManager::isActionListPlaying(StringHash actionListName) const
 {
     return actionLists.count(actionListName) != 0; // eastl hash map has no contains?
 };

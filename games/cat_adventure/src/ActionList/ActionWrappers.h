@@ -26,45 +26,40 @@ struct ActionListBuilder {
     Camera& camera;
     DialogueBox& dialogueBox;
 
-    ActionListBuilder& delay(std::uint32_t delayDurationSeconds);
-    ActionListBuilder& waitWhile(WaitWhileAction::ConditionFuncType f);
-    ActionListBuilder& setCamera(const CameraTransform& transform);
+    const ActionListBuilder& delay(std::uint32_t delayDurationSeconds) const;
+    const ActionListBuilder& waitWhile(WaitWhileAction::ConditionFuncType f) const;
+    const ActionListBuilder& setCamera(const CameraTransform& transform) const;
 
-    ActionListBuilder& say(eastl::string_view text);
-    ActionListBuilder& say(eastl::string_view text, const CameraTransform& transform);
-    ActionListBuilder& say(eastl::string_view text, const SayParams& params);
+    const ActionListBuilder& say(eastl::string_view text) const;
+    const ActionListBuilder& say(eastl::string_view text, const CameraTransform& transform) const;
+    const ActionListBuilder& say(eastl::string_view text, const SayParams& params) const;
 
     // more overloads
-    ActionListBuilder& say(
-        eastl::string_view text,
+    const ActionListBuilder& say(eastl::string_view text,
         const CameraTransform& transform,
         AnimatedModelObject& object,
-        StringHash animName);
-    ActionListBuilder& say(
-        eastl::string_view text,
+        StringHash animName) const;
+    const ActionListBuilder& say(eastl::string_view text,
         AnimatedModelObject& object,
-        StringHash animName);
-    ActionListBuilder& say(
-        eastl::string_view text,
+        StringHash animName) const;
+    const ActionListBuilder& say(eastl::string_view text,
         AnimatedModelObject& object,
         StringHash animName,
-        StringHash faceAnimName);
+        StringHash faceAnimName) const;
 
-    ActionListBuilder& doFunc(eastl::function<void()> f);
+    const ActionListBuilder& doFunc(eastl::function<void()> f) const;
 
-    ActionListBuilder& setAnim(AnimatedModelObject& object, StringHash animName);
-    ActionListBuilder& setAnim(
-        AnimatedModelObject& object,
+    const ActionListBuilder& setAnim(AnimatedModelObject& object, StringHash animName) const;
+    const ActionListBuilder& setAnim(AnimatedModelObject& object,
         StringHash animName,
-        StringHash faceName);
+        StringHash faceName) const;
 
-    ActionListBuilder& setAnimAndWait(AnimatedModelObject& object, StringHash animName);
-    ActionListBuilder& setAnimAndWait(
-        AnimatedModelObject& object,
+    const ActionListBuilder& setAnimAndWait(AnimatedModelObject& object, StringHash animName) const;
+    const ActionListBuilder& setAnimAndWait(AnimatedModelObject& object,
         StringHash animName,
-        StringHash faceName);
+        StringHash faceName) const;
 
-    ActionListBuilder& setFaceAnim(AnimatedModelObject& object, StringHash faceName);
+    const ActionListBuilder& setFaceAnim(AnimatedModelObject& object, StringHash faceName) const;
 };
 
 }

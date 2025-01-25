@@ -1,9 +1,10 @@
 #pragma once
 
 #include <EASTL/functional.h>
-#include <EASTL/string.h>
 #include <EASTL/unique_ptr.h>
 #include <EASTL/vector.h>
+
+#include <Core/StringHash.h>
 
 #include "Action.h"
 
@@ -13,8 +14,8 @@
 class ActionList {
 public:
     ActionList();
-    ActionList(eastl::string name);
-    ActionList(eastl::string name, eastl::vector<eastl::unique_ptr<Action>> actions);
+    ActionList(StringHash name);
+    ActionList(StringHash name, eastl::vector<eastl::unique_ptr<Action>> actions);
 
     // Move only (because we want to move actions, not copy them)
     ActionList(ActionList&&) = default;
@@ -23,7 +24,7 @@ public:
     ActionList& operator=(const ActionList&) = delete;
 
     template<typename... Args>
-    ActionList(eastl::string name, Args&&... args);
+    ActionList(StringHash name, Args&&... args);
 
     template<typename... Args>
     void addActions(Args&&... args);
@@ -35,8 +36,8 @@ public:
 
     void play(); // starts playback of an action list from the beginning
 
-    void setName(eastl::string n) { name = eastl::move(n); }
-    const eastl::string& getName() const { return name; }
+    void setName(StringHash n) { name = n; }
+    StringHash getName() const { return name; }
 
     void update(std::uint32_t dt);
     bool isFinished() const;
@@ -60,7 +61,7 @@ private:
     void goToNextAction();
     void advanceIndex();
 
-    eastl::string name;
+    StringHash name;
     eastl::vector<eastl::unique_ptr<Action>> actions;
     std::size_t currentIdx{0};
     bool stopped{true}; // if true, goToNextAction() will start with the first action
@@ -69,7 +70,7 @@ private:
 };
 
 template<typename... Args>
-ActionList::ActionList(eastl::string name, Args&&... args) : name(eastl::move(name))
+ActionList::ActionList(StringHash name, Args&&... args) : name(name)
 {
     actions.reserve(sizeof...(Args));
     addActions(eastl::forward<Args>(args)...);

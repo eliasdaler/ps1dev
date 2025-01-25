@@ -3,13 +3,13 @@
 #include "Actions/ActionListFinishAction.h"
 #include "Actions/DoAction.h"
 
-ActionList::ActionList() : ActionList("empty")
+ActionList::ActionList() : ActionList("empty"_sh)
 {}
 
-ActionList::ActionList(eastl::string name) : name(eastl::move(name))
+ActionList::ActionList(StringHash name) : name(name)
 {}
 
-ActionList::ActionList(eastl::string name, eastl::vector<eastl::unique_ptr<Action>> actions) :
+ActionList::ActionList(StringHash name, eastl::vector<eastl::unique_ptr<Action>> actions) :
     name(eastl::move(name)), actions(eastl::move(actions))
 {}
 
