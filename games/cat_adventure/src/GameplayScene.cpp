@@ -455,12 +455,16 @@ void GameplayScene::processDebugInput(const PadManager& pad)
                 .rotation = camera.rotation,
             };
 
-            auto testList = ActionList{
-                "test",
+            auto testList = ActionList{"test"};
 
-                [this]() {
-                    camera.setTransform(camNPC);
+            actions::ActionListBuilder builder{
+                .actionList = testList,
+                .camera = camera,
+                .dialogueBox = dialogueBox,
+            };
 
+            builder
+                .doFunc([this]() {
                     game.songPlayer.musicTime = 0;
                     game.songPlayer.musicMuted = false;
 
@@ -468,60 +472,42 @@ void GameplayScene::processDebugInput(const PadManager& pad)
 
                     cutsceneBorderHeight = 0;
                     cutsceneStart = true;
-                },
-                actions::say(dialogueBox, "Hello!"),
-
-                [this]() { camera.setTransform(camPlayer); },
-                actions::say(dialogueBox, "Hi..."),
-
-                [this]() { camera.setTransform(camNPC); },
-                actions::say(dialogueBox, "How's cutscene\ndevevelopment\ngoing?"),
-
-                [this]() {
+                })
+                .say("Hello!", camNPC)
+                .say("Hi...", camPlayer)
+                .say("How's cutscene\ndevevelopment\ngoing?", camNPC)
+                .doFunc([this]() {
                     camera.setTransform(camPlayer);
-
                     player.setFaceAnimation(ANGRY_FACE_ANIMATION);
                     player.animator.setAnimation("ThinkStart"_sh);
-                },
-                actions::waitWhile(
-                    [this](std::uint32_t dt) { return !player.animator.animationJustEnded(); }),
-                [this]() { player.animator.setAnimation("Think"_sh); },
-                actions::say(dialogueBox, "Hmm..."),
-                [this]() { player.setFaceAnimation(DEFAULT_BLINK_FACE_ANIMATION); },
-                actions::say(dialogueBox, "I think it's going...\n\3\4Pretty well\3\4\1..."),
-
-                [this]() {
+                })
+                .waitWhile(
+                    [this](std::uint32_t dt) { return !player.animator.animationJustEnded(); })
+                .doFunc([this]() { player.animator.setAnimation("Think"_sh); })
+                .say("Hmm...")
+                .doFunc([this]() { player.setFaceAnimation(DEFAULT_BLINK_FACE_ANIMATION); })
+                .say("I think it's going...\n\3\4Pretty well\3\4\1...")
+                .doFunc([this]() {
                     game.songPlayer.pauseMusic();
-
-                    camera.setTransform(camTV);
                     game.soundPlayer.playSound(22, game.newsSound);
-                    dialogueBox.setText("\2BREAKING NEWS!\1\nGleeby deeby\nhas escaped!");
-                },
-                actions::say(dialogueBox, "\2BREAKING NEWS!\1\nGleeby deeby\nhas escaped!"),
-
-                [this]() {
+                })
+                .say("\2BREAKING NEWS!\1\nGleeby deeby\nhas escaped!", camTV)
+                .doFunc([this]() {
                     camera.setTransform(camPlayer);
                     game.songPlayer.musicMuted = false;
                     game.songPlayer.restartMusic();
-                },
-                actions::delay(2),
-
-                [this]() {
+                })
+                .delay(2)
+                .doFunc([this]() {
                     player.animator.pauseAnimation();
                     player.setFaceAnimation(SHOCKED_FACE_ANIMATION);
                     game.songPlayer.pauseMusic();
-                },
-                actions::delay(2),
-
-                [this]() {
-                    camera.setTransform(camNPC2);
-                    npc.animator.setAnimation("Shocked"_sh);
-                },
-                actions::say(dialogueBox, "\3\2W-W-WHAT???\3\1"),
-
-                [this]() { camera.setTransform(camPlayer); },
-                actions::say(dialogueBox, "..."),
-                [this]() {
+                })
+                .delay(2)
+                .doFunc([this]() { npc.animator.setAnimation("Shocked"_sh); })
+                .say("\3\2W-W-WHAT???\3\1", camNPC2)
+                .say("...", camPlayer)
+                .doFunc([this]() {
                     camera.setTransform(camTVStart);
                     gameState = GameState::Normal;
 
@@ -531,8 +517,7 @@ void GameplayScene::processDebugInput(const PadManager& pad)
                     player.animator.setAnimation("Idle"_sh);
 
                     npc.animator.setAnimation("Idle"_sh);
-                },
-            };
+                });
             game.actionListManager.addActionList(eastl::move(testList));
         }
 
