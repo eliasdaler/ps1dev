@@ -6,8 +6,6 @@
 
 namespace math
 {
-psyqo::Angle radiansToHalfTurns(psyqo::Angle degrees);
-
 psyqo::Angle lerpAngle(psyqo::Angle a, psyqo::Angle b, psyqo::Angle lerpFactor);
 psyqo::Angle calculateLerpDelta(psyqo::Angle a, psyqo::Angle b, psyqo::Angle speed);
 

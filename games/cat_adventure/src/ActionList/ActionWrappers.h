@@ -60,6 +60,9 @@ struct ActionListBuilder {
         StringHash faceName) const;
 
     const ActionListBuilder& setFaceAnim(AnimatedModelObject& object, StringHash faceName) const;
+
+    const ActionListBuilder& rotateTowards(AnimatedModelObject& object,
+        const AnimatedModelObject& target) const;
 };
 
 }

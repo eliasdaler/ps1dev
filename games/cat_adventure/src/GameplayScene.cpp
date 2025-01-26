@@ -135,10 +135,10 @@ void GameplayScene::start(StartReason reason)
         game.renderer.setFogEnabled(false);
 
         player.setPosition({-0.0439, -0.0200, 0.2141});
-        player.rotation = {0.0000, -4.9492};
+        player.setYaw(0.95);
 
         npc.setPosition({0.0, 0.0, -0.11});
-        npc.rotation = {0.0, 0.1};
+        npc.setYaw(0.1);
 
         camera.position = {0.2900, 0.4501, 0.5192};
         camera.rotation = {0.1621, -0.7753};
@@ -149,10 +149,10 @@ void GameplayScene::start(StartReason reason)
         // game.renderer.setFogEnabled(false);
 
         player.setPosition({-0.1083, 0.0000, -1.2602});
-        player.rotation = {0.0000, -0.0117};
+        npc.setYaw(-0.01);
 
         npc.setPosition({-0.3344, 0.0000, -1.2253});
-        npc.rotation = {0.0000, -3.7119};
+        npc.setYaw(-1.71);
 
         followCamera = true;
     }
@@ -265,11 +265,13 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
     // yaw
     bool isRotating = false;
     if (pad.isButtonPressed(psyqo::SimplePad::Left)) {
-        player.rotation.y += psyqo::FixedPoint<10, std::int32_t>(rotateSpeed * dt);
+        const auto newAngle = player.getYaw() + psyqo::Angle(rotateSpeed * dt);
+        player.setYaw(newAngle);
         isRotating = true;
     }
     if (pad.isButtonPressed(psyqo::SimplePad::Right)) {
-        player.rotation.y -= psyqo::FixedPoint<10, std::int32_t>(rotateSpeed * dt);
+        const auto newAngle = player.getYaw() - psyqo::Angle(rotateSpeed * dt);
+        player.setYaw(newAngle);
         isRotating = true;
     }
 
@@ -352,12 +354,13 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
             player.animator.setAnimation("Idle"_sh);
 
             // TODO: move to npcInteractStart
-            interactStartAngle = npc.rotation.y;
+            interactStartAngle = npc.getYaw();
             interactEndAngle = npc.findInteractionAngle(player);
             interactRotationLerpFactor = 0.0;
             interactRotationLerpSpeed =
                 math::calculateLerpDelta(interactStartAngle, interactEndAngle, 0.04);
             npcRotatesTowardsPlayer = true;
+            ramsyscall_printf("%d, %d\n", interactStartAngle.value, interactEndAngle.value);
         } else if (game.activeInteractionTriggerIdx != -1) {
             const auto& trigger = game.level.triggers[game.activeInteractionTriggerIdx];
             if (trigger.name == "TV"_sh) {
@@ -471,7 +474,7 @@ void GameplayScene::updateCamera()
             playerPos.z + fwdVector.z * cameraOffset.z + rightVector.z * cameraOffset.x;
 
         camera.rotation.x = cameraPitch;
-        camera.rotation.y = player.rotation.y;
+        camera.rotation.y = player.getYaw();
 
         // for now set the camera at constant height so that the curbs feel better
 #ifdef NEW_CAM
@@ -548,8 +551,8 @@ void GameplayScene::update()
                 dialogueBox.setText("Hello!\nDialogues \2work\1!\n\3\4Amazing!");
             }
 
-            npc.rotation.y =
-                math::lerpAngle(interactStartAngle, interactEndAngle, interactRotationLerpFactor);
+            npc.setYaw(
+                math::lerpAngle(interactStartAngle, interactEndAngle, interactRotationLerpFactor));
         }
 
         if (dialogueBox.isOpen) {
@@ -1053,12 +1056,8 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
             playerTileIndex.x,
             playerTileIndex.z); */
 
-        game.romFont.chainprintf(game.gpu(),
-            {{.x = 16, .y = 32}},
-            textCol,
-            "p rot=(%.2f, %.2f)",
-            psyqo::FixedPoint<>(player.rotation.x),
-            psyqo::FixedPoint<>(player.rotation.y));
+        game.romFont.chainprintf(
+            game.gpu(), {{.x = 16, .y = 32}}, textCol, "yaw=(%.2a)", player.getYaw());
 
         game.romFont.chainprintf(game.gpu(),
             {{.x = 16, .y = 64}},
@@ -1098,12 +1097,11 @@ void GameplayScene::dumpDebugInfoToTTY()
 
     // dump player position/rotation
     fsprintf(str,
-        "player.setPosition({%.4f, %.4f, %.4f});\nplayer.rotation = {%.4f, %.4f};",
+        "player.setPosition({%.4f, %.4f, %.4f});\nplayer.setYaw(%.2a);",
         player.transform.translation.x,
         player.transform.translation.y,
         player.transform.translation.z,
-        psyqo::FixedPoint<>(player.rotation.x),
-        psyqo::FixedPoint<>(player.rotation.y));
+        player.getYaw());
     ramsyscall_printf("%s\n", str.c_str());
 }
 
@@ -1158,6 +1156,7 @@ void GameplayScene::playTestCutscene()
     beginCutscene(cutscene);
     builder //
         .doFunc([this]() { game.songPlayer.restartMusic(); })
+        .rotateTowards(npc, player)
         .say("Hello!", camNPC)
         .say("Hi...", camPlayer)
         .say("How's cutscene\ndevelopment\ngoing?", camNPC)

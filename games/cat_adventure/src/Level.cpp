@@ -99,7 +99,8 @@ void Level::loadNewFormat(const eastl::vector<uint8_t>& data)
         object.mesh = modelData.meshes[meshIndex].makeInstance();
 
         // yaw (stored as 4.12, convert to 22.10)
-        object.rotation.y.value = fr.GetInt16() >> 2;
+        const auto yaw = psyqo::Angle{fr.GetInt16() >> 2, psyqo::Angle::RAW};
+        object.setYaw(yaw);
 
         object.calculateWorldMatrix();
     }

@@ -38,8 +38,7 @@ struct Object {
         };
     }
 
-    void setPosition(
-        const psyqo::FixedPoint<> x,
+    void setPosition(const psyqo::FixedPoint<> x,
         const psyqo::FixedPoint<> y,
         const psyqo::FixedPoint<> z)
     {
@@ -51,10 +50,25 @@ struct Object {
     void setPosition(const psyqo::Vec3& t) { transform.translation = t; }
     const psyqo::Vec3& getPosition() const { return transform.translation; }
 
+    void setYaw(psyqo::Angle a)
+    {
+        while (a > 1.0) {
+            a -= 2.0;
+        }
+        while (a < -1.0) {
+            a += 2.0;
+        }
+        rotation.y = a;
+    }
+
+    psyqo::Angle getYaw() const { return rotation.y; }
+
     TransformMatrix transform; // M
-    psyqo::Vector<2, 10> rotation; // rotation stored as pitch/yaw
 
     static psyqo::Trig<> trig;
+
+private:
+    psyqo::Vector<2, 10> rotation; // rotation stored as pitch/yaw
 };
 
 struct ModelObject : Object {

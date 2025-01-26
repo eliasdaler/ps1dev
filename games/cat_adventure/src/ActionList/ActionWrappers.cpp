@@ -1,6 +1,7 @@
 #include <ActionList/ActionWrappers.h>
 
 #include <ActionList/Actions/DelayAction.h>
+#include <ActionList/Actions/RotateTowardsAction.h>
 #include <ActionList/Actions/SayAction.h>
 #include <ActionList/Actions/SetAnimAndWaitAction.h>
 
@@ -149,6 +150,14 @@ const ActionListBuilder& ActionListBuilder::setFaceAnim(AnimatedModelObject& obj
     StringHash faceName) const
 {
     actionList.addAction([&object, faceName]() { object.setFaceAnimation(faceName); });
+    return *this;
+}
+
+const ActionListBuilder& ActionListBuilder::rotateTowards(AnimatedModelObject& object,
+    const AnimatedModelObject& target) const
+{
+    actionList.addAction(
+        eastl::make_unique<RotateTowardsAction>(object, target, psyqo::Angle(0.04)));
     return *this;
 }
 
