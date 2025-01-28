@@ -6,6 +6,8 @@
 
 namespace math
 {
+psyqo::Vec3 normalize(const psyqo::Vec3& v);
+psyqo::Angle normalizeAngle(psyqo::Angle a);
 psyqo::Angle lerpAngle(psyqo::Angle a, psyqo::Angle b, psyqo::Angle lerpFactor);
 psyqo::Angle calculateLerpDelta(psyqo::Angle a, psyqo::Angle b, psyqo::Angle speed);
 

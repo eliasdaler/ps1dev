@@ -13,16 +13,13 @@ class RotateTowardsAction : public Action {
 public:
     RotateTowardsAction(AnimatedModelObject& object,
         const AnimatedModelObject& target,
-        psyqo::Angle rotationSpeed);
+        psyqo::FixedPoint<> rotationSpeed);
 
     bool enter() override;
     bool update(std::uint32_t dt) override;
 
 private:
     AnimatedModelObject* objectPtr{nullptr};
-
-    psyqo::Angle startAngle;
-    psyqo::Angle endAngle;
-    psyqo::Angle lerpFactor;
-    psyqo::Angle lerpSpeed;
+    const AnimatedModelObject* targetPtr{nullptr};
+    psyqo::FixedPoint<> rotationSpeed;
 };

@@ -40,9 +40,56 @@ void Object::calculateWorldMatrix()
     // pitch
     psyqo::Matrix33 rotX;
     getRotationMatrix33RH(&rotX, rotation.x, psyqo::SoftMath::Axis::X, trig);
-    psyqo::GTE::Math::multiplyMatrix33<
-        psyqo::GTE::PseudoRegister::Rotation,
+    psyqo::GTE::Math::multiplyMatrix33<psyqo::GTE::PseudoRegister::Rotation,
         psyqo::GTE::PseudoRegister::V0>(transform.rotation, rotX, &transform.rotation);
+}
+
+psyqo::Angle Object::findFacingAngle(const psyqo::Vec3& pos)
+{
+    const auto diff = pos - getPosition();
+    return math::atan2(diff.x, diff.z);
+}
+
+psyqo::Angle Object::findFacingAngle(const Object& other)
+{
+    return findFacingAngle(other.getPosition());
+}
+
+void Object::rotateTowards(const Object& other, psyqo::FixedPoint<> newRotationSpeed)
+{
+    rotateTowards(findFacingAngle(other), newRotationSpeed);
+}
+
+void Object::rotateTowards(psyqo::Angle angle, psyqo::FixedPoint<> newRotationSpeed)
+{
+    if (angle == targetYaw) {
+        return;
+    }
+
+    if (newRotationSpeed == 0.0) {
+        newRotationSpeed = rotationSpeed;
+    } else {
+        rotationSpeed = newRotationSpeed;
+    }
+
+    startYaw = getYaw();
+    targetYaw = angle;
+
+    auto diff = targetYaw - startYaw;
+    if (diff > 1.0) {
+        diff -= 2.0;
+    } else if (diff < -1.0) {
+        diff += 2.0;
+    }
+
+    if (diff.abs() < 0.001) {
+        setYaw(targetYaw, true);
+        return;
+    }
+
+    // in microseconds
+    rotationTimer = 0;
+    rotationTime = (psyqo::FixedPoint<>(diff) / newRotationSpeed * 1000.0).abs().integer() * 1000;
 }
 
 void AnimatedModelObject::updateCollision()
@@ -66,7 +113,7 @@ StringHash getBlinkAnimationName(StringHash faceName)
     return DEFAULT_BLINK_FACE_ANIMATION;
 }
 
-void AnimatedModelObject::update()
+void AnimatedModelObject::update(std::uint32_t dt)
 {
     calculateWorldMatrix();
     animator.update();
@@ -90,12 +137,18 @@ void AnimatedModelObject::update()
             }
         }
     }
-}
 
-psyqo::Angle AnimatedModelObject::findInteractionAngle(const Object& other)
-{
-    const auto diff = other.getPosition() - getPosition();
-    return math::atan2(diff.x, diff.z);
+    if (rotationTime != 0) {
+        rotationTimer += dt;
+        if (rotationTimer > rotationTime) {
+            setYaw(targetYaw, true);
+        } else {
+            const auto lerpF = psyqo::FixedPoint<>(rotationTimer / 1000, 0) /
+                               psyqo::FixedPoint<>(rotationTime / 1000, 0);
+            const auto yaw = math::lerpAngle(startYaw, targetYaw, psyqo::FixedPoint<10>(lerpF));
+            setYaw(yaw, false);
+        }
+    }
 }
 
 void AnimatedModelObject::setFaceAnimation(std::uint8_t faceU, std::uint8_t faceV)

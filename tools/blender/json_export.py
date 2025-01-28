@@ -248,6 +248,8 @@ def get_mesh_json_armature(obj, meshes_list, material_idx_map, joints, joint_nam
     meshes_data = []
 
     for mesh in meshes_list:
+        bias_attr = mesh.attributes.get("Bias")
+
         uv_layer = mesh.uv_layers[0].data
         vertex_colors = None
         if mesh.color_attributes:
@@ -264,7 +266,7 @@ def get_mesh_json_armature(obj, meshes_list, material_idx_map, joints, joint_nam
 
             has_materials_with_textures = mesh_has_materials_with_textures(mesh)
 
-            for poly in mesh.polygons:
+            for face_idx, poly in enumerate(mesh.polygons):
                 face_vert_indices = []
                 face_uvs = []
 
@@ -306,6 +308,11 @@ def get_mesh_json_armature(obj, meshes_list, material_idx_map, joints, joint_nam
                     if has_materials_with_textures:
                         material_idx = material_idx_map[mesh.materials[poly.material_index].name]
                         face_json["material"] = material_idx
+                    if bias_attr:
+                        bias = bias_attr.data[face_idx].value
+                        if bias != 0:
+                            face_json["bias"] = bias
+
                     faces.append(face_json)
 
             if faces and vertices:

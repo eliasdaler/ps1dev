@@ -157,7 +157,7 @@ const ActionListBuilder& ActionListBuilder::rotateTowards(AnimatedModelObject& o
     const AnimatedModelObject& target) const
 {
     actionList.addAction(
-        eastl::make_unique<RotateTowardsAction>(object, target, psyqo::Angle(0.04)));
+        eastl::make_unique<RotateTowardsAction>(object, target, psyqo::FixedPoint<>(1.0)));
     return *this;
 }
 

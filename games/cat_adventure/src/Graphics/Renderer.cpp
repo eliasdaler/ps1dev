@@ -69,8 +69,7 @@ int orient2d(int ax, int ay, int bx, int by, int cx, int cy)
     return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
 }
 
-void rasterizeTriangle(
-    eastl::bitset<Renderer::MAX_TILES_DIM * Renderer::MAX_TILES_DIM>& tileSeen,
+void rasterizeTriangle(eastl::bitset<Renderer::MAX_TILES_DIM * Renderer::MAX_TILES_DIM>& tileSeen,
     int x1,
     int y1,
     int x2,
@@ -128,18 +127,16 @@ void Renderer::calculateViewModelMatrix(const Object& object, const Camera& came
     if (setViewRot) {
         // V * M
         psyqo::Matrix33 viewModelMatrix;
-        psyqo::GTE::Math::multiplyMatrix33<
-            psyqo::GTE::PseudoRegister::Rotation,
-            psyqo::GTE::PseudoRegister::
-                V0>(camera.view.rotation, object.transform.rotation, &viewModelMatrix);
+        psyqo::GTE::Math::multiplyMatrix33<psyqo::GTE::PseudoRegister::Rotation,
+            psyqo::GTE::PseudoRegister::V0>(
+            camera.view.rotation, object.transform.rotation, &viewModelMatrix);
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(viewModelMatrix);
     }
 
     // what 4th column would be if we did V * M
     auto posCamSpace = object.transform.translation - camera.position;
     if (!setViewRot) {
-        psyqo::GTE::Math::matrixVecMul3<
-            psyqo::GTE::PseudoRegister::Rotation,
+        psyqo::GTE::Math::matrixVecMul3<psyqo::GTE::PseudoRegister::Rotation,
             psyqo::GTE::PseudoRegister::V0>(posCamSpace, &posCamSpace);
     } else {
         // TODO: use L?
@@ -164,8 +161,7 @@ void Renderer::drawModelObject(ModelObject& object, const Camera& camera, bool s
     drawModel(object.model);
 }
 
-void Renderer::drawAnimatedModelObject(
-    AnimatedModelObject& object,
+void Renderer::drawAnimatedModelObject(AnimatedModelObject& object,
     const Camera& camera,
     bool setViewRot)
 {
@@ -250,8 +246,7 @@ void Renderer::drawAnimatedModelObject(
     }
 }
 
-void Renderer::drawMeshArmature(
-    const AnimatedModelObject& object,
+void Renderer::drawMeshArmature(const AnimatedModelObject& object,
     const Camera& camera,
     const Armature& armature,
     const Mesh& mesh)
@@ -270,15 +265,13 @@ void Renderer::drawMeshArmature(
         TransformMatrix t2;
 
         // V * M * J
-        multiplyMatrix33<
-            PseudoRegister::Rotation,
-            PseudoRegister::V0>(camera.view.rotation, t1.rotation, &t2.rotation);
+        multiplyMatrix33<PseudoRegister::Rotation, PseudoRegister::V0>(
+            camera.view.rotation, t1.rotation, &t2.rotation);
 
         // Instead of using camera.view.translation (which is V * (-camPos)),
         // we're going into the camera/view space and do calculations there
         t2.translation = t1.translation - camera.position;
-        matrixVecMul3<
-            PseudoRegister::Rotation, // camera.view.rotation
+        matrixVecMul3<PseudoRegister::Rotation, // camera.view.rotation
             PseudoRegister::V0>(t2.translation, &t2.translation);
 
         writeUnsafe<PseudoRegister::Rotation>(t2.rotation);
@@ -1054,12 +1047,10 @@ void Renderer::calculateTileVisibility(const Camera& camera)
         viewDistSide = psyqo::FixedPoint(4.0);
     }
 
-    auto frustumLeft = origin + psyqo::Vec3{
-                                    .x = viewDistSide * trig.sin(yaw - fov),
+    auto frustumLeft = origin + psyqo::Vec3{.x = viewDistSide * trig.sin(yaw - fov),
                                     .y = 0,
                                     .z = viewDistSide * trig.cos(yaw - fov)};
-    auto frustumRight = origin + psyqo::Vec3{
-                                     .x = viewDistSide * trig.sin(yaw + fov),
+    auto frustumRight = origin + psyqo::Vec3{.x = viewDistSide * trig.sin(yaw + fov),
                                      .y = 0,
                                      .z = viewDistSide * trig.cos(yaw + fov)};
 
@@ -1084,8 +1075,7 @@ void Renderer::calculateTileVisibility(const Camera& camera)
 
     tileSeen.reset();
 
-    rasterizeTriangle(
-        tileSeen,
+    rasterizeTriangle(tileSeen,
         maxTileZ - originTileZ,
         maxTileX - originTileX,
         maxTileZ - pLeftTiLeZ,
@@ -1127,8 +1117,7 @@ void Renderer::drawTiles(const ModelData& tileModels, const TileMap& tileMap, co
     }
 }
 
-void Renderer::drawTileFog(
-    TileIndex tileIndex,
+void Renderer::drawTileFog(TileIndex tileIndex,
     const Tile& tile,
     const Tileset& tileset,
     const ModelData& tileMeshes,
@@ -1265,6 +1254,10 @@ void Renderer::drawTileFog(
 
     avgZ += floorBias;
 
+    if (tileHeight < 0.0) { // TEMP HACK: this makes pavements less glitchy
+        avgZ += 200;
+    }
+
     psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&quadT.pointB.packed);
     psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&quadT.pointC.packed);
     psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&quadT.pointD.packed);
@@ -1278,8 +1271,7 @@ void Renderer::drawTileFog(
     ot.insert(quadFragFog, avgZ);
 }
 
-void Renderer::drawTile(
-    TileIndex tileIndex,
+void Renderer::drawTile(TileIndex tileIndex,
     const Tile& tile,
     const Tileset& tileset,
     const ModelData& tileMeshes,
@@ -1396,8 +1388,7 @@ void Renderer::drawTile(
     ot.insert(quadFragT, avgZ);
 }
 
-void Renderer::drawTileMeshFog(
-    TileIndex tileIndex,
+void Renderer::drawTileMeshFog(TileIndex tileIndex,
     const Tile& tile,
     const Tileset& tileset,
     const MeshData& meshData,
@@ -1539,8 +1530,7 @@ void Renderer::drawTileMeshFog(
     }
 }
 
-void Renderer::drawTileMesh(
-    TileIndex tileIndex,
+void Renderer::drawTileMesh(TileIndex tileIndex,
     const Tile& tile,
     const Tileset& tileset,
     const MeshData& meshData,
@@ -1676,8 +1666,7 @@ void Renderer::drawLineLocalSpace(const psyqo::Vec3& a, const psyqo::Vec3& b, co
     gpu.chain(lineFrag);
 }
 
-void Renderer::drawLineWorldSpace(
-    const Camera& camera,
+void Renderer::drawLineWorldSpace(const Camera& camera,
     const psyqo::Vec3& a,
     const psyqo::Vec3& b,
     const psyqo::Color& c,
@@ -1708,8 +1697,7 @@ void Renderer::drawLineWorldSpace(
     gpu.chain(lineFrag);
 }
 
-void Renderer::drawPointWorldSpace(
-    const Camera& camera,
+void Renderer::drawPointWorldSpace(const Camera& camera,
     const psyqo::Vec3& p,
     const psyqo::Color& c,
     bool cameraViewLoaded)
@@ -1722,8 +1710,7 @@ void Renderer::drawPointWorldSpace(
 
     auto posCamSpace = p - camera.position;
     // R * V0
-    psyqo::GTE::Math::matrixVecMul3<
-        psyqo::GTE::PseudoRegister::Rotation,
+    psyqo::GTE::Math::matrixVecMul3<psyqo::GTE::PseudoRegister::Rotation,
         psyqo::GTE::PseudoRegister::V0>(posCamSpace, &posCamSpace);
     psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Translation>(posCamSpace);
 
@@ -1745,8 +1732,7 @@ void Renderer::drawAABB(const Camera& camera, const AABB& aabb, const psyqo::Col
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
 
     auto posCamSpace = aabb.min - camera.position;
-    psyqo::GTE::Math::matrixVecMul3<
-        psyqo::GTE::PseudoRegister::Rotation,
+    psyqo::GTE::Math::matrixVecMul3<psyqo::GTE::PseudoRegister::Rotation,
         psyqo::GTE::PseudoRegister::V0>(posCamSpace, &posCamSpace);
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(posCamSpace);
 
@@ -1774,8 +1760,7 @@ void Renderer::drawCircle(const Camera& camera, const Circle& circle, const psyq
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(camera.view.rotation);
 
     auto posCamSpace = circle.center - camera.position;
-    psyqo::GTE::Math::matrixVecMul3<
-        psyqo::GTE::PseudoRegister::Rotation,
+    psyqo::GTE::Math::matrixVecMul3<psyqo::GTE::PseudoRegister::Rotation,
         psyqo::GTE::PseudoRegister::V0>(posCamSpace, &posCamSpace);
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(posCamSpace);
 
@@ -1786,8 +1771,8 @@ void Renderer::drawCircle(const Camera& camera, const Circle& circle, const psyq
         drawLineLocalSpace(
             {circle.radius * trig.sin(currAngle), 0.0, circle.radius * trig.cos(currAngle)},
             {circle.radius * trig.sin(currAngle + subAngle),
-             0.0,
-             circle.radius * trig.cos(currAngle + subAngle)},
+                0.0,
+                circle.radius * trig.cos(currAngle + subAngle)},
             c);
         currAngle += subAngle;
     }
@@ -1851,8 +1836,7 @@ void Renderer::drawArmature(const AnimatedModelObject& object, const Camera& cam
     drawArmature(armature, object, rootJoint, rootJoint.firstChild);
 }
 
-void Renderer::drawArmature(
-    const Armature& armature,
+void Renderer::drawArmature(const Armature& armature,
     const AnimatedModelObject& object,
     const Joint& joint,
     Joint::JointId childId)
@@ -1887,16 +1871,14 @@ void Renderer::drawArmature(
 
 TextureInfo Renderer::uploadTIM(const TimFile& tim)
 {
-    psyqo::Rect region =
-        {.pos = {{.x = (std::int16_t)tim.pixDX, .y = (std::int16_t)tim.pixDY}},
-         .size = {{.w = (std::int16_t)tim.pixW, .h = (std::int16_t)tim.pixH}}};
+    psyqo::Rect region = {.pos = {{.x = (std::int16_t)tim.pixDX, .y = (std::int16_t)tim.pixDY}},
+        .size = {{.w = (std::int16_t)tim.pixW, .h = (std::int16_t)tim.pixH}}};
     gpu.uploadToVRAM((uint16_t*)tim.pixelsIdx.data(), region);
 
     // upload CLUT(s)
     // FIXME: support multiple cluts
-    region =
-        {.pos = {{.x = (std::int16_t)tim.clutDX, .y = (std::int16_t)tim.clutDY}},
-         .size = {{.w = (std::int16_t)tim.clutW, .h = (std::int16_t)tim.clutH}}};
+    region = {.pos = {{.x = (std::int16_t)tim.clutDX, .y = (std::int16_t)tim.clutDY}},
+        .size = {{.w = (std::int16_t)tim.clutW, .h = (std::int16_t)tim.clutH}}};
     gpu.uploadToVRAM(tim.cluts[0].colors.data(), region);
 
     TextureInfo info;

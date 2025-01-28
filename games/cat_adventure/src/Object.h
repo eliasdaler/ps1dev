@@ -1,5 +1,6 @@
 #pragma once
 
+#include <psyqo/fixed-point.hh>
 #include <psyqo/matrix.hh>
 #include <psyqo/trigonometry.hh>
 #include <psyqo/vector.hh>
@@ -11,6 +12,7 @@
 #include <Graphics/Model.h>
 #include <Graphics/SkeletonAnimator.h>
 #include <Graphics/TextureInfo.h>
+#include <Math/Math.h>
 #include <Math/Transform.h>
 
 struct Object {
@@ -52,23 +54,50 @@ struct Object {
 
     void setYaw(psyqo::Angle a)
     {
-        while (a > 1.0) {
-            a -= 2.0;
-        }
-        while (a < -1.0) {
-            a += 2.0;
-        }
+        math::normalizeAngle(a);
         rotation.y = a;
     }
 
-    psyqo::Angle getYaw() const { return rotation.y; }
+    void setYaw(psyqo::Angle a, bool resetTarget)
+    {
+        setYaw(a);
+        if (resetTarget) {
+            targetYaw = a;
+            stopRotation();
+        }
+    }
 
-    TransformMatrix transform; // M
+    void stopRotation()
+    {
+        rotationTime = 0.0;
+        rotationTime = 0.0;
+    }
+
+    bool isRotating() const { return rotationTime != 0.0; }
+
+    psyqo::Angle getYaw() const { return rotation.y; }
 
     static psyqo::Trig<> trig;
 
-private:
-    psyqo::Vector<2, 10> rotation; // rotation stored as pitch/yaw
+    TransformMatrix transform; // M
+
+    // if rotationSpeed = 0.0 - use current speed
+    void rotateTowards(const Object& other, psyqo::FixedPoint<> rotationSpeed = 0.0);
+    void rotateTowards(psyqo::Angle angle, psyqo::FixedPoint<> rotationSpeed = 0.0);
+
+    // Find the yaw angle to which to rotate to to face "other"
+    psyqo::Angle findFacingAngle(const psyqo::Vec3& pos);
+    psyqo::Angle findFacingAngle(const Object& other);
+
+protected:
+    psyqo::Vector<2, 10> rotation{}; // rotation stored as pitch/yaw
+
+    // TODO: move into AnimatedModelObject?
+    psyqo::Angle startYaw{0.0};
+    psyqo::Angle targetYaw{0.0};
+    std::uint32_t rotationTimer{};
+    std::uint32_t rotationTime{};
+    psyqo::FixedPoint<> rotationSpeed{1.0}; // half turns / second
 };
 
 struct ModelObject : Object {
@@ -91,11 +120,7 @@ inline constexpr StringHash SHOCKED_FACE_ANIMATION = "Shocked"_sh;
 
 struct AnimatedModelObject : ModelObject {
     void updateCollision();
-    void update();
-
-    // Find the yaw angle to which to rotate to to face "other"
-    // Right now it's a pretty bad impl, but will do for now
-    psyqo::Angle findInteractionAngle(const Object& other);
+    void update(std::uint32_t dt);
 
     eastl::vector<TransformMatrix> jointGlobalTransforms;
     SkeletonAnimator animator;

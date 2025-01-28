@@ -106,4 +106,6 @@ private:
     bool cutsceneStart{false};
 
     CameraTransform oldTransformCutscene;
+
+    bool freeCameraRotation{false};
 };

@@ -4,10 +4,62 @@
 #include <common/syscalls/syscalls.h>
 #include <psyqo/gte-kernels.hh>
 #include <psyqo/gte-registers.hh>
+#include <psyqo/soft-math.hh>
 #include <psyqo/xprintf.h>
 
 namespace math
 {
+psyqo::Vec3 normalize(const psyqo::Vec3& v)
+{
+    auto x = psyqo::FixedPoint<>(v.x);
+    auto y = psyqo::FixedPoint<>(v.y);
+    auto z = psyqo::FixedPoint<>(v.z);
+
+    // sq = (x*x, y*y, z*z)
+    psyqo::GTE::write<psyqo::GTE::Register::IR1, psyqo::GTE::Unsafe>(x.value);
+    psyqo::GTE::write<psyqo::GTE::Register::IR2, psyqo::GTE::Unsafe>(y.value);
+    psyqo::GTE::write<psyqo::GTE::Register::IR3, psyqo::GTE::Safe>(z.value);
+    psyqo::GTE::Kernels::sqr();
+    psyqo::Vec3 sq;
+    psyqo::GTE::read<psyqo::GTE::PseudoRegister::LV>(sq);
+
+    // s = x * x + y * y + z * z
+    const auto s = sq.x + sq.y + sq.z;
+
+    // r = 1 / sqrt(s)
+    psyqo::GTE::write<psyqo::GTE::Register::LZCS, psyqo::GTE::Safe>(s.raw());
+    const auto approx = 1 << (psyqo::GTE::readRaw<psyqo::GTE::Register::LZCR>() - 9);
+    const auto approxFP = psyqo::FixedPoint<>(approx, psyqo::FixedPoint<>::RAW);
+    const auto r = psyqo::SoftMath::inverseSquareRoot(s, approxFP);
+
+    /*
+        x *= r;
+        y *= r;
+        z *= r;
+    */
+    psyqo::GTE::write<psyqo::GTE::Register::IR0, psyqo::GTE::Unsafe>(r.value);
+    psyqo::GTE::write<psyqo::GTE::Register::IR1, psyqo::GTE::Unsafe>(x.value);
+    psyqo::GTE::write<psyqo::GTE::Register::IR2, psyqo::GTE::Unsafe>(y.value);
+    psyqo::GTE::write<psyqo::GTE::Register::IR3, psyqo::GTE::Safe>(z.value);
+    psyqo::GTE::Kernels::gpf();
+    x.value = psyqo::GTE::readRaw<psyqo::GTE::Register::IR1, psyqo::GTE::Safe>();
+    y.value = psyqo::GTE::readRaw<psyqo::GTE::Register::IR2, psyqo::GTE::Unsafe>();
+    z.value = psyqo::GTE::readRaw<psyqo::GTE::Register::IR3, psyqo::GTE::Unsafe>();
+
+    return {x, y, z};
+}
+
+psyqo::Angle normalizeAngle(psyqo::Angle a)
+{
+    while (a > 1.0) {
+        a -= 2.0;
+    }
+    while (a < -1.0) {
+        a += 2.0;
+    }
+    return a;
+}
+
 psyqo::Angle lerpAngle(psyqo::Angle a, psyqo::Angle b, psyqo::Angle lerpFactor)
 {
     if (lerpFactor == 0.0) {
