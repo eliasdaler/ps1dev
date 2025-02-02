@@ -1253,7 +1253,6 @@ void Renderer::drawTileFog(TileIndex tileIndex,
     }
 
     avgZ += floorBias;
-
     if (tileHeight < 0.0) { // TEMP HACK: this makes pavements less glitchy
         avgZ += 200;
     }

@@ -107,5 +107,5 @@ private:
 
     CameraTransform oldTransformCutscene;
 
-    bool freeCameraRotation{false};
+    bool freeCameraRotation{true};
 };

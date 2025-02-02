@@ -48,15 +48,34 @@ consteval long double ToWorldCoords(long double d)
     return d / worldScale;
 }
 
-namespace
+psyqo::FixedPoint<> lerp(psyqo::FixedPoint<> a, psyqo::FixedPoint<> b, psyqo::FixedPoint<> factor)
 {
-    psyqo::FixedPoint<> lerp(psyqo::FixedPoint<> a,
-        psyqo::FixedPoint<> b,
-        psyqo::FixedPoint<> factor)
-    {
-        return a * factor + (psyqo::FixedPoint<>(1.0) - factor) * b;
-    }
+    return a * factor + (psyqo::FixedPoint<>(1.0) - factor) * b;
+}
 
+void calculateCameraRelativeStickDirection(const Camera& camera, psyqo::Vec3& stickDir)
+{
+    // project front onto the ground plane
+    auto cameraFrontProj = camera.view.rotation.vs[2];
+    cameraFrontProj.y = 0.0;
+    cameraFrontProj = math::normalize(cameraFrontProj);
+
+    static constexpr auto globalUp = psyqo::Vec3{0, 1, 0};
+    /* const auto cameraRight =
+        math::normalize(psyqo::SoftMath::crossProductVec3(cameraFrontProj, globalUp)); */
+    const auto cameraRight =
+        math::normalize({.x = -cameraFrontProj.z, .y = 0, .z = cameraFrontProj.x});
+
+    // FIXME: this might not be the most optimized way to do stuff
+    const auto rightMovement = cameraRight * stickDir.x;
+    const auto upMovement = cameraFrontProj * (-stickDir.y);
+
+    stickDir.x = upMovement.x + rightMovement.x;
+    stickDir.y = upMovement.z + rightMovement.z;
+
+    const auto temp = math::normalize({stickDir.x, 0.0, stickDir.y});
+    stickDir.x = temp.x;
+    stickDir.y = temp.z;
 }
 
 } // end of anonymous namespace
@@ -276,6 +295,7 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
     // #define TANK_CONTROLS
 
 #ifdef TANK_CONTROLS
+    freeCameraRotation = false;
     if (pad.isButtonPressed(psyqo::SimplePad::Left)) {
         const auto newAngle = player.getYaw() + psyqo::Angle(rotateSpeed * dt);
         player.setYaw(newAngle);
@@ -313,8 +333,7 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
         player.velocity = player.getFront() * speed;
     }
 #else
-    psyqo::Vec3 stickDir = {};
-    freeCameraRotation = true;
+    psyqo::Vec3 stickDir{};
 
     if (pad.isButtonHeld(psyqo::SimplePad::Left)) {
         stickDir.x -= 1.0;
@@ -334,52 +353,33 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
 
     isMoving = (stickDir.x != 0.0 || stickDir.y != 0.0);
     if (isMoving) {
-        auto cameraFront = camera.view.rotation.vs[2];
-        cameraFront.y = 0.0;
-        cameraFront = math::normalize(cameraFront);
+        // "normalize" dpad input if moving by a diagonal
+        if (stickDir.x != 0.0 && stickDir.y != 0.0) {
+            static const auto oneDivBySqrt2 = psyqo::FixedPoint<>(0.70710678118);
+            stickDir.x = stickDir.x > 0 ? oneDivBySqrt2 : -oneDivBySqrt2;
+            stickDir.y = stickDir.y > 0 ? oneDivBySqrt2 : -oneDivBySqrt2;
+        }
 
-        static constexpr auto globalUp = psyqo::Vec3{0, 1, 0};
-        auto cameraRight =
-            math::normalize(psyqo::SoftMath::crossProductVec3(cameraFront, globalUp));
-
-        auto rightMovement = cameraRight * stickDir.x;
-        auto upMovement = cameraFront * (-stickDir.y);
-
-        stickDir.x = upMovement.x + rightMovement.x;
-        stickDir.y = upMovement.z + rightMovement.z;
-
-        const auto test = math::normalize({stickDir.x, 0.0, stickDir.y});
-        stickDir.x = test.x;
-        stickDir.y = test.z;
-
+        calculateCameraRelativeStickDirection(camera, stickDir);
         player.rotateTowards(math::atan2(stickDir.x, stickDir.y),
             isSprinting ? psyqo::FixedPoint<>(3.0) : psyqo::FixedPoint<>(2.0));
     } else {
         player.stopRotation();
     }
+
     isRotating = player.isRotating();
 
     player.velocity = {};
 
-    moveForward = true;
     if (isMoving) {
-        psyqo::FixedPoint<> speed{};
-        if (moveForward) {
-            if (isSprinting) {
-                speed = sprintSpeed;
-            } else {
-                speed = walkSpeed;
-            }
-        } else {
-            speed = -walkSpeed * 0.4;
-        }
+        moveForward = true;
+        const auto& speed = isSprinting ? sprintSpeed : walkSpeed;
         player.velocity.x = stickDir.x * speed;
         player.velocity.z = stickDir.y * speed;
     }
 #endif
 
     if (isMoving) {
-        psyqo::FixedPoint<> speed{};
         if (moveForward) {
             if (isSprinting) {
                 player.animator.setAnimation("Run"_sh, 1.0, 0.125);
@@ -563,7 +563,7 @@ void GameplayScene::updateCamera()
 #endif
     }
 
-    if (followCamera && freeCameraRotation) {
+    if (!freeCamera && followCamera && freeCameraRotation) {
         constexpr auto rotateSpeed = psyqo::FixedPoint<>(0.8);
         auto& pad = game.pad;
         const auto dt = game.frameDt;
@@ -1096,6 +1096,15 @@ void GameplayScene::draw(Renderer& renderer)
     if (debugInfoDrawn) {
         drawDebugInfo(renderer);
     }
+
+    /* static const psyqo::Color textCol = {{.r = 255, .g = 255, .b = 255}};
+    game.romFont.chainprintf(game.gpu(),
+        {{.x = 16, .y = 64}},
+        textCol,
+        "X: %d, Y: %d, pad type: %d",
+        game.pad.getLeftAxisX(),
+        game.pad.getLeftAxisY(),
+        game.pad.getPadType()); */
 
     game.debugMenu.draw(renderer);
 }

@@ -1,5 +1,7 @@
 #include "PadManager.h"
 
+#include <common/syscalls/syscalls.h>
+
 void PadManager::init()
 {
     pad.initialize();
@@ -11,8 +13,21 @@ void PadManager::update()
     currentState = 0;
     for (int i = 0; i < 16; ++i) {
         currentState |=
-            (pad.isButtonPressed(psyqo::SimplePad::Pad1, (psyqo::SimplePad::Button)i) ? 1 : 0) << i;
+            (pad.isButtonPressed(psyqo::AdvancedPad::Pad::Pad1a, (psyqo::AdvancedPad::Button)i) ?
+                    1 :
+                    0)
+            << i;
     }
+}
+
+int PadManager::getLeftAxisX()
+{
+    return pad.getAdc(psyqo::AdvancedPad::Pad::Pad1a, 2);
+}
+
+int PadManager::getLeftAxisY()
+{
+    return pad.getAdc(psyqo::AdvancedPad::Pad::Pad1a, 3);
 }
 
 bool PadManager::wasButtonJustPressed(psyqo::SimplePad::Button button) const
