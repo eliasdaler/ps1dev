@@ -39,6 +39,8 @@ private:
     void handleCollision(psyqo::SoftMath::Axis axis);
     void updateCamera();
 
+    void npcInteractSay(AnimatedModelObject& interactNPC, const eastl::string_view text);
+
     void calculateTileVisibility();
 
     void draw(Renderer& renderer);
@@ -82,14 +84,6 @@ private:
     enum class SwitchLevelState { FadeOut, LoadLevel, FadeIn, Done };
     SwitchLevelState switchLevelState;
     bool startedLevelLoad{false}; // needed to not update/draw GameplayState during level load
-
-    psyqo::Angle interactStartAngle;
-    psyqo::Angle interactEndAngle;
-    psyqo::Angle interactRotationLerpFactor;
-    psyqo::Angle interactRotationLerpSpeed;
-    bool npcRotatesTowardsPlayer{false};
-
-    eastl::vector<Circle> collisionCircles;
 
     int fadeLevel = 0;
 

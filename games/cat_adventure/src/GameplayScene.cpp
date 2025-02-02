@@ -429,17 +429,7 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
 
     if (pad.wasButtonJustPressed(psyqo::SimplePad::Cross)) {
         if (canTalk) {
-            gameState = GameState::Dialogue;
-            player.animator.setAnimation("Idle"_sh);
-
-            // TODO: move to npcInteractStart
-            interactStartAngle = npc.getYaw();
-            interactEndAngle = npc.findFacingAngle(player);
-            interactRotationLerpFactor = 0.0;
-            interactRotationLerpSpeed =
-                math::calculateLerpDelta(interactStartAngle, interactEndAngle, 0.04);
-            npcRotatesTowardsPlayer = true;
-            ramsyscall_printf("%d, %d\n", interactStartAngle.value, interactEndAngle.value);
+            npcInteractSay(npc, "Hello!!");
         } else if (game.activeInteractionTriggerIdx != -1) {
             const auto& trigger = game.level.triggers[game.activeInteractionTriggerIdx];
             if (trigger.name == "TV"_sh) {
@@ -646,20 +636,6 @@ void GameplayScene::update()
     if (gameState == GameState::Normal) {
         canTalk = circlesIntersect(player.interactionCircle, npc.collisionCircle);
     } else if (gameState == GameState::Dialogue) {
-        if (npcRotatesTowardsPlayer) {
-            interactRotationLerpFactor += interactRotationLerpSpeed;
-            if (interactRotationLerpFactor >= 1.0) { // finished rotation
-                interactRotationLerpFactor = 1.0;
-                npcRotatesTowardsPlayer = false;
-
-                // TODO: generic interaction
-                dialogueBox.setText("Hello!\nDialogues \2work\1!\n\3\4Amazing!");
-            }
-
-            npc.setYaw(
-                math::lerpAngle(interactStartAngle, interactEndAngle, interactRotationLerpFactor));
-        }
-
         if (dialogueBox.isOpen) {
             dialogueBox.update();
         }
@@ -808,13 +784,6 @@ void GameplayScene::handleCollision(psyqo::SoftMath::Axis axis)
     if (circlesIntersect(player.collisionCircle, npc.collisionCircle)) {
         anyCollision = true;
         goto collidedWithSomething;
-    }
-
-    for (const auto& testCircle : collisionCircles) {
-        if (circlesIntersect(player.collisionCircle, testCircle)) {
-            anyCollision = true;
-            goto collidedWithSomething;
-        }
     }
 
     for (const auto& testBox : collisionBoxes) {
@@ -1130,10 +1099,6 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
             renderer.drawAABB(camera, box, colliderColor);
         }
 
-        for (const auto& circle : collisionCircles) {
-            renderer.drawCircle(camera, circle, colliderColor);
-        }
-
         for (const auto& trigger : game.level.triggers) {
             const auto& col = trigger.isEntered ?
                                   activeTriggerColor :
@@ -1368,4 +1333,22 @@ void GameplayScene::endCutscene(ActionList& list)
 
         cutsceneStart = false;
     });
+}
+
+void GameplayScene::npcInteractSay(AnimatedModelObject& interactNPC, const eastl::string_view text)
+{
+    auto cutscene = ActionList{"interact"_sh};
+    const auto builder = actions::ActionListBuilder{
+        .actionList = cutscene,
+        .camera = camera,
+        .dialogueBox = dialogueBox,
+    };
+
+    beginCutscene(cutscene);
+    builder //
+        .rotateTowards(npc, player)
+        .say(text);
+    endCutscene(cutscene);
+
+    game.actionListManager.addActionList(eastl::move(cutscene));
 }
