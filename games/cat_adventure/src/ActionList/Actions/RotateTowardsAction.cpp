@@ -14,7 +14,7 @@ bool RotateTowardsAction::enter()
     return false;
 }
 
-bool RotateTowardsAction::update(std::uint32_t dt)
+bool RotateTowardsAction::isFinished() const
 {
-    return objectPtr->isRotating();
+    return !objectPtr->isRotating();
 }

@@ -48,10 +48,27 @@ consteval long double ToWorldCoords(long double d)
     return d / worldScale;
 }
 
-psyqo::FixedPoint<> lerp(psyqo::FixedPoint<> a, psyqo::FixedPoint<> b, psyqo::FixedPoint<> factor)
-{
-    return a * factor + (psyqo::FixedPoint<>(1.0) - factor) * b;
-}
+static constexpr auto freeCameraRotPitch = psyqo::FixedPoint<10>(0.12);
+static const auto freeCameraDistance = psyqo::FixedPoint<>(0.35);
+static constexpr auto freeCameraOffset = psyqo::Vec3{
+    .x = 0,
+    .y = 0.15,
+    .z = 0,
+};
+
+#ifdef NEW_CAM
+static constexpr auto cameraOffset = psyqo::Vec3{
+    .x = -0.1,
+    .y = 0.32,
+    .z = -0.40,
+};
+#else
+static constexpr auto cameraOffset = psyqo::Vec3{
+    .x = -0.10,
+    .y = 0.20,
+    .z = -0.42,
+};
+#endif
 
 void calculateCameraRelativeStickDirection(const Camera& camera, psyqo::Vec3& stickDir)
 {
@@ -112,7 +129,7 @@ void GameplayScene::start(StartReason reason)
         player.setFaceAnimation(DEFAULT_FACE_ANIMATION);
         player.blinkPeriod = 140;
         player.closedEyesTime = 4;
-        player.blinkTimer.reset(npc.blinkPeriod);
+        player.blinkTimer.reset(player.blinkPeriod);
 
         player.jointGlobalTransforms.resize(player.model.armature.joints.size());
         player.animator.animations = &game.catAnimations;
@@ -169,6 +186,10 @@ void GameplayScene::start(StartReason reason)
 
         player.setPosition({-0.1083, 0.0000, -1.2602});
         npc.setYaw(-0.01);
+
+        // cutscene test
+        player.setPosition({-0.4472, 0.0000, -1.2111});
+        player.setYaw(0.54);
 
         npc.setPosition({-0.3344, 0.0000, -1.2253});
         npc.setYaw(-1.71);
@@ -429,7 +450,7 @@ void GameplayScene::processPlayerInput(const PadManager& pad)
 
     if (pad.wasButtonJustPressed(psyqo::SimplePad::Cross)) {
         if (canTalk) {
-            npcInteractSay(npc, "Hello!!");
+            npcInteractSay(npc, "Hello...\nNice weather today,\nisn't it?");
         } else if (game.activeInteractionTriggerIdx != -1) {
             const auto& trigger = game.level.triggers[game.activeInteractionTriggerIdx];
             if (trigger.name == "TV"_sh) {
@@ -515,88 +536,87 @@ void GameplayScene::updateCamera()
 {
     const auto& trig = game.trig;
 
-    if (!freeCamera && followCamera && !freeCameraRotation) {
+    if (gameState != GameState::Dialogue) {
+        if (!freeCamera && followCamera && !freeCameraRotation) {
 #ifdef NEW_CAM
-        static constexpr auto cameraOffset = psyqo::Vec3{
-            .x = -0.1,
-            .y = 0.32,
-            .z = -0.40,
-        };
-        static constexpr auto cameraPitch = psyqo::FixedPoint<10>(0.12);
+            static constexpr auto cameraPitch = psyqo::FixedPoint<10>(0.12);
 #else
-        static constexpr auto cameraOffset = psyqo::Vec3{
-            .x = -0.10,
-            .y = 0.20,
-            .z = -0.42,
-        };
-        static constexpr auto cameraPitch = psyqo::FixedPoint<10>(0.035);
+            static constexpr auto cameraPitch = psyqo::FixedPoint<10>(0.035);
 #endif
-
-        const auto fwdVector = player.getFront();
-        const auto rightVector = player.getRight();
-
-        const auto& playerPos = player.getPosition();
-        camera.position.y = playerPos.y + cameraOffset.y;
-        camera.position.x =
-            playerPos.x + fwdVector.x * cameraOffset.z + rightVector.x * cameraOffset.x;
-        camera.position.z =
-            playerPos.z + fwdVector.z * cameraOffset.z + rightVector.z * cameraOffset.x;
-
-        camera.rotation.x = cameraPitch;
-        camera.rotation.y = player.getYaw();
-
-        // for now set the camera at constant height so that the curbs feel better
-#ifdef NEW_CAM
-        camera.position.y = 0.32;
-#else
-        camera.position.y = 0.20;
-#endif
-    }
-
-    if (!freeCamera && followCamera && freeCameraRotation) {
-        constexpr auto rotateSpeed = psyqo::FixedPoint<>(0.8);
-        auto& pad = game.pad;
-        const auto dt = game.frameDt;
-        if (pad.isButtonPressed(psyqo::SimplePad::L1)) {
-            camera.rotation.y += psyqo::Angle(rotateSpeed * dt);
-        }
-        if (pad.isButtonPressed(psyqo::SimplePad::R1)) {
-            camera.rotation.y -= psyqo::Angle(rotateSpeed * dt);
+            camera.rotation.x = cameraPitch;
+            camera.rotation.y = player.getYaw();
         }
 
-        static constexpr auto cameraPitch = psyqo::FixedPoint<10>(0.12);
-        camera.rotation.x = cameraPitch;
+        if (!freeCamera && followCamera && freeCameraRotation) {
+            constexpr auto rotateSpeed = psyqo::FixedPoint<>(0.8);
+            auto& pad = game.pad;
+            const auto dt = game.frameDt;
+            if (pad.isButtonPressed(psyqo::SimplePad::L1)) {
+                camera.rotation.y += psyqo::Angle(rotateSpeed * dt);
+            }
+            if (pad.isButtonPressed(psyqo::SimplePad::R1)) {
+                camera.rotation.y -= psyqo::Angle(rotateSpeed * dt);
+            }
+
+            camera.rotation.x = freeCameraRotPitch;
+        }
     }
 
-    // calculate camera rotation matrix
-    getRotationMatrix33RH(
-        &camera.view.rotation, -camera.rotation.y, psyqo::SoftMath::Axis::Y, trig);
-    psyqo::Matrix33 viewRotX;
-    getRotationMatrix33RH(&viewRotX, -camera.rotation.x, psyqo::SoftMath::Axis::X, trig);
+    calculateViewMatrix(&camera.view.rotation, camera.rotation.x, camera.rotation.y, trig);
 
-    psyqo::GTE::Math::multiplyMatrix33<psyqo::GTE::PseudoRegister::Rotation,
-        psyqo::GTE::PseudoRegister::V0>(viewRotX, camera.view.rotation, &camera.view.rotation);
-
-    // PS1 has Y-down, so here's a fix for that
-    // (basically, this is the same as doing 180-degree roll)
-    camera.view.rotation.vs[0] = -camera.view.rotation.vs[0];
-    camera.view.rotation.vs[1] = -camera.view.rotation.vs[1];
+    if (gameState != GameState::Dialogue && followCamera && !freeCamera) {
+        camera.position = getCameraDesiredPosition(camera.rotation.x, camera.rotation.y);
+    }
 
     camera.view.translation = -camera.position;
     // We do this on CPU because -camera.position can be outside of 4.12 fixed point range
     psyqo::SoftMath::matrixVecMul3(
         camera.view.rotation, camera.view.translation, &camera.view.translation);
+}
 
-    if (followCamera && !freeCamera) {
-        auto cameraFront = camera.view.rotation.vs[2];
-        const auto dist = psyqo::FixedPoint<>(0.35);
-        cameraFront.x *= dist;
-        cameraFront.y *= dist;
-        cameraFront.z *= dist;
-        // camera.rotation.x = 0.07;
-        camera.position =
-            player.getPosition() + psyqo::Vec3{.x = 0, .y = 0.15, .z = 0} - cameraFront;
+psyqo::Vec3 GameplayScene::getCameraDesiredPosition(psyqo::Angle pitch,
+    psyqo::Angle yaw,
+    bool useCurrentCameraRotMatrix)
+{
+    psyqo::Vec3 desiredPosition{};
+
+    if (followCamera && !freeCameraRotation) {
+        const auto fwdVector = player.getFront();
+        const auto rightVector = player.getRight();
+
+        const auto& playerPos = player.getPosition();
+        desiredPosition.y = playerPos.y + cameraOffset.y;
+        desiredPosition.x =
+            playerPos.x + fwdVector.x * cameraOffset.z + rightVector.x * cameraOffset.x;
+        desiredPosition.z =
+            playerPos.z + fwdVector.z * cameraOffset.z + rightVector.z * cameraOffset.x;
+
+        // for now set the camera at constant height so that the curbs feel better
+#ifdef NEW_CAM
+        desiredPosition.y = 0.32;
+#else
+        desiredPosition.y = 0.20;
+#endif
+    } else {
+        psyqo::Vec3 cameraFront;
+        if (useCurrentCameraRotMatrix) {
+            cameraFront = camera.view.rotation.vs[2];
+        } else {
+            // see calculateViewMatrix
+            const auto sx = game.trig.sin(pitch);
+            const auto cx = game.trig.cos(pitch);
+            const auto sy = game.trig.sin(yaw);
+            const auto cy = game.trig.cos(yaw);
+            cameraFront.x = cx * sy;
+            cameraFront.y = -sx;
+            cameraFront.z = cx * cy;
+        }
+
+        desiredPosition =
+            player.getPosition() + freeCameraOffset - cameraFront * freeCameraDistance;
     }
+
+    return desiredPosition;
 }
 
 void GameplayScene::update()
@@ -758,7 +778,7 @@ void GameplayScene::handleFloorCollision()
         lerpF = eastl::clamp(lerpF, zero, one);
 
         static constexpr auto roadHeight = psyqo::FixedPoint<>(-0.02); // TODO: get from tile info
-        player.transform.translation.y = lerp(roadHeight, 0.0, lerpF);
+        player.transform.translation.y = math::lerp(0.0, roadHeight, lerpF);
     }
 }
 
@@ -1136,23 +1156,21 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
 
         const auto playerTileIndex = TileMap::getTileIndex(player.getPosition());
 
-        auto front = camera.view.rotation.vs[0];
-
         game.romFont.chainprintf(game.gpu(),
             {{.x = 16, .y = 32}},
             textCol,
-            "front = (%.2f, %.4f, %.2f)",
-            front.x,
-            front.y,
-            front.z);
-
-        game.romFont.chainprintf(game.gpu(),
-            {{.x = 16, .y = 16}},
-            textCol,
-            "pos = (%.2f, %.2f, %.2f)",
+            "cam = (%.2f, %.2f, %.2f)",
             camera.position.x,
             camera.position.y,
             camera.position.z);
+
+        int currActionIdx = 0;
+        if (game.actionListManager.isActionListPlaying("interact"_sh)) {
+            const auto& l = game.actionListManager.getActionList("interact"_sh);
+            currActionIdx = l.getCurrentActionIndex();
+        }
+        game.romFont.chainprintf(
+            game.gpu(), {{.x = 16, .y = 16}}, textCol, "gs =  %s, i = %d", stateStr, currActionIdx);
 
         /*
         game.romFont.chainprintf(game.gpu(),
@@ -1315,20 +1333,27 @@ void GameplayScene::playTestCutscene()
 void GameplayScene::beginCutscene(ActionList& list)
 {
     list.addAction([this]() {
+        // TODO: "stopMovement"
+        player.animator.setAnimation("Idle"_sh);
         gameState = GameState::Dialogue;
         cutsceneBorderHeight = 0;
         cutsceneStart = true;
     });
 }
 
-void GameplayScene::endCutscene(ActionList& list)
+void GameplayScene::endCutscene(ActionList& list, bool restoreOldCamera)
 {
-    oldTransformCutscene = CameraTransform{
-        .position = camera.position,
-        .rotation = camera.rotation,
-    };
-    list.addAction([this]() {
-        camera.setTransform(oldTransformCutscene);
+    if (restoreOldCamera) {
+        oldTransformCutscene = CameraTransform{
+            .position = camera.position,
+            .rotation = camera.rotation,
+        };
+    }
+
+    list.addAction([this, restoreOldCamera]() {
+        if (restoreOldCamera) {
+            camera.setTransform(oldTransformCutscene);
+        }
         gameState = GameState::Normal;
 
         cutsceneStart = false;
@@ -1344,11 +1369,29 @@ void GameplayScene::npcInteractSay(AnimatedModelObject& interactNPC, const eastl
         .dialogueBox = dialogueBox,
     };
 
+    auto t = CameraTransform{
+        .position = {-0.1369, 0.0869, -1.0322},
+        .rotation = {-0.0683, -0.8144},
+    };
+
+    auto fpos = CameraTransform{
+        .rotation = {freeCameraRotPitch, -0.8222},
+    };
+
+    fpos.position = getCameraDesiredPosition(freeCameraRotPitch, fpos.rotation.y, false);
+
     beginCutscene(cutscene);
+    // clang-format off
     builder //
-        .rotateTowards(npc, player)
-        .say(text);
-    endCutscene(cutscene);
+        .parallelBegin()
+            .moveCamera(t, 0.5)
+            .rotateTowards(player, npc, 3.0)
+            .rotateTowards(npc, player, 3.0)
+        .parallelEnd()
+        .say(text)
+        .moveCamera(fpos, 0.5);
+    // clang-format 
+    endCutscene(cutscene, false);
 
     game.actionListManager.addActionList(eastl::move(cutscene));
 }

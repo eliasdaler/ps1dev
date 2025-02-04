@@ -41,3 +41,8 @@ bool ActionListManager::isActionListPlaying(StringHash actionListName) const
 {
     return actionLists.count(actionListName) != 0; // eastl hash map has no contains?
 };
+
+const ActionList& ActionListManager::getActionList(const StringHash actionListName) const
+{
+    return actionLists.at(actionListName);
+}

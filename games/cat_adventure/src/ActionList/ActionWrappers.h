@@ -17,18 +17,19 @@ struct AnimatedModelObject;
 
 namespace actions
 {
-eastl::unique_ptr<Action> delay(std::uint32_t delayDurationSeconds);
-eastl::unique_ptr<Action> waitWhile(WaitWhileAction::ConditionFuncType f);
-eastl::unique_ptr<Action> say(DialogueBox& dialogueBox, eastl::string_view text);
-
 struct ActionListBuilder {
     ActionList& actionList;
     Camera& camera;
     DialogueBox& dialogueBox;
 
+    const ActionListBuilder& parallelBegin() const;
+    const ActionListBuilder& parallelEnd() const;
+
     const ActionListBuilder& delay(std::uint32_t delayDurationSeconds) const;
     const ActionListBuilder& waitWhile(WaitWhileAction::ConditionFuncType f) const;
     const ActionListBuilder& setCamera(const CameraTransform& transform) const;
+    const ActionListBuilder& moveCamera(const CameraTransform& transform,
+        psyqo::FixedPoint<> moveTime) const;
 
     const ActionListBuilder& say(eastl::string_view text) const;
     const ActionListBuilder& say(eastl::string_view text, const CameraTransform& transform) const;
@@ -62,7 +63,8 @@ struct ActionListBuilder {
     const ActionListBuilder& setFaceAnim(AnimatedModelObject& object, StringHash faceName) const;
 
     const ActionListBuilder& rotateTowards(AnimatedModelObject& object,
-        const AnimatedModelObject& target) const;
+        const AnimatedModelObject& target,
+        psyqo::FixedPoint<> speed = 1.0) const;
 };
 
 }

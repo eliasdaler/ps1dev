@@ -28,7 +28,7 @@ bool SayAction::enter()
     return false;
 }
 
-bool SayAction::update(std::uint32_t dt)
+bool SayAction::isFinished() const
 {
     return dialogueBox.wantClose;
 }

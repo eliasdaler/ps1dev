@@ -3,6 +3,8 @@
 #include "Actions/ActionListFinishAction.h"
 #include "Actions/DoAction.h"
 
+#include <common/syscalls/syscalls.h>
+
 ActionList::ActionList() : ActionList("empty"_sh)
 {}
 
@@ -15,22 +17,20 @@ ActionList::ActionList(StringHash name, eastl::vector<eastl::unique_ptr<Action>>
 
 void ActionList::addAction(eastl::unique_ptr<Action> action)
 {
+    if (onAddSetParallel) {
+        action->parallel = true;
+    }
     actions.push_back(eastl::move(action));
 }
 
 void ActionList::addAction(eastl::function<void()> action)
 {
-    actions.push_back(eastl::make_unique<DoAction>(eastl::move(action)));
+    addAction(eastl::make_unique<DoAction>(eastl::move(action)));
 }
 
 void ActionList::addAction(ActionList actionList)
 {
-    actions.push_back(eastl::make_unique<ActionListFinishAction>(eastl::move(actionList)));
-}
-
-void ActionList::addActionFront(eastl::unique_ptr<Action> action)
-{
-    actions.insert(actions.begin(), eastl::move(action));
+    addAction(eastl::make_unique<ActionListFinishAction>(eastl::move(actionList)));
 }
 
 bool ActionList::isFinished() const
@@ -52,7 +52,39 @@ void ActionList::update(std::uint32_t dt)
     }
 
     auto& action = *actions[currentIdx];
-    if (bool finished = action.update(dt); finished) {
+    if (action.parallel) {
+        updateParallelActions(dt);
+        return;
+    }
+
+    action.update(dt);
+    if (action.isFinished()) {
+        goToNextAction();
+    }
+}
+
+void ActionList::updateParallelActions(std::uint32_t dt)
+{
+    bool hasUnfinishedActions = false;
+    int numParallelActions = 0;
+    for (std::size_t i = currentIdx; i < actions.size(); ++i) {
+        auto& action = *actions[i];
+        if (!action.parallel) {
+            break;
+        }
+        ++numParallelActions;
+        if (!action.isFinished()) {
+            action.update(dt);
+            if (!action.isFinished()) {
+                hasUnfinishedActions = true;
+            }
+        }
+    }
+    if (!hasUnfinishedActions) {
+        // -1 because goToNextAction will call advance
+        for (int i = 0; i < numParallelActions - 1; ++i) {
+            advanceIndex();
+        }
         goToNextAction();
     }
 }
@@ -88,9 +120,27 @@ void ActionList::goToNextAction()
         }
 
         auto& action = *actions[currentIdx];
-        const auto finished = action.enter();
-        if (!finished) {
-            return;
+        if (!action.parallel) {
+            const auto finished = action.enter();
+            if (!finished) {
+                return;
+            }
+        } else {
+            // enter N parallel actions
+            bool hasUnfinished = false;
+            for (std::size_t i = currentIdx; i < actions.size(); ++i) {
+                auto& action = *actions[i];
+                if (!action.parallel) {
+                    break;
+                }
+                const auto finished = action.enter();
+                if (!finished) {
+                    hasUnfinished = true;
+                }
+            }
+            if (hasUnfinished) {
+                return;
+            }
         }
     }
 }

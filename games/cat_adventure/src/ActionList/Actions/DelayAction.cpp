@@ -12,10 +12,9 @@ bool DelayAction::enter()
     return isFinished();
 }
 
-bool DelayAction::update(std::uint32_t dt)
+void DelayAction::update(std::uint32_t dt)
 {
     currentTime += dt;
-    return isFinished();
 }
 
 bool DelayAction::isFinished() const

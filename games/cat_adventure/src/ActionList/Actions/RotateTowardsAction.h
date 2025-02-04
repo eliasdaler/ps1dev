@@ -2,8 +2,6 @@
 
 #include <ActionList/Action.h>
 
-#include <Core/StringHash.h>
-
 #include <psyqo/fixed-point.hh>
 #include <psyqo/trigonometry.hh>
 
@@ -16,7 +14,7 @@ public:
         psyqo::FixedPoint<> rotationSpeed);
 
     bool enter() override;
-    bool update(std::uint32_t dt) override;
+    bool isFinished() const override;
 
 private:
     AnimatedModelObject* objectPtr{nullptr};

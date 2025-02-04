@@ -17,6 +17,7 @@ public:
 
     void stopActionList(StringHash actionListName);
     bool isActionListPlaying(const StringHash actionListName) const;
+    const ActionList& getActionList(const StringHash actionListName) const;
 
     const ActionListMap& getActionLists() const { return actionLists; }
 

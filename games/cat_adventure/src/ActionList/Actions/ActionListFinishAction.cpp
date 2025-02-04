@@ -10,8 +10,12 @@ bool ActionListFinishAction::enter()
     return actionList.isFinished();
 }
 
-bool ActionListFinishAction::update(std::uint32_t dt)
+void ActionListFinishAction::update(std::uint32_t dt)
 {
     actionList.update(dt);
+}
+
+bool ActionListFinishAction::isFinished() const
+{
     return actionList.isFinished();
 }

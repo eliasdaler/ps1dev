@@ -96,7 +96,7 @@ protected:
     psyqo::Angle startYaw{0.0};
     psyqo::Angle targetYaw{0.0};
     std::uint32_t rotationTimer{};
-    std::uint32_t rotationTime{};
+    std::uint32_t rotationTime{}; // in mcs
     psyqo::FixedPoint<> rotationSpeed{1.0}; // half turns / second
 };
 

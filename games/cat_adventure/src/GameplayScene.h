@@ -39,6 +39,10 @@ private:
     void handleCollision(psyqo::SoftMath::Axis axis);
     void updateCamera();
 
+    psyqo::Vec3 getCameraDesiredPosition(psyqo::Angle pitch,
+        psyqo::Angle yaw,
+        bool useCurrentCameraRotMatrix = true);
+
     void npcInteractSay(AnimatedModelObject& interactNPC, const eastl::string_view text);
 
     void calculateTileVisibility();
@@ -52,7 +56,7 @@ private:
 
     void playTestCutscene();
     void beginCutscene(ActionList& list);
-    void endCutscene(ActionList& list);
+    void endCutscene(ActionList& list, bool restoreOldCamera = true);
 
     Game& game;
 

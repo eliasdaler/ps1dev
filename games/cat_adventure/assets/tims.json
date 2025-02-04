@@ -42,7 +42,7 @@
   ],
   "fonts": [
     {
-      "input": "raw/fonts/DejaVuSerif.ttf",
+      "input": "raw/fonts/jfdot_kappa.ttf",
       "output": "font.tim",
       "glyph_output": "font.fnt",
       "bits": 4,

@@ -12,7 +12,7 @@ public:
     SetAnimAndWaitAction(AnimatedModelObject& object, StringHash animName, StringHash faceAnimName);
 
     bool enter() override;
-    bool update(std::uint32_t dt) override;
+    bool isFinished() const override;
 
 private:
     AnimatedModelObject* objectPtr{nullptr};

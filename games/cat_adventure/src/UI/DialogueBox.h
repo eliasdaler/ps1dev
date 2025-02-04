@@ -17,8 +17,7 @@ public:
     DialogueBox();
     void handleInput(const PadManager& pad);
     void update();
-    void draw(
-        Renderer& renderer,
+    void draw(Renderer& renderer,
         const Font& font,
         const TextureInfo& fontAtlasTexture,
         const TextureInfo& borderTexture);
@@ -29,7 +28,7 @@ public:
     bool displayMoreTextArrow{true};
 
     psyqo::Vertex position{{.x = 60, .y = 140}};
-    psyqo::Vertex size{{.x = 200, .y = 72}};
+    psyqo::Vertex size{{.x = 200, .y = 64}};
     psyqo::Vertex textOffset{{.x = 2, .y = 0}};
 
     bool isOpen{false};
@@ -41,8 +40,7 @@ private:
     void drawText(Renderer& renderer, const Font& font, const TextureInfo& fontAtlasTexture);
     void drawMoreTextIndicator(Renderer& renderer, const TextureInfo& borderTexture);
 
-    void drawLine(
-        Renderer::PrimBufferAllocatorType& primBuffer,
+    void drawLine(Renderer::PrimBufferAllocatorType& primBuffer,
         psyqo::GPU& gpu,
         int16_t aX,
         int16_t aY,

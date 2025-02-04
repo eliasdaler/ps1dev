@@ -6,8 +6,7 @@ SetAnimAndWaitAction::SetAnimAndWaitAction(AnimatedModelObject& object, StringHa
     objectPtr(&object), animName(animName)
 {}
 
-SetAnimAndWaitAction::SetAnimAndWaitAction(
-    AnimatedModelObject& object,
+SetAnimAndWaitAction::SetAnimAndWaitAction(AnimatedModelObject& object,
     StringHash animName,
     StringHash faceAnimName) :
     objectPtr(&object), animName(animName), faceAnimName(faceAnimName)
@@ -22,7 +21,7 @@ bool SetAnimAndWaitAction::enter()
     return false;
 }
 
-bool SetAnimAndWaitAction::update(std::uint32_t dt)
+bool SetAnimAndWaitAction::isFinished() const
 {
     return objectPtr->animator.animationJustEnded();
 }

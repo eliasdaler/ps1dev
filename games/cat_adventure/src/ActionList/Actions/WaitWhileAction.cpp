@@ -13,8 +13,12 @@ bool WaitWhileAction::enter()
     return !res;
 }
 
-bool WaitWhileAction::update(std::uint32_t dt)
+void WaitWhileAction::update(std::uint32_t dt)
 {
-    bool res = f(dt);
-    return !res;
+    finished = (f(dt) == false);
+}
+
+bool WaitWhileAction::isFinished() const
+{
+    return finished;
 }

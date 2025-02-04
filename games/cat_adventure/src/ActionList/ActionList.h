@@ -32,7 +32,6 @@ public:
     void addAction(eastl::unique_ptr<Action> action);
     void addAction(eastl::function<void()> action);
     void addAction(ActionList actionList);
-    void addActionFront(eastl::unique_ptr<Action> action);
 
     void play(); // starts playback of an action list from the beginning
 
@@ -55,9 +54,14 @@ public:
 
     bool isPlaying() const { return !isFinished() && wasPlayCalled; }
 
+    void enableParallelActionsMode() { onAddSetParallel = true; }
+    void disableParallelActionsMode() { onAddSetParallel = false; }
+
 private:
     bool runWhenGameIsPaused{false};
+    bool onAddSetParallel{false}; // when true - addAction will mark actions as parallel
 
+    void updateParallelActions(std::uint32_t dt);
     void goToNextAction();
     void advanceIndex();
 

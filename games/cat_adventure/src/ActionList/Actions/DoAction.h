@@ -11,6 +11,7 @@ public:
     DoAction(eastl::string name, eastl::function<void()> f);
 
     bool enter() override;
+    bool isFinished() const override { return true; }
 
     const eastl::string& getName() const { return name; }
 

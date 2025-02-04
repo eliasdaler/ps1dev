@@ -7,9 +7,8 @@ public:
     DelayAction(std::uint32_t delayDurationSeconds);
 
     bool enter() override;
-    bool update(std::uint32_t dt) override;
-
-    bool isFinished() const;
+    void update(std::uint32_t dt) override;
+    bool isFinished() const override;
 
     std::uint32_t getCurrentTime() const { return currentTime; }
     std::uint32_t getDelayMicroseconds() const { return delayDurationMicroseconds; }

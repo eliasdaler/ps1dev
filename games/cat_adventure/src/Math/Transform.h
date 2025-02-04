@@ -43,13 +43,16 @@ struct Transform {
 TransformMatrix combineTransforms(const TransformMatrix& parentTransform, const Transform& local);
 
 /* Set gteMathForTranslation = false if one the results would be outside of 4.12 range */
-TransformMatrix combineTransforms(
-    const TransformMatrix& parentTransform,
+TransformMatrix combineTransforms(const TransformMatrix& parentTransform,
     const TransformMatrix& localTransform,
     bool gteMathForTranslation = true);
 
-void getRotationMatrix33RH(
-    psyqo::Matrix33* m,
+void getRotationMatrix33RH(psyqo::Matrix33* m,
     psyqo::Angle t,
     psyqo::SoftMath::Axis a,
+    const psyqo::Trig<>& trig);
+
+void calculateViewMatrix(psyqo::Matrix33* m,
+    psyqo::Angle yaw,
+    psyqo::Angle pitch,
     const psyqo::Trig<>& trig);

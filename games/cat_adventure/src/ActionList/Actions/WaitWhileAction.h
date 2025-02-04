@@ -25,11 +25,13 @@ public:
     WaitWhileAction(eastl::string conditionName, ConditionFuncType f);
 
     bool enter() override;
-    bool update(std::uint32_t dt) override;
+    void update(std::uint32_t dt) override;
+    bool isFinished() const override;
 
     const eastl::string& getConditionName() const { return conditionName; }
 
 private:
     ConditionFuncType f;
     eastl::string conditionName;
+    bool finished{false};
 };

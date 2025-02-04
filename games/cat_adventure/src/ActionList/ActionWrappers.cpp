@@ -1,5 +1,6 @@
 #include <ActionList/ActionWrappers.h>
 
+#include <ActionList/Actions/CameraMoveAction.h>
 #include <ActionList/Actions/DelayAction.h>
 #include <ActionList/Actions/RotateTowardsAction.h>
 #include <ActionList/Actions/SayAction.h>
@@ -12,19 +13,16 @@
 namespace actions
 {
 
-eastl::unique_ptr<Action> delay(std::uint32_t delayDurationSeconds)
+const ActionListBuilder& ActionListBuilder::parallelBegin() const
 {
-    return eastl::make_unique<DelayAction>(delayDurationSeconds);
+    actionList.enableParallelActionsMode();
+    return *this;
 }
 
-eastl::unique_ptr<Action> waitWhile(WaitWhileAction::ConditionFuncType f)
+const ActionListBuilder& ActionListBuilder::parallelEnd() const
 {
-    return eastl::make_unique<WaitWhileAction>(eastl::move(f));
-}
-
-eastl::unique_ptr<Action> say(DialogueBox& dialogueBox, eastl::string_view text)
-{
-    return eastl::make_unique<SayAction>(dialogueBox, text);
+    actionList.disableParallelActionsMode();
+    return *this;
 }
 
 const ActionListBuilder& ActionListBuilder::delay(std::uint32_t delayDurationSeconds) const
@@ -113,6 +111,13 @@ const ActionListBuilder& ActionListBuilder::setCamera(const CameraTransform& tra
     return *this;
 }
 
+const ActionListBuilder& ActionListBuilder::moveCamera(const CameraTransform& transform,
+    psyqo::FixedPoint<> moveTime) const
+{
+    actionList.addAction(eastl::make_unique<CameraMoveAction>(camera, transform, moveTime));
+    return *this;
+}
+
 const ActionListBuilder& ActionListBuilder::setAnim(AnimatedModelObject& object,
     StringHash animName) const
 {
@@ -154,10 +159,10 @@ const ActionListBuilder& ActionListBuilder::setFaceAnim(AnimatedModelObject& obj
 }
 
 const ActionListBuilder& ActionListBuilder::rotateTowards(AnimatedModelObject& object,
-    const AnimatedModelObject& target) const
+    const AnimatedModelObject& target,
+    psyqo::FixedPoint<> speed) const
 {
-    actionList.addAction(
-        eastl::make_unique<RotateTowardsAction>(object, target, psyqo::FixedPoint<>(1.0)));
+    actionList.addAction(eastl::make_unique<RotateTowardsAction>(object, target, speed));
     return *this;
 }
 

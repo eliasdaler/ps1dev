@@ -9,7 +9,8 @@ public:
     ActionListFinishAction(ActionList actionList);
 
     bool enter() override;
-    bool update(std::uint32_t dt) override;
+    void update(std::uint32_t dt) override;
+    bool isFinished() const override;
 
     const ActionList& getActionList() const { return actionList; }
 

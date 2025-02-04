@@ -105,6 +105,7 @@ StringHash getBlinkAnimationName(StringHash faceName)
 {
     // hardcoded for cat now, TODO: implement a generic func later
     switch (faceName.value) {
+    case DEFAULT_FACE_ANIMATION.value:
     case THINK_FACE_ANIMATION.value:
     case ANGRY_FACE_ANIMATION.value:
         return ANGRY_BLINK_FACE_ANIMATION;

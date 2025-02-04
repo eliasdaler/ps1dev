@@ -25,7 +25,7 @@ public:
     SayAction(DialogueBox& dialogueBox, eastl::string_view text, const SayParams& params);
 
     bool enter() override;
-    bool update(std::uint32_t dt) override;
+    bool isFinished() const override;
 
 private:
     DialogueBox& dialogueBox;

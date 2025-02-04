@@ -14,4 +14,13 @@ psyqo::Angle calculateLerpDelta(psyqo::Angle a, psyqo::Angle b, psyqo::Angle spe
 psyqo::FixedPoint<> distanceSq(const psyqo::Vec3& a, const psyqo::Vec3& b);
 
 psyqo::Angle atan2(psyqo::FixedPoint<> y, psyqo::FixedPoint<> x);
+
+// TODO: gte lerp
+inline psyqo::FixedPoint<> lerp(psyqo::FixedPoint<> a,
+    psyqo::FixedPoint<> b,
+    psyqo::FixedPoint<> factor)
+{
+    return a + (b - a) * factor;
+}
+
 }
