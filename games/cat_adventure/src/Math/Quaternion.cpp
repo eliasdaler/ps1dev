@@ -40,13 +40,14 @@ Quaternion operator*(const Quaternion& q1, const Quaternion& q2)
     };
 }
 
-psyqo::FixedPoint<12, std::int16_t> lerp(
-    psyqo::FixedPoint<> a,
+psyqo::FixedPoint<12, std::int16_t> lerp(psyqo::FixedPoint<> a,
     psyqo::FixedPoint<> b,
     psyqo::FixedPoint<> factor)
 {
+    /* return psyqo::FixedPoint<12, std::int16_t>(
+        a * factor + (psyqo::FixedPoint<>(1.0) - factor) * b); */
     return psyqo::FixedPoint<12, std::int16_t>(
-        a * factor + (psyqo::FixedPoint<>(1.0) - factor) * b);
+        (psyqo::FixedPoint<>(1.0) - factor) * a + b * factor);
 }
 
 /* static eastl::fixed_string<char, 512> str;

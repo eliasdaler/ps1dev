@@ -14,7 +14,7 @@ public:
 
     bool enter() override;
     void update(std::uint32_t dt) override;
-    bool isFinished() const;
+    bool isFinished() const override;
 
 private:
     Camera* cameraPtr;

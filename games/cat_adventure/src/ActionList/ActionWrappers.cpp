@@ -118,6 +118,13 @@ const ActionListBuilder& ActionListBuilder::moveCamera(const CameraTransform& tr
     return *this;
 }
 
+const ActionListBuilder& ActionListBuilder::lerp(LerpAction::LerpFuncType f,
+    psyqo::FixedPoint<> time) const
+{
+    actionList.addAction(eastl::make_unique<LerpAction>(eastl::move(f), time));
+    return *this;
+}
+
 const ActionListBuilder& ActionListBuilder::setAnim(AnimatedModelObject& object,
     StringHash animName) const
 {
@@ -163,6 +170,32 @@ const ActionListBuilder& ActionListBuilder::rotateTowards(AnimatedModelObject& o
     psyqo::FixedPoint<> speed) const
 {
     actionList.addAction(eastl::make_unique<RotateTowardsAction>(object, target, speed));
+    return *this;
+}
+
+const ActionListBuilder& ActionListBuilder::rotateHeadTowards(AnimatedModelObject& object,
+    const Quaternion& target,
+    psyqo::FixedPoint<> time) const
+{
+    const auto start = object.model.armature.joints[4].localTransform.rotation;
+    actionList.addAction(eastl::make_unique<LerpAction>(
+        [&object, start, target](psyqo::FixedPoint<> lerpFactor) {
+            object.manualHeadRotation = slerp(start, target, lerpFactor);
+        },
+        time));
+    return *this;
+}
+
+const ActionListBuilder& ActionListBuilder::rotateHeadTowards(AnimatedModelObject& object,
+    const Quaternion& start,
+    const Quaternion& target,
+    psyqo::FixedPoint<> time) const
+{
+    actionList.addAction(eastl::make_unique<LerpAction>(
+        [&object, start, target](psyqo::FixedPoint<> lerpFactor) {
+            object.manualHeadRotation = slerp(start, target, lerpFactor);
+        },
+        time));
     return *this;
 }
 

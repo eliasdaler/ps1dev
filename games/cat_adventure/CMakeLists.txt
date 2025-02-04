@@ -35,6 +35,7 @@ add_executable(game
   ./src/ActionList/Actions/CameraMoveAction.cpp
   ./src/ActionList/Actions/DelayAction.cpp
   ./src/ActionList/Actions/DoAction.cpp
+  ./src/ActionList/Actions/LerpAction.cpp
   ./src/ActionList/Actions/RotateTowardsAction.cpp
   ./src/ActionList/Actions/SayAction.cpp
   ./src/ActionList/Actions/SetAnimAndWaitAction.cpp

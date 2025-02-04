@@ -1857,7 +1857,9 @@ void Renderer::drawArmature(const Armature& armature,
     const auto boneStartM = jt.transformPointMatrixLoaded<L, V0>(boneStartL);
     const auto boneEndM = jt.transformPointMatrixLoaded<L, V0>(boneEndL);
 
-    const auto jointColor = psyqo::Color{.r = 255, .g = 255, .b = 128};
+    const auto jointColor = (joint.id != armature.selectedJoint) ?
+                                psyqo::Color{.r = 255, .g = 255, .b = 128} :
+                                psyqo::Color{.r = 255, .g = 255, .b = 255};
     drawLineLocalSpace(boneStartM, boneEndM, jointColor);
 
     auto currentJointId = joint.firstChild;

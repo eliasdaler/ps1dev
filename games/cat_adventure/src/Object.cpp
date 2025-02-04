@@ -121,6 +121,13 @@ void AnimatedModelObject::update(std::uint32_t dt)
 
     animator.animate(model.armature, jointGlobalTransforms);
 
+    if (useManualHeadRotation) {
+        auto& rot = model.armature.joints[4].localTransform.rotation;
+        rot = manualHeadRotation;
+    }
+
+    model.armature.calculateTransforms(jointGlobalTransforms);
+
     if (faceSubmeshIdx != 0xFF) {
         blinkTimer.update();
         if (!isInBlink) {

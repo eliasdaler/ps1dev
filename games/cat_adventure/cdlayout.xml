@@ -36,9 +36,9 @@
                 <file name="CATOF.TIM" type="data" source="assets/cato_faces.tim"/>
                 <file name="FONT.TIM" type="data" source="assets/font.tim"/>
                 <file name="FONT.FNT" type="data" source="assets/font.fnt"/>
-                <file name="SONG.MID" type="data" source="assets/songs/pd/song.mid"/>
-                <file name="INST.VAB" type="data" source="assets/songs/pd/inst.vab"/>
-                <file name="SMPL.PCM" type="data" source="assets/songs/pd/smpl.pcm"/>
+                <file name="SONG.MID" type="data" source="assets/songs/baofu/song.mid"/>
+                <file name="INST.VAB" type="data" source="assets/songs/baofu/inst.vab"/>
+                <file name="SMPL.PCM" type="data" source="assets/songs/baofu/smpl.pcm"/>
                 <dummy sectors="1024"/>
             </directory_tree>
         </track>

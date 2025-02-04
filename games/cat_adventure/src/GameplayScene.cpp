@@ -201,6 +201,7 @@ void GameplayScene::start(StartReason reason)
     game.activeInteractionTriggerIdx = -1;
 
     player.animator.setAnimation("Idle"_sh);
+    player.model.armature.selectedJoint = 4;
 }
 
 void GameplayScene::initUI()
@@ -1156,13 +1157,25 @@ void GameplayScene::drawDebugInfo(Renderer& renderer)
 
         const auto playerTileIndex = TileMap::getTileIndex(player.getPosition());
 
+        /* game.romFont.chainprintf(game.gpu(),
+            {{.x = 16, .y = 32}},
+            textCol,
+            "(%.2f, %.2f, %.2f), (%.2f, %.2f)",
+            camera.position.x,
+            camera.position.y,
+            camera.position.z,
+            camera.rotation.x,
+            camera.rotation.y); */
+
+        auto& rot = player.model.armature.joints[4].localTransform.rotation;
         game.romFont.chainprintf(game.gpu(),
             {{.x = 16, .y = 32}},
             textCol,
-            "cam = (%.2f, %.2f, %.2f)",
-            camera.position.x,
-            camera.position.y,
-            camera.position.z);
+            "(%.2f, %.2f, %.2f, %.2f)",
+            psyqo::FixedPoint<>(rot.x),
+            psyqo::FixedPoint<>(rot.y),
+            psyqo::FixedPoint<>(rot.z),
+            psyqo::FixedPoint<>(rot.w));
 
         int currActionIdx = 0;
         if (game.actionListManager.isActionListPlaying("interact"_sh)) {
@@ -1380,18 +1393,36 @@ void GameplayScene::npcInteractSay(AnimatedModelObject& interactNPC, const eastl
 
     fpos.position = getCameraDesiredPosition(freeCameraRotPitch, fpos.rotation.y, false);
 
-    beginCutscene(cutscene);
+    const auto startNPCHeadRot = npc.model.armature.joints[4].localTransform.rotation;
+    const auto targetNPCHeadRot = Quaternion{.w = 0.993, .x = 0.120, .y = 0.0, .z = 0.0};
+
+    const auto startPlayerHeadRot = player.model.armature.joints[4].localTransform.rotation;
+    const auto targetPlayerHeadRot = Quaternion{.w = 0.968, .x = -0.251, .y = 0.0, .z = 0.0};
+
+    npc.useManualHeadRotation = true;
+    player.useManualHeadRotation = true;
+
+    static constexpr auto turnSpeed = psyqo::FixedPoint<>(3.0);
+    static constexpr auto headTurnTime = psyqo::FixedPoint<>(0.5);
+
     // clang-format off
+    beginCutscene(cutscene);
     builder //
         .parallelBegin()
             .moveCamera(t, 0.5)
-            .rotateTowards(player, npc, 3.0)
-            .rotateTowards(npc, player, 3.0)
+            .rotateTowards(player, npc, turnSpeed)
+            .rotateHeadTowards(npc, targetNPCHeadRot, headTurnTime)
+            .rotateTowards(npc, player, turnSpeed)
+            .rotateHeadTowards(player, targetPlayerHeadRot, headTurnTime)
         .parallelEnd()
         .say(text)
-        .moveCamera(fpos, 0.5);
-    // clang-format 
+        .parallelBegin()
+            .moveCamera(fpos, 0.5)
+            .rotateHeadTowards(npc, targetNPCHeadRot, startNPCHeadRot, headTurnTime)
+            .rotateHeadTowards(player, targetPlayerHeadRot, startPlayerHeadRot, headTurnTime)
+        .parallelEnd();
     endCutscene(cutscene, false);
+    // clang-format 
 
     game.actionListManager.addActionList(eastl::move(cutscene));
 }

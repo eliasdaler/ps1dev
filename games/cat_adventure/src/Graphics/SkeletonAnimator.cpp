@@ -6,8 +6,7 @@
 
 #include <Game.h>
 
-void SkeletonAnimator::setAnimation(
-    StringHash animationName,
+void SkeletonAnimator::setAnimation(StringHash animationName,
     psyqo::FixedPoint<> playbackSpeed,
     psyqo::FixedPoint<> startAnimationPoint)
 {
@@ -115,8 +114,7 @@ bool SkeletonAnimator::frameJustChanged() const
     return prevFrame != getAnimationFrame();
 }
 
-void SkeletonAnimator::animate(
-    Armature& armature,
+void SkeletonAnimator::animate(Armature& armature,
     eastl::vector<TransformMatrix>& jointGlobalTransforms) const
 {
     if (armature.joints.empty()) {
@@ -129,5 +127,4 @@ void SkeletonAnimator::animate(
 
     const auto& animation = *currentAnimation;
     animateArmature(armature, animation, normalizedAnimTime);
-    armature.calculateTransforms(jointGlobalTransforms);
 }

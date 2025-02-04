@@ -6,6 +6,7 @@
 
 #include <ActionList/Action.h>
 
+#include <ActionList/Actions/LerpAction.h>
 #include <ActionList/Actions/SayAction.h>
 #include <ActionList/Actions/WaitWhileAction.h>
 
@@ -30,6 +31,8 @@ struct ActionListBuilder {
     const ActionListBuilder& setCamera(const CameraTransform& transform) const;
     const ActionListBuilder& moveCamera(const CameraTransform& transform,
         psyqo::FixedPoint<> moveTime) const;
+
+    const ActionListBuilder& lerp(LerpAction::LerpFuncType f, psyqo::FixedPoint<> time) const;
 
     const ActionListBuilder& say(eastl::string_view text) const;
     const ActionListBuilder& say(eastl::string_view text, const CameraTransform& transform) const;
@@ -65,6 +68,15 @@ struct ActionListBuilder {
     const ActionListBuilder& rotateTowards(AnimatedModelObject& object,
         const AnimatedModelObject& target,
         psyqo::FixedPoint<> speed = 1.0) const;
+
+    const ActionListBuilder& rotateHeadTowards(AnimatedModelObject& object,
+        const Quaternion& target,
+        psyqo::FixedPoint<> time) const;
+
+    const ActionListBuilder& rotateHeadTowards(AnimatedModelObject& object,
+        const Quaternion& start,
+        const Quaternion& target,
+        psyqo::FixedPoint<> time) const;
 };
 
 }

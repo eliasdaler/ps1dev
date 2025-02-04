@@ -146,4 +146,7 @@ struct AnimatedModelObject : ModelObject {
     Circle interactionCircle;
 
     psyqo::Vec3 velocity{};
+
+    Quaternion manualHeadRotation;
+    bool useManualHeadRotation{false};
 };
